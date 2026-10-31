@@ -322,7 +322,7 @@ test.describe.serial("робота адміністратора", () => {
     await expect(page.getByText("увімкнено", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/MFA \(TOTP\)/)).toContainText("увімкнено");
     await expect(page.getByText("Статус: увімкнено")).toBeVisible();
-    await expect(page.getByText(founder1.email)).toBeVisible();
+    await expect(page.locator("#main").getByText(founder1.email).first()).toBeVisible();
   });
 
   test("доставка Telegram повторюється після збою й завершується успіхом", async ({ request }) => {

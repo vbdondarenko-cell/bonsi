@@ -20,11 +20,13 @@ for (const width of widths) {
       await page.evaluate(async () => {
         for (let y = 0; y < document.body.scrollHeight; y += 500) {
           window.scrollTo(0, y);
-          await new Promise((r) => setTimeout(r, 40));
+          await new Promise((r) => setTimeout(r, 150));
         }
         window.scrollTo(0, 0);
       });
-      await page.waitForTimeout(600);
+      // Усі reveal-блоки мають з'явитися (інакше контент лишився б невидимим).
+      await page.waitForFunction(() => !document.querySelector('[style*="opacity: 0;"]'), null, { timeout: 5000 });
+      await page.waitForTimeout(300);
 
       const overflow = await page.evaluate(() => {
         const vw = document.documentElement.clientWidth;

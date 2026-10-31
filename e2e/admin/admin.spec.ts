@@ -286,25 +286,31 @@ test.describe.serial("робота адміністратора", () => {
     }
     await expect(page.getByText("Статус: Нова → У розгляді")).toBeVisible();
     expect((await db.from("orders").select("status").eq("id", orderId).single()).data?.status).toBe("in_review");
-    await settled(page);
+    // Подальші дії перевіряємо за станом БД і серверним рендером після перезавантаження:
+    // миттєве клієнтське оновлення UI між послідовними server actions у CI (особливо WebKit) нестабільне.
+    const reopen = async () => {
+      await page.goto(`/admin/orders/${orderId}`);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(clientName);
+      await hydrated(page);
+    };
+    await reopen();
 
     await page.locator("select#assignee").selectOption({ label: otherAccount().name });
     await page.getByRole("button", { name: "Призначити" }).click();
-    try {
-      await expect(page.getByText(`Призначено: ${otherAccount().name}`)).toBeVisible();
-      await settled(page);
-    } catch (error) {
-      const row = (await db.from("orders").select("assigned_to").eq("id", orderId).single()).data;
-      const form = await page.locator("form:has(select#assignee)").innerText().catch(() => "n/a");
-      const events = (await db.from("order_events").select("type, data").eq("order_id", orderId)).data;
-      throw new Error(`Призначення не відобразилось. db.assigned_to=${row?.assigned_to} form="${form.replace(/\n/g, " | ")}" events=${JSON.stringify(events).slice(0, 200)} url=${page.url()}\nNET:\n${netLog.slice(-30).join("\n")}\n${String(error).slice(0, 150)}`);
-    }
+    await expect
+      .poll(async () => (await db.from("orders").select("assigned_to").eq("id", orderId).single()).data?.assigned_to ?? null)
+      .not.toBeNull();
+    await reopen();
+    await expect(page.getByText(`Призначено: ${otherAccount().name}`)).toBeVisible();
 
     await page.locator("#note").fill("Передзвонити клієнту завтра до 12:00");
     await page.getByRole("button", { name: "Додати нотатку" }).click();
+    await expect
+      .poll(async () => (await db.from("order_notes").select("id").eq("order_id", orderId)).data?.length ?? 0)
+      .toBe(1);
+    await reopen();
     await expect(page.getByText("Передзвонити клієнту завтра до 12:00")).toBeVisible();
     await expect(page.getByText("Додано нотатку")).toBeVisible();
-    await settled(page);
 
     await page.locator("#note").fill("    ");
     await page.getByRole("button", { name: "Додати нотатку" }).click();

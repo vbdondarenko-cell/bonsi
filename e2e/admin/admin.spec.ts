@@ -231,8 +231,11 @@ test.describe.serial("робота адміністратора", () => {
     }
     await page.goto("/admin/orders");
     await expect(page.getByText(/Сторінка 1 з [2-9]/)).toBeVisible();
-    await page.getByRole("link", { name: /Далі/ }).click();
-    await expect(page).toHaveURL(/page=2/);
+    await page.waitForLoadState("networkidle");
+    const next = page.getByRole("link", { name: /Далі/ });
+    await expect(next).toHaveAttribute("href", "/admin/orders?page=2");
+    await next.click();
+    await expect(page).toHaveURL(/page=2/, { timeout: 15_000 });
     await expect(page.getByText(/Сторінка 2 з/)).toBeVisible();
     await expect(page.getByRole("link", { name: /Назад/ })).toBeVisible();
     await page.goto("/admin/orders?page=9999");

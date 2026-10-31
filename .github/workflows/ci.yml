@@ -236,7 +236,7 @@ jobs:
               echo '```'; echo "</details>"
             fi
             if [ -f "$dir/.ci/supabase-start.log" ] && ! grep -q "e2e-admin=0" "$dir/.ci/summary.txt" 2>/dev/null; then
-              echo "<details><summary>supabase start</summary>"; echo; echo '```'; tail -n 25 "$dir/.ci/supabase-start.log" | cut -c1-200; echo '```'; echo "</details>"
+              echo "<details><summary>supabase start</summary>"; echo; echo '```'; tail -n 25 "$dir/.ci/supabase-start.log" | grep -viE "key|secret|jwt|password|postgresql://" | cut -c1-200; echo '```'; echo "</details>"
             fi
           }
           {

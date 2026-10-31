@@ -244,51 +244,8 @@ test.describe.serial("робота адміністратора", () => {
     await hydrated(page);
     const next = page.getByRole("link", { name: /Далі/ });
     await expect(next).toHaveAttribute("href", "/admin/orders?page=2");
-    const logs: string[] = [];
-    page.on("request", (r) => logs.push(`REQ ${r.method()} ${r.url().replace("http://localhost:3100", "")} rsc=${r.headers()["rsc"] ?? "-"} prefetch=${r.headers()["next-router-prefetch"] ?? "-"}`));
-    page.on("framenavigated", (fr) => logs.push(`NAV ${fr.url()}`));
-    page.on("pageerror", (e) => logs.push(`PAGEERROR ${String(e).slice(0, 300)}`));
-    page.on("crash", () => logs.push("CRASH"));
-    page.on("dialog", (d) => logs.push(`DIALOG ${d.type()} ${d.message().slice(0, 80)}`));
-    page.on("requestfinished", (r) => logs.push(`DONE ${r.url().replace("http://localhost:3100", "").slice(0, 60)}`));
-    page.on("response", (r) => {
-      logs.push(`${r.status()} ${r.request().method()} ${r.url().replace("http://localhost:3100", "")} ${r.headers()["content-type"] ?? ""} enc=${r.headers()["content-encoding"] ?? "-"}`);
-      if (r.url().includes("_rsc=")) {
-        const t0 = Date.now();
-        r.body().then(
-          (b) => logs.push(`BODY ok ${b.length}b ${Date.now() - t0}ms ${r.url().slice(-30)}`),
-          (e) => logs.push(`BODY err ${String(e).slice(0, 80)} ${Date.now() - t0}ms`),
-        );
-      }
-    });
-    page.on("requestfailed", (r) => logs.push(`FAILED ${r.url()} ${r.failure()?.errorText}`));
-    page.on("console", (m) => logs.push(`console.${m.type()}: ${m.text().slice(0, 200)}`));
-    logs.push(`CLICK at ${await page.evaluate(() => `${document.readyState} t=${Math.round(performance.now())}`)}`);
     await next.click();
-    try {
-      await expect(page).toHaveURL(/page=2/, { timeout: 10_000 });
-    } catch (error) {
-      const state = await page.evaluate(() => ({
-        url: location.href,
-        heading: document.body.innerText.match(/Сторінка \d+ з \d+/)?.[0] ?? null,
-        errorText: document.body.innerText.slice(0, 200),
-        hasNextData: typeof (window as unknown as { next?: unknown }).next,
-      }));
-      logs.push(`STATE ${JSON.stringify(state)}`);
-      await next.click();
-      logs.push(`SECOND CLICK -> ${await page.waitForURL(/page=2/, { timeout: 8_000 }).then(() => "navigated", () => "still stuck")}`);
-      for (const [label, headers] of [["document", {}], ["rsc", { RSC: "1" }]] as const) {
-        const started = Date.now();
-        try {
-          const res = await page.request.get("/admin/orders?page=2", { headers, timeout: 20_000 });
-          const body = await res.text();
-          logs.push(`PROBE ${label}: ${res.status()} ${body.length}b ${Date.now() - started}ms has-p2=${body.includes("Сторінка 2 з")}`);
-        } catch (probeError) {
-          logs.push(`PROBE ${label}: ERROR ${String(probeError).slice(0, 120)} after ${Date.now() - started}ms`);
-        }
-      }
-      throw new Error(`Навігація пагінації не відбулась.\n${logs.slice(-30).join("\n")}\n${String(error).slice(0, 200)}`);
-    }
+    await expect(page).toHaveURL(/page=2/);
     await expect(page.getByText(/Сторінка 2 з/)).toBeVisible();
     await expect(page.getByRole("link", { name: /Назад/ })).toBeVisible();
     await page.goto("/admin/orders?page=9999");

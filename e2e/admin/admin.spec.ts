@@ -150,8 +150,18 @@ test.describe.serial("робота адміністратора", () => {
   const projectAccount = () => (test.info().project.name === "firefox" ? founder2 : founder1);
   const otherAccount = () => (test.info().project.name === "firefox" ? founder1 : founder2);
 
+  const netLog: string[] = [];
+  const stamp = () => String(Date.now() % 100000);
   test.beforeAll(async ({ browser }) => {
     page = await (await browser.newContext()).newPage();
+    const short = (u: string) => u.replace("http://localhost:3100", "").slice(0, 70);
+    page.on("request", (r) => netLog.push(`${stamp()} REQ ${r.method()} ${short(r.url())} ${r.headers()["next-action"] ? "ACTION" : ""}`));
+    page.on("response", (r) => netLog.push(`${stamp()} RES ${r.status()} ${short(r.url())} ${r.headers()["content-type"] ?? ""}`));
+    page.on("requestfinished", (r) => netLog.push(`${stamp()} FIN ${short(r.url())}`));
+    page.on("requestfailed", (r) => netLog.push(`${stamp()} FAIL ${short(r.url())} ${r.failure()?.errorText}`));
+    page.on("console", (m) => netLog.push(`${stamp()} CONSOLE.${m.type()} ${m.text().slice(0, 120)}`));
+    page.on("pageerror", (e) => netLog.push(`${stamp()} PAGEERROR ${String(e).slice(0, 200)}`));
+    page.on("framenavigated", (fr) => netLog.push(`${stamp()} NAV ${short(fr.url())}`));
   });
   test.afterAll(async () => {
     await page.context().close();
@@ -273,7 +283,7 @@ test.describe.serial("робота адміністратора", () => {
       const row = (await db.from("orders").select("assigned_to").eq("id", orderId).single()).data;
       const form = await page.locator("form:has(select#assignee)").innerText().catch(() => "n/a");
       const events = (await db.from("order_events").select("type, data").eq("order_id", orderId)).data;
-      throw new Error(`Призначення не відобразилось. db.assigned_to=${row?.assigned_to} form="${form.replace(/\n/g, " | ")}" events=${JSON.stringify(events)} url=${page.url()}\n${String(error).slice(0, 150)}`);
+      throw new Error(`Призначення не відобразилось. db.assigned_to=${row?.assigned_to} form="${form.replace(/\n/g, " | ")}" events=${JSON.stringify(events).slice(0, 200)} url=${page.url()}\nNET:\n${netLog.slice(-30).join("\n")}\n${String(error).slice(0, 150)}`);
     }
 
     await page.locator("#note").fill("Передзвонити клієнту завтра до 12:00");

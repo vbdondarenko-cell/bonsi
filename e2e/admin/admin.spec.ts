@@ -271,8 +271,10 @@ test.describe.serial("робота адміністратора", () => {
 
   test("неіснуюча або некоректна заявка → 404", async () => {
     for (const id of ["99999999-9999-4999-8999-999999999999", "not-a-uuid", "1%20or%201=1"]) {
-      const response = await page.goto(`/admin/orders/${id}`);
-      expect(response?.status()).toBe(404);
+      // Сторінка стрімиться (loading.tsx), тому HTTP-статус уже 200: перевіряємо вміст 404 і noindex.
+      await page.goto(`/admin/orders/${id}`);
+      await expect(page.getByText("Сторінку не знайдено")).toBeVisible();
+      await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(1);
     }
   });
 

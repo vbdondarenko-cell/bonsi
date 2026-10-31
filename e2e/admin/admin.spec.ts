@@ -240,6 +240,7 @@ test.describe.serial("робота адміністратора", () => {
     await page.goto("/admin/orders");
     await expect(page.getByText(/Сторінка 1 з [2-9]/)).toBeVisible();
     await hydrated(page);
+    await page.waitForTimeout(1_500); // клієнтський роутер Next ініціалізується в effect після гідратації
     const next = page.getByRole("link", { name: /Далі/ });
     await expect(next).toHaveAttribute("href", "/admin/orders?page=2");
     const logs: string[] = [];
@@ -273,6 +274,8 @@ test.describe.serial("робота адміністратора", () => {
         hasNextData: typeof (window as unknown as { next?: unknown }).next,
       }));
       logs.push(`STATE ${JSON.stringify(state)}`);
+      await next.click();
+      logs.push(`SECOND CLICK -> ${await page.waitForURL(/page=2/, { timeout: 8_000 }).then(() => "navigated", () => "still stuck")}`);
       for (const [label, headers] of [["document", {}], ["rsc", { RSC: "1" }]] as const) {
         const started = Date.now();
         try {

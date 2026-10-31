@@ -223,6 +223,11 @@ jobs:
                 echo '```'; echo "</details>"
               fi
             done
+            if [ -f "$dir/.ci/e2e-admin.log" ] && ! grep -q "^e2e-admin=0$" "$dir/.ci/summary.txt" 2>/dev/null; then
+              echo "<details open><summary>app server output (errors/warnings)</summary>"; echo; echo '```'
+              strip "$dir/.ci/e2e-admin.log" | grep -iE "\[WebServer\]|error|digest|unhandled|warn" | grep -vE "^\s+(at|[0-9]+ \|)|✓|✘|Error Context|expect\(|Expected|Received|Call log" | tail -n 40 | cut -c1-260
+              echo '```'; echo "</details>"
+            fi
             if [ -f "$dir/.ci/supabase-start.log" ] && ! grep -q "e2e-admin=0" "$dir/.ci/summary.txt" 2>/dev/null; then
               echo "<details><summary>supabase start</summary>"; echo; echo '```'; tail -n 25 "$dir/.ci/supabase-start.log" | cut -c1-200; echo '```'; echo "</details>"
             fi

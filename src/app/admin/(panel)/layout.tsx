@@ -19,7 +19,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       <aside className="flex flex-col gap-4 lg:sticky lg:top-8 lg:h-[calc(100dvh-4rem)] lg:w-60 lg:shrink-0 lg:justify-between">
         <div className="flex flex-col gap-4 lg:gap-10">
           <div className="flex items-center justify-between">
-            <Link href="/admin" className="font-mono text-lg font-semibold tracking-[0.2em]">
+            <Link prefetch={false} href="/admin" className="font-mono text-lg font-semibold tracking-[0.2em]">
               BONSI<span className="text-accent-soft">.</span>
               <span className="ml-3 text-xs font-normal uppercase tracking-widest text-muted">admin</span>
             </Link>

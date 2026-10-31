@@ -63,7 +63,7 @@ export default async function DashboardPage() {
           <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Показники за статусами">
             {cards.map((card) => (
               <li key={card.status}>
-                <Link
+                <Link prefetch={false}
                   href={`/admin/orders?status=${card.status}`}
                   className="group flex h-full flex-col justify-between gap-6 rounded-[var(--radius-card)] border border-line bg-surface/70 p-5 transition-colors hover:border-accent-soft/70"
                 >
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
             <ul className="divide-y divide-line">
               {rows.map((row) => (
                 <li key={row.id}>
-                  <Link
+                  <Link prefetch={false}
                     href={`/admin/orders/${row.id}`}
                     className="flex flex-col gap-2 py-4 transition-colors hover:text-accent-soft sm:flex-row sm:items-center sm:justify-between"
                   >

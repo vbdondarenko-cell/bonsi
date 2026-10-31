@@ -94,7 +94,7 @@ export default async function OrdersPage({
         <div className="flex gap-3 sm:col-span-2 lg:col-span-6">
           <button type="submit" className={buttonStyles("primary", "min-h-11")}>Застосувати</button>
           {hasFilters ? (
-            <Link href="/admin/orders" className={buttonStyles("ghost", "min-h-11")}>Скинути</Link>
+            <Link prefetch={false} href="/admin/orders" className={buttonStyles("ghost", "min-h-11")}>Скинути</Link>
           ) : null}
         </div>
       </form>
@@ -103,7 +103,7 @@ export default async function OrdersPage({
         <EmptyState
           title="Такої сторінки немає"
           description="У списку менше сторінок, ніж у посиланні. Поверніться до першої сторінки."
-          action={<Link href={`/admin/orders${filtersToQuery(filters, { page: 1 })}`} className={buttonStyles("ghost", "min-h-11")}>На першу сторінку</Link>}
+          action={<Link prefetch={false} href={`/admin/orders${filtersToQuery(filters, { page: 1 })}`} className={buttonStyles("ghost", "min-h-11")}>На першу сторінку</Link>}
         />
       ) : rows.length === 0 ? (
         hasFilters ? (

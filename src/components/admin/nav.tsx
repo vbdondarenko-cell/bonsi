@@ -17,7 +17,7 @@ export function AdminNav() {
       {items.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         return (
-          <Link
+          <Link prefetch={false}
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}

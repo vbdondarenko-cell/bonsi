@@ -32,7 +32,7 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
     return (
       <div role="alert" className="rounded-2xl border border-danger/40 bg-danger/10 p-6">
         <p className="font-medium">Не вдалося завантажити заявку.</p>
-        <Link href="/admin/orders" className="mt-3 inline-block text-sm text-accent-soft underline">До списку</Link>
+        <Link prefetch={false} href="/admin/orders" className="mt-3 inline-block text-sm text-accent-soft underline">До списку</Link>
       </div>
     );
   }
@@ -63,7 +63,7 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/admin/orders" className="text-sm text-muted hover:text-fg">
+      <Link prefetch={false} href="/admin/orders" className="text-sm text-muted hover:text-fg">
         ← Усі заявки
       </Link>
       <PageHeader eyebrow={o.ticket_number as string} title={o.name as string}>

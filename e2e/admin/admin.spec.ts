@@ -245,6 +245,10 @@ test.describe.serial("робота адміністратора", () => {
     const logs: string[] = [];
     page.on("request", (r) => logs.push(`REQ ${r.method()} ${r.url().replace("http://localhost:3100", "")} rsc=${r.headers()["rsc"] ?? "-"} prefetch=${r.headers()["next-router-prefetch"] ?? "-"}`));
     page.on("framenavigated", (fr) => logs.push(`NAV ${fr.url()}`));
+    page.on("pageerror", (e) => logs.push(`PAGEERROR ${String(e).slice(0, 300)}`));
+    page.on("crash", () => logs.push("CRASH"));
+    page.on("dialog", (d) => logs.push(`DIALOG ${d.type()} ${d.message().slice(0, 80)}`));
+    page.on("requestfinished", (r) => logs.push(`DONE ${r.url().replace("http://localhost:3100", "").slice(0, 60)}`));
     page.on("response", (r) => {
       logs.push(`${r.status()} ${r.request().method()} ${r.url().replace("http://localhost:3100", "")} ${r.headers()["content-type"] ?? ""} enc=${r.headers()["content-encoding"] ?? "-"}`);
       if (r.url().includes("_rsc=")) {
@@ -257,6 +261,7 @@ test.describe.serial("робота адміністратора", () => {
     });
     page.on("requestfailed", (r) => logs.push(`FAILED ${r.url()} ${r.failure()?.errorText}`));
     page.on("console", (m) => logs.push(`console.${m.type()}: ${m.text().slice(0, 200)}`));
+    logs.push(`CLICK at ${await page.evaluate(() => `${document.readyState} t=${Math.round(performance.now())}`)}`);
     await next.click();
     try {
       await expect(page).toHaveURL(/page=2/, { timeout: 10_000 });

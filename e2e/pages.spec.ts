@@ -19,13 +19,17 @@ for (const width of widths) {
       // Прокрутка, щоб спрацювали reveal-анімації перед знімком.
       await page.evaluate(async () => {
         for (let y = 0; y < document.body.scrollHeight; y += 500) {
-          window.scrollTo(0, y);
+          window.scrollTo({ top: y, behavior: "instant" });
           await new Promise((r) => setTimeout(r, 150));
         }
-        window.scrollTo(0, 0);
+        window.scrollTo({ top: 0, behavior: "instant" });
       });
       // Усі reveal-блоки мають з'явитися (інакше контент лишився б невидимим).
-      await page.waitForFunction(() => !document.querySelector('[style*="opacity: 0;"]'), null, { timeout: 5000 });
+      await page.waitForFunction(
+        () => Array.from(document.querySelectorAll<HTMLElement>("main [style*='opacity']")).every((el) => Number(getComputedStyle(el).opacity) > 0.99),
+        null,
+        { timeout: 5000 },
+      );
       await page.waitForTimeout(300);
 
       const overflow = await page.evaluate(() => {

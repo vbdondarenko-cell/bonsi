@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { PRIVACY_POLICY_VERSION } from "@/lib/legal";
+import { isTelegramEnabled } from "@/lib/notifications/telegram";
 import type { OrderInput } from "./schema";
 
 /** Сервер не налаштований (немає змінних середовища). */
@@ -60,6 +61,7 @@ export async function createOrder(
     p_ip_hash: ipHash,
     p_user_agent: meta.userAgent.slice(0, 300),
     p_consent_policy_version: PRIVACY_POLICY_VERSION,
+    p_notify: isTelegramEnabled(),
   });
 
   if (error) {

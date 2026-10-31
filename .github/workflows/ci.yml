@@ -5,18 +5,83 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      # Після першого коміту package-lock.json замініть на `npm ci`.
-      - run: npm install --no-audit --no-fund
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+
+      # ТИМЧАСОВО: якщо package-lock.json ще немає, генеруємо його й комітимо в гілку PR.
+      # Після появи lockfile цей крок пропускається; перед злиттям його слід прибрати.
+      - name: Generate package-lock.json (bootstrap)
+        if: ${{ hashFiles('package-lock.json') == '' && github.event_name == 'pull_request' }}
+        run: |
+          npm install --package-lock-only --no-audit --no-fund
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: add package-lock.json (generated in CI)"
+          git push origin "HEAD:${{ github.head_ref }}"
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Checks
+        id: checks
+        shell: bash
+        run: |
+          mkdir -p .ci
+          fail=0
+          run() {
+            name="$1"; shift
+            set +e
+            "$@" > ".ci/$name.log" 2>&1
+            code=$?
+            set -e
+            echo "$name=$code" >> .ci/summary.txt
+            if [ "$code" -ne 0 ]; then fail=1; fi
+          }
+          : > .ci/summary.txt
+          run lint npm run lint
+          run typecheck npm run typecheck
+          run test npm test
+          run build npm run build
+          exit $fail
+
+      - name: Report to PR
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### CI report for \`${GITHUB_SHA::7}\` (run ${{ github.run_id }})"
+            echo
+            if [ -f .ci/summary.txt ]; then echo '```'; cat .ci/summary.txt; echo '```'; else echo "Checks did not start (install failed?)"; fi
+            for f in lint typecheck test build; do
+              if [ -f ".ci/$f.log" ] && ! grep -q "^$f=0$" .ci/summary.txt; then
+                echo
+                echo "<details open><summary>$f — failed (last 70 lines)</summary>"
+                echo
+                echo '```'
+                tail -n 70 ".ci/$f.log" | cut -c1-300
+                echo '```'
+                echo "</details>"
+              fi
+            done
+          } > .ci/report.md
+          gh pr comment "${{ github.event.number }}" --body-file .ci/report.md

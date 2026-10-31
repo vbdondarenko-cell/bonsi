@@ -16,6 +16,17 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      ALLOW_DESTRUCTIVE_DB_TEST: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,23 +36,26 @@ jobs:
         with:
           node-version: 22
 
-      # ТИМЧАСОВО: якщо package-lock.json ще немає, генеруємо його й комітимо в гілку PR.
-      # Після появи lockfile цей крок пропускається; перед злиттям його слід прибрати.
-      - name: Generate package-lock.json (bootstrap)
-        if: ${{ hashFiles('package-lock.json') == '' && github.event_name == 'pull_request' }}
+      # ТИМЧАСОВО (до злиття): синхронізуємо lockfile з package.json на runner-і й комітимо зміну.
+      - name: Sync package-lock.json
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           npm install --package-lock-only --no-audit --no-fund
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: add package-lock.json (generated in CI)"
-          git push origin "HEAD:${{ github.head_ref }}"
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: sync package-lock.json (generated in CI)"
+            git push origin "HEAD:${{ github.head_ref }}"
+          fi
 
       - name: Install
         run: npm ci --no-audit --no-fund
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
       - name: Checks
-        id: checks
         shell: bash
         run: |
           mkdir -p .ci
@@ -60,7 +74,21 @@ jobs:
           run typecheck npm run typecheck
           run test npm test
           run build npm run build
+          if grep -q "^build=0$" .ci/summary.txt; then run e2e npm run test:e2e; fi
           exit $fail
+
+      - name: Publish screenshots
+        if: ${{ always() && github.event_name == 'pull_request' && hashFiles('.ci/shots/*.png') != '' }}
+        run: |
+          d=$(mktemp -d)
+          cp .ci/shots/*.png "$d"/
+          cd "$d"
+          git init -q -b ci-screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -qm "screenshots for ${GITHUB_SHA}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-screenshots
 
       - name: Report to PR
         if: ${{ always() && github.event_name == 'pull_request' }}
@@ -72,13 +100,16 @@ jobs:
             echo "### CI report for \`${GITHUB_SHA::7}\` (run ${{ github.run_id }})"
             echo
             if [ -f .ci/summary.txt ]; then echo '```'; cat .ci/summary.txt; echo '```'; else echo "Checks did not start (install failed?)"; fi
-            for f in lint typecheck test build; do
+            if [ -f .ci/test.log ]; then echo; echo '```'; grep -E "Test Files|Tests |skipped" .ci/test.log | cut -c1-200; echo '```'; fi
+            if [ -f .ci/e2e.log ]; then echo; echo '```'; tail -n 8 .ci/e2e.log | cut -c1-200; echo '```'; fi
+            if [ -f .ci/build.log ]; then echo "<details><summary>build routes</summary>"; echo; echo '```'; grep -E "^(┌|├|└|○|ƒ|●| \+)" .ci/build.log | head -30; echo '```'; echo "</details>"; fi
+            for f in lint typecheck test build e2e; do
               if [ -f ".ci/$f.log" ] && ! grep -q "^$f=0$" .ci/summary.txt; then
                 echo
-                echo "<details open><summary>$f — failed (last 70 lines)</summary>"
+                echo "<details open><summary>$f — failed (last 90 lines)</summary>"
                 echo
                 echo '```'
-                tail -n 70 ".ci/$f.log" | cut -c1-300
+                tail -n 90 ".ci/$f.log" | cut -c1-300
                 echo '```'
                 echo "</details>"
               fi

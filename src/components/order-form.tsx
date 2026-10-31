@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -427,7 +428,16 @@ export function OrderForm() {
             className="mt-1 size-5 shrink-0 accent-[var(--color-accent)]"
           />
           <span className="text-sm leading-relaxed text-muted">
-            Погоджуюсь на обробку наданих контактних даних для відповіді на мою заявку.
+            Погоджуюсь на обробку наданих даних для відповіді на мою заявку відповідно до{" "}
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener"
+              className="text-accent-soft underline underline-offset-2 hover:text-fg"
+            >
+              політики конфіденційності
+            </Link>
+            .
           </span>
         </label>
         {firstError("consent") ? (

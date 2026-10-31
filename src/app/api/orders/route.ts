@@ -1,9 +1,8 @@
+import { PayloadTooLargeError, readBodyLimited } from "@/lib/http/read-body";
+import { getClientIp, ipBucket, parseTrustedProxy } from "@/lib/orders/client-ip";
 import { orderSchema } from "@/lib/orders/schema";
-import {
-  ConfigError,
-  RateLimitError,
-  createOrder,
-} from "@/lib/orders/service";
+import { ConfigError, RateLimitError, createOrder } from "@/lib/orders/service";
+import { site } from "@/lib/site";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,38 +18,51 @@ function json(body: unknown, status: number) {
   });
 }
 
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+/**
+ * Захист від міжсайтових запитів: якщо браузер надіслав Origin, він має збігатися
+ * з хостом запиту або з публічною адресою сайту. Запити без Origin (curl, сервер-сервер)
+ * не є CSRF — браузер завжди додає Origin до міжсайтових POST.
+ */
+function isAllowedOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return false;
+  }
+
+  const allowed = new Set<string>();
+  const host = request.headers.get("host");
+  if (host) allowed.add(host);
+  try {
+    allowed.add(new URL(site.url).host);
+  } catch {
+    // site.url некоректний — лишається лише перевірка за Host
+  }
+  return allowed.has(originHost);
 }
 
 export async function POST(request: Request) {
-  // Захист від міжсайтових запитів: Origin, якщо він є, має збігатися з хостом.
-  const origin = request.headers.get("origin");
-  if (origin) {
-    try {
-      if (new URL(origin).host !== request.headers.get("host")) {
-        return json({ error: "forbidden" }, 403);
-      }
-    } catch {
-      return json({ error: "forbidden" }, 403);
-    }
+  if (!isAllowedOrigin(request)) {
+    return json({ error: "forbidden" }, 403);
   }
 
-  const declaredLength = Number(request.headers.get("content-length") ?? 0);
-  if (declaredLength > MAX_BODY_BYTES) {
-    return json({ error: "payload_too_large" }, 413);
+  // Лише application/json: HTML-форма з іншого сайту не може надіслати такий Content-Type без preflight.
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("application/json")) {
+    return json({ error: "unsupported_media_type" }, 415);
   }
 
   let raw: unknown;
   try {
-    const text = await request.text();
-    if (text.length > MAX_BODY_BYTES) {
+    raw = JSON.parse(await readBodyLimited(request, MAX_BODY_BYTES));
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
       return json({ error: "payload_too_large" }, 413);
     }
-    raw = JSON.parse(text);
-  } catch {
     return json({ error: "invalid_json" }, 400);
   }
 
@@ -73,9 +85,19 @@ export async function POST(request: Request) {
     return json({ error: "too_fast" }, 400);
   }
 
+  let bucket: string | null;
+  try {
+    const proxy = parseTrustedProxy(process.env.TRUSTED_PROXY);
+    bucket = ipBucket(getClientIp(request.headers, proxy));
+  } catch (error) {
+    // Некоректна конфігурація довіри до проксі — безпечніше відмовити, ніж довіряти підробним заголовкам.
+    console.error("[orders] invalid proxy configuration:", error instanceof Error ? error.message : error);
+    return json({ error: "unavailable" }, 503);
+  }
+
   try {
     const { ticket } = await createOrder(data, {
-      ip: clientIp(request),
+      ipBucket: bucket,
       userAgent: request.headers.get("user-agent") ?? "",
     });
     return json({ ticket }, 201);
@@ -87,7 +109,8 @@ export async function POST(request: Request) {
       console.error("[orders] server is not configured:", error.message);
       return json({ error: "unavailable" }, 503);
     }
-    console.error("[orders] failed to store order:", error);
+    // У лог потрапляє лише тип і повідомлення, без персональних даних із заявки.
+    console.error("[orders] failed to store order:", error instanceof Error ? error.message : "unknown error");
     return json({ error: "server_error" }, 500);
   }
 }

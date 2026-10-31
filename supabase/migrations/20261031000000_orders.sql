@@ -1,5 +1,6 @@
 -- BONSI Studios: таблиця заявок (етап 1 — публічний сайт і приймання заявок).
--- Доступ лише через сервер (service_role). RLS увімкнено без політик:
+-- Застосовується ЛИШЕ до окремого проєкту Supabase для BONSI.
+-- Доступ тільки через сервер (service_role). RLS увімкнено без політик:
 -- ролі anon/authenticated не мають жодного доступу до таблиці.
 
 create sequence if not exists public.order_ticket_seq;
@@ -21,19 +22,25 @@ create table if not exists public.orders (
     'asap', '1-month', '1-3-months', 'flexible'
   )),
   name          text not null check (char_length(name) between 2 and 100),
-  email         text not null check (char_length(email) between 5 and 200),
+  email         text not null check (char_length(email) between 5 and 200 and email = lower(email)),
   phone         text check (phone is null or char_length(phone) <= 30),
   status        text not null default 'new' check (status in (
     'new', 'in_review', 'accepted', 'in_progress', 'done', 'rejected'
   )),
+  -- Антиспам: солоний HMAC підмережі IP (сам IP не зберігається) і user-agent.
   ip_hash       text,
   user_agent    text,
+  -- Підтвердження згоди на обробку персональних даних.
+  consent_at             timestamptz not null,
+  consent_policy_version text not null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
 
 create index if not exists orders_ip_hash_created_at_idx
   on public.orders (ip_hash, created_at desc);
+create index if not exists orders_email_created_at_idx
+  on public.orders (email, created_at desc);
 create index if not exists orders_status_created_at_idx
   on public.orders (status, created_at desc);
 

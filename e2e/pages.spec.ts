@@ -36,6 +36,16 @@ for (const width of widths) {
           if (r.right > vw + 1 && !el.closest("[data-allow-overflow]")) {
             const cs = getComputedStyle(el);
             if (cs.position === "fixed" || cs.visibility === "hidden") continue;
+            // Декоративні елементи, обрізані предком з overflow hidden/clip, не створюють горизонтального скролу.
+            let clipped = false;
+            for (let p = el.parentElement; p && p !== document.documentElement; p = p.parentElement) {
+              const o = getComputedStyle(p).overflowX;
+              if ((o === "hidden" || o === "clip") && p.getBoundingClientRect().right <= vw + 1) {
+                clipped = true;
+                break;
+              }
+            }
+            if (clipped) continue;
             bad.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)} right=${Math.round(r.right)}`);
             if (bad.length > 5) break;
           }

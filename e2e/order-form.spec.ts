@@ -5,7 +5,8 @@ test.describe("форма заявки", () => {
     await page.goto("/contact");
     await page.getByRole("button", { name: "Надіслати заявку" }).click();
     await expect(page.getByText("Потрібна згода на обробку").first()).toBeVisible();
-    await expect(page.locator("[aria-invalid='true']").first()).toBeFocused();
+    // Перша помилка — не обрано тип послуги: фокус переходить на групу радіокнопок.
+    await expect(page.locator("#field-service")).toBeFocused();
   });
 
   test("посилання на політику конфіденційності ведеться з форми", async ({ page }) => {

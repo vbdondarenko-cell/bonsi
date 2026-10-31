@@ -242,6 +242,13 @@ test.describe.serial("робота адміністратора", () => {
     try {
       await expect(page).toHaveURL(/page=2/, { timeout: 10_000 });
     } catch (error) {
+      const state = await page.evaluate(() => ({
+        url: location.href,
+        heading: document.body.innerText.match(/Сторінка \d+ з \d+/)?.[0] ?? null,
+        errorText: document.body.innerText.slice(0, 200),
+        hasNextData: typeof (window as unknown as { next?: unknown }).next,
+      }));
+      logs.push(`STATE ${JSON.stringify(state)}`);
       throw new Error(`Навігація пагінації не відбулась.\n${logs.slice(-25).join("\n")}\n${String(error).slice(0, 200)}`);
     }
     await expect(page.getByText(/Сторінка 2 з/)).toBeVisible();

@@ -28,8 +28,8 @@ export default async function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px 80px",
-          background:
-            "radial-gradient(900px 520px at 85% 0%, rgba(108,76,245,0.45), rgba(14,14,18,0) 70%), #0e0e12",
+          backgroundColor: "#0e0e12",
+          backgroundImage: "radial-gradient(circle at 85% 0%, rgba(108,76,245,0.45), rgba(14,14,18,0) 60%)",
           color: "#f4f4f7",
           fontFamily: "Onest",
         }}

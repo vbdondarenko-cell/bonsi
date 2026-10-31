@@ -6,19 +6,11 @@
 
 **Стек:** Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Motion · Zod · Supabase · Vitest.
 
-## ⚠️ Статус першої версії
+## Статус перевірок
 
-Код цієї гілки написано **без запуску** `npm install`, `build`, `lint` і тестів: у середовищі, де він створювався, був заблокований реєстр npm. Перед злиттям виконайте перевірку локально:
+CI (GitHub Actions) виконує `npm ci`, lint, typecheck, unit/DB-тести (PostgreSQL 16), production build та e2e (Playwright: Chromium, Firefox, WebKit; ширини 320/375/768/1024/1440; axe a11y). Результати публікуються коментарем у PR.
 
-```bash
-npm install          # створить package-lock.json — закомітьте його
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-Усе, що зламається на цих кроках, — очікувані дрібні виправлення першого запуску, а не задум.
+Конфігурація безпеки: `TRUSTED_PROXY` (none | vercel | cloudflare | hops:N) визначає, чи довіряти проксі-заголовкам для IP; без довіреного проксі заголовки ігноруються. Див. `.env.example`, `supabase/README.md`, `npm run check:env`.
 
 ## Запуск
 

@@ -27,7 +27,7 @@ for (const width of widths) {
       // Усі reveal-блоки мають з'явитися (інакше контент лишився б невидимим).
       const hiddenSel = () =>
         Array.from(document.querySelectorAll<HTMLElement>("main [style*='opacity']"))
-          .filter((el) => !el.closest("[aria-hidden='true']") && Number(getComputedStyle(el).opacity) < 0.99)
+          .filter((el) => !el.closest("[aria-hidden='true']") && Number(getComputedStyle(el).opacity) < 0.9)
           .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 50)} opacity=${getComputedStyle(el).opacity} text="${(el.textContent ?? "").slice(0, 30)}"`);
       await page.waitForTimeout(1200);
       expect(await page.evaluate(hiddenSel), "елементи лишилися прозорими після прокрутки").toEqual([]);

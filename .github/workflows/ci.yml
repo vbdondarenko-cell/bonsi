@@ -96,6 +96,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set +e +o pipefail
           {
             echo "### CI report for \`${GITHUB_SHA::7}\` (run ${{ github.run_id }})"
             echo

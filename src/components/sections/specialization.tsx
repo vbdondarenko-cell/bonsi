@@ -30,7 +30,7 @@ export function Specialization() {
           description="Дизайн, фронтенд, бекенд і перевірка якості — в одній невеликій команді. Менше передач між підрядниками, більше відповідальності за результат."
         />
       </Reveal>
-      <div className="mt-14 grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line md:grid-cols-3">
+      <div className="mt-14 grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line lg:grid-cols-3">
         {pillars.map((pillar, index) => (
           <Reveal key={pillar.index} delay={index * 0.08} className="bg-bg">
             <article className="h-full p-8 sm:p-10">

@@ -2,6 +2,8 @@
 
 Сайт студії BONSI: публічні сторінки та приймання заявок із збереженням у PostgreSQL (Supabase).
 
+**Дизайн:** [Figma — BONSI Studios, Design System & Screens](https://www.figma.com/design/TiIsl29Ygor9mLMYmuCBuJ) (токени, текстові стилі, компоненти, Home для Desktop/Tablet/Mobile).
+
 **Стек:** Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Motion · Zod · Supabase · Vitest.
 
 ## ⚠️ Статус першої версії

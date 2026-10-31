@@ -13,7 +13,7 @@ export function Process() {
           description="Чотири етапи з проміжними результатами, які ви можете переглянути й скоригувати."
         />
       </Reveal>
-      <ol className="mt-14 grid gap-4 md:grid-cols-4">
+      <ol className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {processSteps.map((step, index) => (
           <li key={step.title}>
             <Reveal delay={index * 0.08} className="h-full">

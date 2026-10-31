@@ -234,8 +234,16 @@ test.describe.serial("робота адміністратора", () => {
     await page.waitForLoadState("networkidle");
     const next = page.getByRole("link", { name: /Далі/ });
     await expect(next).toHaveAttribute("href", "/admin/orders?page=2");
+    const logs: string[] = [];
+    page.on("response", (r) => logs.push(`${r.status()} ${r.request().method()} ${r.url()} ${r.headers()["content-type"] ?? ""}`));
+    page.on("requestfailed", (r) => logs.push(`FAILED ${r.url()} ${r.failure()?.errorText}`));
+    page.on("console", (m) => logs.push(`console.${m.type()}: ${m.text().slice(0, 200)}`));
     await next.click();
-    await expect(page).toHaveURL(/page=2/, { timeout: 15_000 });
+    try {
+      await expect(page).toHaveURL(/page=2/, { timeout: 10_000 });
+    } catch (error) {
+      throw new Error(`Навігація пагінації не відбулась.\n${logs.slice(-25).join("\n")}\n${String(error).slice(0, 200)}`);
+    }
     await expect(page.getByText(/Сторінка 2 з/)).toBeVisible();
     await expect(page.getByRole("link", { name: /Назад/ })).toBeVisible();
     await page.goto("/admin/orders?page=9999");

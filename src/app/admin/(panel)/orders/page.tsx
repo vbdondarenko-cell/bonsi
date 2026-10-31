@@ -131,7 +131,7 @@ export default async function OrdersPage({
                 {rows.map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-surface/80">
                     <td className="px-4 py-3 font-mono">
-                      <Link href={`/admin/orders/${row.id}`} className="text-accent-soft underline-offset-4 hover:underline">
+                      <Link prefetch={false} href={`/admin/orders/${row.id}`} className="text-accent-soft underline-offset-4 hover:underline">
                         {row.ticket_number}
                       </Link>
                     </td>
@@ -152,7 +152,7 @@ export default async function OrdersPage({
           <ul className="flex flex-col gap-3 md:hidden">
             {rows.map((row) => (
               <li key={row.id}>
-                <Link href={`/admin/orders/${row.id}`} className="flex flex-col gap-3 rounded-2xl border border-line bg-surface/70 p-4 hover:border-accent-soft/70">
+                <Link prefetch={false} href={`/admin/orders/${row.id}`} className="flex flex-col gap-3 rounded-2xl border border-line bg-surface/70 p-4 hover:border-accent-soft/70">
                   <span className="flex items-center justify-between gap-3">
                     <span className="font-mono text-sm">{row.ticket_number}</span>
                     <StatusBadge status={row.status} />

@@ -58,6 +58,8 @@ async function hydrated(page: Page) {
     const el = document.querySelector("#main a[href], #main button, #main form");
     return Boolean(el) && Object.keys(el as object).some((key) => key.startsWith("__reactProps"));
   });
+  // Клієнтський роутер Next ініціалізується в effect уже після гідратації: ранній клік губиться.
+  await page.waitForTimeout(1_500);
 }
 
 async function noOverflow(page: Page) {
@@ -240,7 +242,6 @@ test.describe.serial("робота адміністратора", () => {
     await page.goto("/admin/orders");
     await expect(page.getByText(/Сторінка 1 з [2-9]/)).toBeVisible();
     await hydrated(page);
-    await page.waitForTimeout(1_500); // клієнтський роутер Next ініціалізується в effect після гідратації
     const next = page.getByRole("link", { name: /Далі/ });
     await expect(next).toHaveAttribute("href", "/admin/orders?page=2");
     const logs: string[] = [];

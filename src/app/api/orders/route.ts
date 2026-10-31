@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { dispatchSafely } from "@/lib/notifications/dispatch";
 import { PayloadTooLargeError, readBodyLimited } from "@/lib/http/read-body";
 import { getClientIp, ipBucket, parseTrustedProxy } from "@/lib/orders/client-ip";
 import { orderSchema } from "@/lib/orders/schema";
@@ -43,6 +45,15 @@ function isAllowedOrigin(request: Request): boolean {
     // site.url некоректний — лишається лише перевірка за Host
   }
   return allowed.has(originHost);
+}
+
+/** Швидка спроба доставити сповіщення після відповіді; решту (повтори) добирає cron-виклик. */
+function scheduleDispatch() {
+  try {
+    after(dispatchSafely);
+  } catch {
+    // поза контекстом запиту (наприклад, у тестах) — доставку виконає планувальник
+  }
 }
 
 export async function POST(request: Request) {
@@ -100,6 +111,7 @@ export async function POST(request: Request) {
       ipBucket: bucket,
       userAgent: request.headers.get("user-agent") ?? "",
     });
+    scheduleDispatch();
     return json({ ticket }, 201);
   } catch (error) {
     if (error instanceof RateLimitError) {

@@ -6,8 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,6 +14,7 @@ concurrency:
 
 jobs:
   verify:
+    name: Lint, typecheck, unit/DB tests, build, e2e
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -29,28 +29,20 @@ jobs:
       ALLOW_DESTRUCTIVE_DB_TEST: "1"
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      # ТИМЧАСОВО (до злиття): синхронізуємо lockfile з package.json на runner-і й комітимо зміну.
-      - name: Sync package-lock.json
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          npm install --package-lock-only --no-audit --no-fund
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "chore: sync package-lock.json (generated in CI)"
-            git push origin "HEAD:${{ github.head_ref }}"
-          fi
+          cache: npm
 
       - name: Install
         run: npm ci --no-audit --no-fund
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
@@ -77,43 +69,166 @@ jobs:
           if grep -q "^build=0$" .ci/summary.txt; then run e2e npm run test:e2e; fi
           exit $fail
 
-      - name: Publish screenshots
-        if: ${{ always() && github.event_name == 'pull_request' && hashFiles('.ci/shots/*.png') != '' }}
-        run: |
-          d=$(mktemp -d)
-          cp .ci/shots/*.png "$d"/
-          cd "$d"
-          git init -q -b ci-screenshots
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -qm "screenshots for ${GITHUB_SHA}"
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-screenshots
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-verify
+          path: |
+            .ci
+            test-results
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: ignore
 
-      - name: Report to PR
-        if: ${{ always() && github.event_name == 'pull_request' }}
+  admin-e2e:
+    name: Admin e2e (local Supabase)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        shell: bash
+        run: |
+          mkdir -p .ci
+          supabase init --force > .ci/supabase-init.log 2>&1 || true
+          python3 scripts/ci/supabase-config.py supabase/config.toml
+          set +e
+          supabase start > .ci/supabase-start.log 2>&1
+          code=$?
+          set -e
+          tail -n 30 .ci/supabase-start.log
+          [ "$code" -eq 0 ] || exit "$code"
+          supabase status -o env > .ci/supabase.env
+          get() { grep -E "^$1=" .ci/supabase.env | head -n1 | sed -E 's/^[^=]+=//; s/^"//; s/"$//'; }
+          api="$(get API_URL)"
+          anon="$(get ANON_KEY)"; [ -n "$anon" ] || anon="$(get PUBLISHABLE_KEY)"
+          service="$(get SERVICE_ROLE_KEY)"; [ -n "$service" ] || service="$(get SECRET_KEY)"
+          echo "::add-mask::$anon"
+          echo "::add-mask::$service"
+          {
+            echo "SUPABASE_URL=$api"
+            echo "SUPABASE_ANON_KEY=$anon"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$service"
+          } >> "$GITHUB_ENV"
+          rm -f .ci/supabase.env
+
+      - name: Build and run admin e2e
+        shell: bash
+        run: |
+          fail=0
+          : > .ci/summary.txt
+          run() {
+            name="$1"; shift
+            set +e
+            "$@" > ".ci/$name.log" 2>&1
+            code=$?
+            set -e
+            echo "$name=$code" >> .ci/summary.txt
+            if [ "$code" -ne 0 ]; then fail=1; fi
+          }
+          run build npm run build
+          if grep -q "^build=0$" .ci/summary.txt; then run e2e-admin npx playwright test -c playwright.admin.config.ts; fi
+          exit $fail
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-admin-e2e
+          path: |
+            .ci
+            test-results
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: ignore
+
+  report:
+    name: Report to PR
+    needs: [verify, admin-e2e]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: reports
+        continue-on-error: true
+
+      - name: Compose and post report
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFY: ${{ needs.verify.result }}
+          ADMIN: ${{ needs.admin-e2e.result }}
         run: |
           set +e +o pipefail
-          {
-            echo "### CI report for \`${GITHUB_SHA::7}\` (run ${{ github.run_id }})"
-            echo
-            if [ -f .ci/summary.txt ]; then echo '```'; cat .ci/summary.txt; echo '```'; else echo "Checks did not start (install failed?)"; fi
-            if [ -f .ci/test.log ]; then echo; echo '```'; grep -E "Test Files|Tests |skipped" .ci/test.log | cut -c1-200; echo '```'; fi
-            if [ -f .ci/e2e.log ]; then echo; echo '```'; tail -n 8 .ci/e2e.log | cut -c1-200; echo '```'; fi
-            if [ -f .ci/build.log ]; then echo "<details><summary>build routes</summary>"; echo; echo '```'; grep -E "^(┌|├|└|○|ƒ|●| \+)" .ci/build.log | head -30; echo '```'; echo "</details>"; fi
-            for f in lint typecheck test build e2e; do
-              if [ -f ".ci/$f.log" ] && ! grep -q "^$f=0$" .ci/summary.txt; then
-                echo
-                echo "<details open><summary>$f — failed (last 90 lines)</summary>"
-                echo
-                echo '```'
-                tail -n 90 ".ci/$f.log" | cut -c1-300
-                echo '```'
-                echo "</details>"
+          strip() { sed 's/\x1b\[[0-9;]*m//g' "$1"; }
+          section() {
+            dir="reports/$1"; title="$2"
+            echo "#### $title"
+            if [ -f "$dir/.ci/summary.txt" ]; then echo '```'; cat "$dir/.ci/summary.txt"; echo '```'; else echo "_нема результатів (крок не стартував)_"; fi
+            if [ -f "$dir/.ci/test.log" ]; then echo '```'; strip "$dir/.ci/test.log" | grep -E "Test Files|Tests |skipped" | cut -c1-200; echo '```'; fi
+            for f in e2e e2e-admin; do
+              if [ -f "$dir/.ci/$f.log" ]; then echo '```'; strip "$dir/.ci/$f.log" | tail -n 6 | cut -c1-200; echo '```'; fi
+            done
+            if [ -f "$dir/.ci/build.log" ]; then echo "<details><summary>build routes</summary>"; echo; echo '```'; strip "$dir/.ci/build.log" | grep -E "^(┌|├|└|○|ƒ|●| \+)" | head -40; echo '```'; echo "</details>"; fi
+            for f in lint typecheck test build e2e e2e-admin; do
+              if [ -f "$dir/.ci/$f.log" ] && [ -f "$dir/.ci/summary.txt" ] && ! grep -q "^$f=0$" "$dir/.ci/summary.txt"; then
+                echo; echo "<details open><summary>$f — failed (last 110 lines)</summary>"; echo; echo '```'
+                if strip "$dir/.ci/$f.log" | grep -q "^  1) "; then strip "$dir/.ci/$f.log" | awk '/^  1\) /{p=1} p' | grep -v "^\s*$" | head -n 150 | cut -c1-260; else strip "$dir/.ci/$f.log" | tail -n 110 | cut -c1-300; fi
+                echo '```'; echo "</details>"
               fi
             done
-          } > .ci/report.md
-          gh pr comment "${{ github.event.number }}" --body-file .ci/report.md
+            if [ -f "$dir/.ci/e2e-admin.log" ] && ! grep -q "^e2e-admin=0$" "$dir/.ci/summary.txt" 2>/dev/null; then
+              echo "<details open><summary>app server output (errors/warnings)</summary>"; echo; echo '```'
+              strip "$dir/.ci/e2e-admin.log" | grep -iE "\[WebServer\]|error|digest|unhandled|warn" | grep -vE "^\s+(at|[0-9]+ \|)|✓|✘|Error Context|expect\(|Expected|Received|Call log" | tail -n 40 | cut -c1-260
+              echo '```'; echo "</details>"
+            fi
+            if [ -d "$dir/test-results" ] && ! grep -q "^e2e-admin=0$" "$dir/.ci/summary.txt" 2>/dev/null; then
+              echo "<details open><summary>trace digest (console/page errors)</summary>"; echo; echo '```'
+              python3 scripts/ci/trace-digest.py "$dir/test-results" 2>&1 | head -n 80 | cut -c1-300
+              echo '```'; echo "</details>"
+            fi
+            if [ -f "$dir/.ci/supabase-start.log" ] && ! grep -q "e2e-admin=0" "$dir/.ci/summary.txt" 2>/dev/null; then
+              echo "<details><summary>supabase start</summary>"; echo; echo '```'; tail -n 25 "$dir/.ci/supabase-start.log" | grep -viE "key|secret|jwt|password|postgresql://" | cut -c1-200; echo '```'; echo "</details>"
+            fi
+          }
+          {
+            echo "### CI report for \`${GITHUB_SHA::7}\` (run ${{ github.run_id }})"
+            echo "verify: **$VERIFY** · admin-e2e: **$ADMIN**"
+            echo
+            section ci-verify "Lint / typecheck / tests / build / public e2e"
+            echo
+            section ci-admin-e2e "Admin e2e (local Supabase)"
+            echo
+            echo "_Скріншоти й трейси — у артефактах запуску._"
+          } > report.md
+          gh pr comment "${{ github.event.number }}" --body-file report.md

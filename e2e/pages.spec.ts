@@ -25,11 +25,12 @@ for (const width of widths) {
         window.scrollTo({ top: 0, behavior: "instant" });
       });
       // Усі reveal-блоки мають з'явитися (інакше контент лишився б невидимим).
-      await page.waitForFunction(
-        () => Array.from(document.querySelectorAll<HTMLElement>("main [style*='opacity']")).every((el) => Number(getComputedStyle(el).opacity) > 0.99),
-        null,
-        { timeout: 5000 },
-      );
+      const hiddenSel = () =>
+        Array.from(document.querySelectorAll<HTMLElement>("main [style*='opacity']"))
+          .filter((el) => !el.closest("[aria-hidden='true']") && Number(getComputedStyle(el).opacity) < 0.99)
+          .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 50)} opacity=${getComputedStyle(el).opacity} text="${(el.textContent ?? "").slice(0, 30)}"`);
+      await page.waitForTimeout(1200);
+      expect(await page.evaluate(hiddenSel), "елементи лишилися прозорими після прокрутки").toEqual([]);
       await page.waitForTimeout(300);
 
       const overflow = await page.evaluate(() => {

@@ -190,8 +190,10 @@ jobs:
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: reports
@@ -226,6 +228,11 @@ jobs:
             if [ -f "$dir/.ci/e2e-admin.log" ] && ! grep -q "^e2e-admin=0$" "$dir/.ci/summary.txt" 2>/dev/null; then
               echo "<details open><summary>app server output (errors/warnings)</summary>"; echo; echo '```'
               strip "$dir/.ci/e2e-admin.log" | grep -iE "\[WebServer\]|error|digest|unhandled|warn" | grep -vE "^\s+(at|[0-9]+ \|)|✓|✘|Error Context|expect\(|Expected|Received|Call log" | tail -n 40 | cut -c1-260
+              echo '```'; echo "</details>"
+            fi
+            if [ -d "$dir/test-results" ] && ! grep -q "^e2e-admin=0$" "$dir/.ci/summary.txt" 2>/dev/null; then
+              echo "<details open><summary>trace digest (console/page errors)</summary>"; echo; echo '```'
+              python3 scripts/ci/trace-digest.py "$dir/test-results" 2>&1 | head -n 80 | cut -c1-300
               echo '```'; echo "</details>"
             fi
             if [ -f "$dir/.ci/supabase-start.log" ] && ! grep -q "e2e-admin=0" "$dir/.ci/summary.txt" 2>/dev/null; then

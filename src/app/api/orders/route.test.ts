@@ -5,6 +5,8 @@ vi.mock("@/lib/orders/service", async (importOriginal) => {
   return { ...actual, createOrder: vi.fn() };
 });
 
+vi.mock("@/lib/notifications/dispatch", () => ({ dispatchSafely: vi.fn() }));
+
 import {
   ConfigError,
   RateLimitError,

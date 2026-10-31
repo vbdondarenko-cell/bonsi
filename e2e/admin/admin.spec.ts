@@ -249,7 +249,17 @@ test.describe.serial("робота адміністратора", () => {
         hasNextData: typeof (window as unknown as { next?: unknown }).next,
       }));
       logs.push(`STATE ${JSON.stringify(state)}`);
-      throw new Error(`Навігація пагінації не відбулась.\n${logs.slice(-25).join("\n")}\n${String(error).slice(0, 200)}`);
+      for (const [label, headers] of [["document", {}], ["rsc", { RSC: "1" }]] as const) {
+        const started = Date.now();
+        try {
+          const res = await page.request.get("/admin/orders?page=2", { headers, timeout: 20_000 });
+          const body = await res.text();
+          logs.push(`PROBE ${label}: ${res.status()} ${body.length}b ${Date.now() - started}ms has-p2=${body.includes("Сторінка 2 з")}`);
+        } catch (probeError) {
+          logs.push(`PROBE ${label}: ERROR ${String(probeError).slice(0, 120)} after ${Date.now() - started}ms`);
+        }
+      }
+      throw new Error(`Навігація пагінації не відбулась.\n${logs.slice(-30).join("\n")}\n${String(error).slice(0, 200)}`);
     }
     await expect(page.getByText(/Сторінка 2 з/)).toBeVisible();
     await expect(page.getByRole("link", { name: /Назад/ })).toBeVisible();

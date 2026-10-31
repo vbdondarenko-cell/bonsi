@@ -16,9 +16,6 @@ jobs:
   verify:
     name: Lint, typecheck, unit/DB tests, build, e2e
     runs-on: ubuntu-latest
-    # ТИМЧАСОВО: write потрібен лише кроку синхронізації lockfile нижче; буде прибрано.
-    permissions:
-      contents: write
     services:
       postgres:
         image: postgres:16
@@ -32,25 +29,11 @@ jobs:
       ALLOW_DESTRUCTIVE_DB_TEST: "1"
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      # ТИМЧАСОВО (до оновлення lockfile для нових залежностей): синхронізація й коміт у гілку PR.
-      - name: Sync package-lock.json
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          npm install --package-lock-only --no-audit --no-fund
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "chore: sync package-lock.json (generated in CI)"
-            git push origin "HEAD:${{ github.head_ref }}"
-          fi
+          cache: npm
 
       - name: Install
         run: npm ci --no-audit --no-fund
@@ -105,21 +88,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit

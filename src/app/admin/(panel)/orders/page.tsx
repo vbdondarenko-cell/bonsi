@@ -172,7 +172,7 @@ export default async function OrdersPage({
           {pages > 1 ? (
             <nav aria-label="Сторінки" className="flex items-center justify-between gap-4">
               {filters.page > 1 ? (
-                <Link className={buttonStyles("ghost", "min-h-11")} href={`/admin/orders${filtersToQuery(filters, { page: filters.page - 1 })}`}>
+                <Link prefetch={false} className={buttonStyles("ghost", "min-h-11")} href={`/admin/orders${filtersToQuery(filters, { page: filters.page - 1 })}`}>
                   ← Назад
                 </Link>
               ) : <span />}
@@ -180,7 +180,7 @@ export default async function OrdersPage({
                 Сторінка {filters.page} з {pages}
               </span>
               {filters.page < pages ? (
-                <Link className={buttonStyles("ghost", "min-h-11")} href={`/admin/orders${filtersToQuery(filters, { page: filters.page + 1 })}`}>
+                <Link prefetch={false} className={buttonStyles("ghost", "min-h-11")} href={`/admin/orders${filtersToQuery(filters, { page: filters.page + 1 })}`}>
                   Далі →
                 </Link>
               ) : <span />}

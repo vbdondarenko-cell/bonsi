@@ -235,7 +235,18 @@ test.describe.serial("робота адміністратора", () => {
     const next = page.getByRole("link", { name: /Далі/ });
     await expect(next).toHaveAttribute("href", "/admin/orders?page=2");
     const logs: string[] = [];
-    page.on("response", (r) => logs.push(`${r.status()} ${r.request().method()} ${r.url()} ${r.headers()["content-type"] ?? ""}`));
+    page.on("request", (r) => logs.push(`REQ ${r.method()} ${r.url().replace("http://localhost:3100", "")} rsc=${r.headers()["rsc"] ?? "-"} prefetch=${r.headers()["next-router-prefetch"] ?? "-"}`));
+    page.on("framenavigated", (fr) => logs.push(`NAV ${fr.url()}`));
+    page.on("response", (r) => {
+      logs.push(`${r.status()} ${r.request().method()} ${r.url().replace("http://localhost:3100", "")} ${r.headers()["content-type"] ?? ""} enc=${r.headers()["content-encoding"] ?? "-"}`);
+      if (r.url().includes("_rsc=")) {
+        const t0 = Date.now();
+        r.body().then(
+          (b) => logs.push(`BODY ok ${b.length}b ${Date.now() - t0}ms ${r.url().slice(-30)}`),
+          (e) => logs.push(`BODY err ${String(e).slice(0, 80)} ${Date.now() - t0}ms`),
+        );
+      }
+    });
     page.on("requestfailed", (r) => logs.push(`FAILED ${r.url()} ${r.failure()?.errorText}`));
     page.on("console", (m) => logs.push(`console.${m.type()}: ${m.text().slice(0, 200)}`));
     await next.click();

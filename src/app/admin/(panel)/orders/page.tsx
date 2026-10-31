@@ -38,6 +38,8 @@ export default async function OrdersPage({
   const names = new Map<string, string>((admins.data ?? []).map((a) => [a.user_id as string, a.display_name as string]));
   const serviceTitle = (id: string) => services.find((s) => s.id === id)?.title ?? id;
 
+  const outOfRange = !result.error && (result.data ?? []).length === 0 && filters.page > 1;
+
   if (result.error) {
     return (
       <div className="flex flex-col gap-8">
@@ -97,7 +99,13 @@ export default async function OrdersPage({
         </div>
       </form>
 
-      {rows.length === 0 ? (
+      {outOfRange ? (
+        <EmptyState
+          title="Такої сторінки немає"
+          description="У списку менше сторінок, ніж у посиланні. Поверніться до першої сторінки."
+          action={<Link href={`/admin/orders${filtersToQuery(filters, { page: 1 })}`} className={buttonStyles("ghost", "min-h-11")}>На першу сторінку</Link>}
+        />
+      ) : rows.length === 0 ? (
         hasFilters ? (
           <EmptyState title="Нічого не знайдено" description="Змініть або скиньте фільтри — за цими умовами заявок немає." />
         ) : (

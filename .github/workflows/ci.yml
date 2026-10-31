@@ -219,7 +219,7 @@ jobs:
             for f in lint typecheck test build e2e e2e-admin; do
               if [ -f "$dir/.ci/$f.log" ] && [ -f "$dir/.ci/summary.txt" ] && ! grep -q "^$f=0$" "$dir/.ci/summary.txt"; then
                 echo; echo "<details open><summary>$f — failed (last 110 lines)</summary>"; echo; echo '```'
-                strip "$dir/.ci/$f.log" | tail -n 110 | cut -c1-300
+                if strip "$dir/.ci/$f.log" | grep -q "^  1) "; then strip "$dir/.ci/$f.log" | awk '/^  1\) /{p=1} p' | grep -v "^\s*$" | head -n 150 | cut -c1-260; else strip "$dir/.ci/$f.log" | tail -n 110 | cut -c1-300; fi
                 echo '```'; echo "</details>"
               fi
             done

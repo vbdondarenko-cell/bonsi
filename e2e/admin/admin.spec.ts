@@ -96,7 +96,7 @@ test.describe("доступ без авторизації", () => {
       await page.getByLabel("Email").fill(creds.email);
       await page.getByLabel("Пароль").fill(creds.password);
       await page.getByRole("button", { name: "Увійти" }).click();
-      await expect(page.getByRole("alert")).toHaveText("Невірний email або пароль.");
+      await expect(page.locator("#login-error")).toHaveText("Невірний email або пароль.");
       await page.goto("/admin/orders");
       await expect(page).toHaveURL(/\/admin\/login$/);
       await context.close();
@@ -236,7 +236,7 @@ test.describe.serial("робота адміністратора", () => {
     await expect(page.getByText(/Сторінка 2 з/)).toBeVisible();
     await expect(page.getByRole("link", { name: /Назад/ })).toBeVisible();
     await page.goto("/admin/orders?page=9999");
-    await expect(page.getByText("Нічого не знайдено").or(page.getByText("Заявок поки немає"))).toBeVisible();
+    await expect(page.getByText("Такої сторінки немає")).toBeVisible();
   });
 
   test("деталі: зміна статусу, призначення, нотатки та історія", async () => {
@@ -374,7 +374,7 @@ test.describe.serial("робота адміністратора", () => {
     await page.goto("/admin/mfa");
     await page.getByLabel(/Код із додатка/).fill("000000");
     await page.getByRole("button", { name: "Підтвердити" }).click();
-    await expect(page.getByRole("alert")).toContainText("Код не підійшов");
+    await expect(page.getByRole("alert").filter({ hasText: "Код не підійшов" })).toBeVisible();
   });
 });
 

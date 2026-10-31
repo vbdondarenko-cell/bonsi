@@ -14,7 +14,8 @@ const row = {
 };
 
 function fakeDb(rows: unknown[]) {
-  const rpc = vi.fn(async (fn: string) => {
+  const rpc = vi.fn(async (fn: string, args?: Record<string, unknown>) => {
+    void args;
     if (fn === "claim_notifications") return { data: rows, error: null };
     return { data: null, error: null };
   });
@@ -44,7 +45,7 @@ describe("dispatchNotifications", () => {
     const result = await dispatchNotifications({ db, env, fetchImpl: fetchImpl as unknown as typeof fetch });
     expect(result).toMatchObject({ claimed: 1, sent: 0, failed: 1 });
     const call = db.rpc.mock.calls.find(([fn]) => fn === "complete_notification")!;
-    expect((call[1] as { p_error: string }).p_error).toBe("telegram: HTTP 502");
+    expect(call[1]?.p_error).toBe("telegram: HTTP 502");
   });
 
   it("одне невдале повідомлення не блокує інші", async () => {

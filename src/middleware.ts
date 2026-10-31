@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabaseAuthEnv } from "@/lib/supabase/env";
+import { getSupabaseAuthEnv, type CookieItem } from "@/lib/supabase/env";
 
 const LOGIN_PATH = "/admin/login";
 
@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
   const supabase = createServerClient(env.url, env.anonKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
-      setAll: (items) => {
+      setAll: (items: CookieItem[]) => {
         for (const { name, value } of items) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         for (const { name, value, options } of items) response.cookies.set(name, value, options);

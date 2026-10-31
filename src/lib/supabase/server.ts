@@ -1,7 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getSupabaseAuthEnv } from "./env";
+import { getSupabaseAuthEnv, type CookieItem } from "./env";
 
 export class AuthConfigError extends Error {}
 
@@ -14,7 +14,7 @@ export async function createSupabaseServerClient() {
   return createServerClient(env.url, env.anonKey, {
     cookies: {
       getAll: () => cookieStore.getAll(),
-      setAll: (items) => {
+      setAll: (items: CookieItem[]) => {
         try {
           for (const { name, value, options } of items) cookieStore.set(name, value, options);
         } catch {

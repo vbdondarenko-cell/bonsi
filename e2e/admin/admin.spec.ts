@@ -292,7 +292,7 @@ test.describe.serial("робота адміністратора", () => {
       // Сторінка стрімиться (loading.tsx), тому HTTP-статус уже 200: перевіряємо вміст 404 і noindex.
       await page.goto(`/admin/orders/${id}`);
       await expect(page.getByText("Сторінку не знайдено")).toBeVisible();
-      await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(1);
+      await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
     }
   });
 

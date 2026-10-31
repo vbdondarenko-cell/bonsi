@@ -301,7 +301,14 @@ test.describe.serial("робота адміністратора", () => {
 
     await page.locator("select#assignee").selectOption({ label: otherAccount().name });
     await page.getByRole("button", { name: "Призначити" }).click();
-    await expect(page.getByText(`Призначено: ${otherAccount().name}`)).toBeVisible();
+    try {
+      await expect(page.getByText(`Призначено: ${otherAccount().name}`)).toBeVisible();
+    } catch (error) {
+      const row = (await db.from("orders").select("assigned_to").eq("id", orderId).single()).data;
+      const form = await page.locator("form:has(select#assignee)").innerText().catch(() => "n/a");
+      const events = (await db.from("order_events").select("type, data").eq("order_id", orderId)).data;
+      throw new Error(`Призначення не відобразилось. db.assigned_to=${row?.assigned_to} form="${form.replace(/\n/g, " | ")}" events=${JSON.stringify(events)} url=${page.url()}\n${String(error).slice(0, 150)}`);
+    }
 
     await page.locator("#note").fill("Передзвонити клієнту завтра до 12:00");
     await page.getByRole("button", { name: "Додати нотатку" }).click();

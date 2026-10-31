@@ -55,6 +55,13 @@ export function formatOrderMessage(notice: OrderNotice, baseUrl: string = site.u
 
 export class TelegramError extends Error {}
 
+/** TELEGRAM_API_BASE задається лише в тестах (заглушка Telegram); у production лишається офіційний API. */
+function apiBase(): string {
+  const override = process.env.TELEGRAM_API_BASE;
+  if (override && /^https?:\/\//.test(override)) return override.replace(/\/$/, "");
+  return "https://api.telegram.org";
+}
+
 /** Надсилає повідомлення; у тексті помилки ніколи немає токена чи URL запиту. */
 export async function sendTelegramMessage(
   config: TelegramConfig,
@@ -64,7 +71,7 @@ export async function sendTelegramMessage(
 ): Promise<void> {
   let response: Response;
   try {
-    response = await fetchImpl(`https://api.telegram.org/bot${config.token}/sendMessage`, {
+    response = await fetchImpl(`${apiBase()}/bot${config.token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

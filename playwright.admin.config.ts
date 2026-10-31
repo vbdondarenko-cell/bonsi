@@ -27,6 +27,8 @@ export default defineConfig({
       url: `http://localhost:${port}`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
+      stdout: "pipe",
+      stderr: "pipe",
       env: {
         NEXT_PUBLIC_SITE_URL: `http://localhost:${port}`,
         TRUSTED_PROXY: "none",

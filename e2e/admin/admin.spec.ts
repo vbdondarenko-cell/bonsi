@@ -52,6 +52,12 @@ async function orderIdByTicket(ticket: string): Promise<string> {
   return data.id as string;
 }
 
+/** Дає клієнтському роутеру Next застосувати оновлене дерево після server action, перш ніж робити наступну дію. */
+async function settled(page: Page) {
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(1_000);
+}
+
 /** Чекає, поки React прив'язався до DOM (інакше клік/сабміт до гідратації дає нестабільні перевірки). */
 async function hydrated(page: Page) {
   await page.waitForFunction(() => {
@@ -274,11 +280,13 @@ test.describe.serial("робота адміністратора", () => {
     await expect(page.getByRole("status").filter({ hasText: "Збережено" })).toBeVisible();
     await expect(page.getByText("Статус: Нова → У розгляді")).toBeVisible();
     expect((await db.from("orders").select("status").eq("id", orderId).single()).data?.status).toBe("in_review");
+    await settled(page);
 
     await page.locator("select#assignee").selectOption({ label: otherAccount().name });
     await page.getByRole("button", { name: "Призначити" }).click();
     try {
       await expect(page.getByText(`Призначено: ${otherAccount().name}`)).toBeVisible();
+      await settled(page);
     } catch (error) {
       const row = (await db.from("orders").select("assigned_to").eq("id", orderId).single()).data;
       const form = await page.locator("form:has(select#assignee)").innerText().catch(() => "n/a");
@@ -290,6 +298,7 @@ test.describe.serial("робота адміністратора", () => {
     await page.getByRole("button", { name: "Додати нотатку" }).click();
     await expect(page.getByText("Передзвонити клієнту завтра до 12:00")).toBeVisible();
     await expect(page.getByText("Додано нотатку")).toBeVisible();
+    await settled(page);
 
     await page.locator("#note").fill("    ");
     await page.getByRole("button", { name: "Додати нотатку" }).click();

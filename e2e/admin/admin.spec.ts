@@ -52,6 +52,14 @@ async function orderIdByTicket(ticket: string): Promise<string> {
   return data.id as string;
 }
 
+/** Чекає, поки React прив'язався до DOM (інакше клік/сабміт до гідратації дає нестабільні перевірки). */
+async function hydrated(page: Page) {
+  await page.waitForFunction(() => {
+    const el = document.querySelector("#main a[href], #main button, #main form");
+    return Boolean(el) && Object.keys(el as object).some((key) => key.startsWith("__reactProps"));
+  });
+}
+
 async function noOverflow(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
@@ -231,7 +239,7 @@ test.describe.serial("робота адміністратора", () => {
     }
     await page.goto("/admin/orders");
     await expect(page.getByText(/Сторінка 1 з [2-9]/)).toBeVisible();
-    await page.waitForLoadState("networkidle");
+    await hydrated(page);
     const next = page.getByRole("link", { name: /Далі/ });
     await expect(next).toHaveAttribute("href", "/admin/orders?page=2");
     const logs: string[] = [];
@@ -281,6 +289,7 @@ test.describe.serial("робота адміністратора", () => {
   test("деталі: зміна статусу, призначення, нотатки та історія", async () => {
     await page.goto(`/admin/orders/${orderId}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(clientName);
+    await hydrated(page);
     await expect(page.getByText(clientEmail)).toBeVisible();
     await page.waitForLoadState("networkidle");
 

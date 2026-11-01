@@ -6,8 +6,9 @@ import { z } from "zod";
 import { assignInput, noteInput, statusInput } from "@/lib/admin/orders";
 import { getAuthState, requireAdmin } from "@/lib/admin/guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
-export type ActionState = { ok?: boolean; error?: string; fieldError?: string } | null;
+export type ActionState = { ok?: boolean; error?: string; fieldError?: string; notice?: string } | null;
 
 const GENERIC_LOGIN_ERROR = "Невірний email або пароль.";
 
@@ -40,6 +41,57 @@ export async function signInAction(_prev: ActionState, formData: FormData): Prom
     return { error: GENERIC_LOGIN_ERROR };
   }
   redirect("/admin");
+}
+
+// ---------------------------------------------------------------------------
+// Закрита реєстрація: лише запрошені адреси (таблиця admin_invites), лише після підтвердження пошти
+// ---------------------------------------------------------------------------
+const registerSchema = z
+  .object({
+    email: z.string().trim().toLowerCase().email("Вкажіть коректний email.").max(200),
+    password: z.string().min(12, "Пароль має містити щонайменше 12 символів.").max(200),
+    confirm: z.string().max(200),
+  })
+  .refine((value) => value.password === value.confirm, { path: ["confirm"], message: "Паролі не збігаються." });
+
+/** Однакова відповідь для запрошених і незапрошених адрес: не розкриваємо, хто є адміном. */
+const REGISTER_NOTICE =
+  "Якщо цю адресу запрошено, ми надіслали лист із підтвердженням. Підтвердіть пошту, після цього можна входити.";
+
+export async function registerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = registerSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+    confirm: formData.get("confirm"),
+  });
+  if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте введені дані." };
+
+  let invited = false;
+  try {
+    const service = createSupabaseServiceClient();
+    const { data, error } = await service.rpc("admin_invite_exists", { p_email: parsed.data.email });
+    if (error) return { error: "Реєстрація тимчасово недоступна. Спробуйте пізніше." };
+    invited = data === true;
+  } catch {
+    return { error: "Адмін-панель ще не налаштована на сервері." };
+  }
+
+  // Незапрошену адресу не передаємо в Supabase: не створюємо акаунтів і не розсилаємо листів стороннім.
+  if (!invited) return { ok: true, notice: REGISTER_NOTICE };
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const site = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+    const { error } = await supabase.auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      options: site ? { emailRedirectTo: `${site}/admin/login` } : undefined,
+    });
+    if (error) return { error: "Не вдалося створити акаунт. Перевірте пароль і спробуйте ще раз." };
+  } catch {
+    return { error: "Адмін-панель ще не налаштована на сервері." };
+  }
+  return { ok: true, notice: REGISTER_NOTICE };
 }
 
 export async function signOutAction(): Promise<void> {

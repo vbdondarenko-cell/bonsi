@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/admin/login-form";
 import { getAuthState } from "@/lib/admin/guard";
@@ -38,6 +39,12 @@ export default async function AdminLoginPage({
             <LoginForm initialError={error === "forbidden" ? "Невірний email або пароль." : undefined} />
           </div>
         )}
+        <p className="mt-6 text-sm text-muted">
+          Вперше тут?{" "}
+          <Link prefetch={false} href="/admin/register" className="text-accent-soft underline underline-offset-4">
+            Зареєструватися
+          </Link>
+        </p>
       </div>
     </main>
   );

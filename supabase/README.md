@@ -14,12 +14,15 @@ BONSI використовує **окремий** проєкт Supabase. Про�
 Ліміти: 5 заявок/год на підмережу IP (30/год спільно, якщо IP невідомий), 3/год на email, 200/год глобально.
 Інтеграційні тести SQL: `DATABASE_URL=... ALLOW_DESTRUCTIVE_DB_TEST=1 npm test` (скидає схему `public` — лише на тестовій БД!).
 
-## Адміністратори (V0.2)
+## Адміністратори (V0.2): закрита реєстрація
 
-1. Authentication → Providers: вимкніть **Allow new users to sign up** (відкритої реєстрації адмінів немає) і ввімкніть MFA (TOTP).
-2. Створіть двох користувачів у Authentication → Users (Invite або Add user).
-3. Внесіть їх в allowlist (SQL Editor):
-   `insert into public.admin_users (user_id, display_name) values ('<uuid-1>', 'Ім''я 1'), ('<uuid-2>', 'Ім''я 2');`
-   Тригер не дозволить додати третього.
-4. Задайте `SUPABASE_ANON_KEY` разом з `SUPABASE_URL` та `SUPABASE_SERVICE_ROLE_KEY`. Під час першого входу `/admin/settings` запропонує підключити TOTP; без другого фактора RLS не віддає заявки.
-5. Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`, `CRON_SECRET`. Для повторних спроб налаштуйте зовнішній cron, що раз на хвилину викликає `POST /api/internal/notifications` із заголовком `Authorization: Bearer $CRON_SECRET`.
+Реєстрація доступна лише запрошеним адресам і тільки з підтвердженням пошти; після підтвердження сайт сам додає людину в `admin_users`.
+
+1. Застосуйте міграції (разом із `20261101010000_admin_registration.sql`).
+2. Authentication → Sign In / Providers → Email: увімкніть **Confirm email**; Allow new users to sign up має бути **увімкнено** (інакше реєстрація не спрацює; безпеку тримає список запрошень, а не вимкнена реєстрація). Authentication → URL Configuration: Site URL = адреса сайту, у Redirect URLs додайте `<адреса сайту>/admin/login`. Ввімкніть MFA (TOTP).
+3. Внесіть запрошення (SQL Editor, максимум 2):
+   `insert into public.admin_invites (email, display_name) values ('email1@...', 'Ім''я 1'), ('email2@...', 'Ім''я 2');` (email малими літерами).
+4. Кожен із двох відкриває `/admin/register`, вказує email і пароль (від 12 символів), підтверджує пошту листом і входить на `/admin/login`; при першому вході підключає TOTP.
+5. Змінні: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL`. Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`, `CRON_SECRET` + зовнішній cron на `POST /api/internal/notifications` з `Authorization: Bearer $CRON_SECRET`.
+
+Сторонні люди можуть створити акаунт Supabase через публічний API, але без запрошення в `admin_invites` вони не потраплять в `admin_users`, а RLS не віддає їм жодних даних.

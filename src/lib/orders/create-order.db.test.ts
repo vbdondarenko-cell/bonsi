@@ -55,7 +55,7 @@ describe.skipIf(!enabled)("база даних BONSI (PostgreSQL)", () => {
     await pool.query(`
       drop schema if exists auth cascade;
       create schema auth;
-      create table auth.users (id uuid primary key);
+      create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz);
       create function auth.jwt() returns jsonb language sql stable as
         $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
       create function auth.uid() returns uuid language sql stable as
@@ -473,6 +473,82 @@ describe.skipIf(!enabled)("база даних BONSI (PostgreSQL)", () => {
           expect((await q("select status from public.notification_outbox")).rows.length).toBeGreaterThan(0);
         });
       });
+    });
+  });
+
+  describe("закрита реєстрація адміністраторів", () => {
+    const U1 = "00000000-0000-4000-8000-0000000000a1";
+    const U2 = "00000000-0000-4000-8000-0000000000a2";
+    const U3 = "00000000-0000-4000-8000-0000000000a3";
+    const adminIds = async () =>
+      (await pool.query("select email from public.admin_users order by email")).rows.map((r) => r.email as string);
+
+    beforeAll(async () => {
+      await pool.query("delete from public.orders");
+      await pool.query("delete from public.admin_users");
+      await pool.query("delete from auth.users");
+      await pool.query(
+        "insert into public.admin_invites (email, display_name) values ('one@bonsi.test', 'Перший'), ('two@bonsi.test', 'Другий')",
+      );
+    });
+
+    it("не дозволяє мати більше двох запрошень", async () => {
+      await expect(
+        pool.query("insert into public.admin_invites (email, display_name) values ('three@bonsi.test', 'Третій')"),
+      ).rejects.toThrow(/invite_limit/);
+    });
+
+    it("незапрошена або непідтверджена пошта не стає адміном", async () => {
+      await pool.query("insert into auth.users (id, email, email_confirmed_at) values ($1, 'stranger@bonsi.test', now())", [U3]);
+      await pool.query("insert into auth.users (id, email, email_confirmed_at) values ($1, 'one@bonsi.test', null)", [U1]);
+      expect(await adminIds()).toEqual([]);
+    });
+
+    it("запрошена адреса стає адміном одразу після підтвердження пошти", async () => {
+      await pool.query("update auth.users set email_confirmed_at = now() where id = $1", [U1]);
+      expect(await adminIds()).toEqual(["one@bonsi.test"]);
+      const row = (await pool.query("select display_name, active from public.admin_users where user_id = $1", [U1])).rows[0];
+      expect(row).toEqual({ display_name: "Перший", active: true });
+    });
+
+    it("регістр пошти не має значення", async () => {
+      await pool.query("insert into auth.users (id, email, email_confirmed_at) values ($1, 'TWO@Bonsi.Test', now())", [U2]);
+      expect(await adminIds()).toEqual(["one@bonsi.test", "two@bonsi.test"]);
+    });
+
+    it("запрошення, додане після підтвердження пошти, підхоплюється одразу", async () => {
+      await pool.query("delete from public.admin_users where user_id = $1", [U2]);
+      await pool.query("delete from public.admin_invites where email = 'two@bonsi.test'");
+      await pool.query("insert into public.admin_invites (email, display_name) values ('two@bonsi.test', 'Другий')");
+      expect(await adminIds()).toEqual(["one@bonsi.test", "two@bonsi.test"]);
+    });
+
+    it("anon і authenticated не бачать запрошень і не викликають перевірку", async () => {
+      for (const role of ["anon", "authenticated"]) {
+        const client = await pool.connect();
+        try {
+          await client.query(`set role ${role}`);
+          await expect(client.query("select * from public.admin_invites")).rejects.toThrow(/permission denied/);
+          await client.query("rollback").catch(() => undefined);
+          await expect(client.query("select public.admin_invite_exists('one@bonsi.test')")).rejects.toThrow(/permission denied/);
+        } finally {
+          await client.query("reset role").catch(() => undefined);
+          client.release();
+        }
+      }
+    });
+
+    it("service_role може перевірити, чи запрошена адреса", async () => {
+      const client = await pool.connect();
+      try {
+        await client.query("set role service_role");
+        const yes = await client.query("select public.admin_invite_exists(' ONE@bonsi.test ') as ok");
+        const no = await client.query("select public.admin_invite_exists('nobody@bonsi.test') as ok");
+        expect([yes.rows[0].ok, no.rows[0].ok]).toEqual([true, false]);
+      } finally {
+        await client.query("reset role").catch(() => undefined);
+        client.release();
+      }
     });
   });
 });

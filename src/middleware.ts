@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAuthEnv, type CookieItem } from "@/lib/supabase/env";
 
 const LOGIN_PATH = "/admin/login";
+const REGISTER_PATH = "/admin/register";
 
 function harden(response: NextResponse) {
   response.headers.set("Cache-Control", "no-store");
@@ -17,7 +18,7 @@ function harden(response: NextResponse) {
  */
 export async function middleware(request: NextRequest) {
   const env = getSupabaseAuthEnv();
-  const isLogin = request.nextUrl.pathname === LOGIN_PATH;
+  const isLogin = request.nextUrl.pathname === LOGIN_PATH || request.nextUrl.pathname === REGISTER_PATH;
 
   if (!env) {
     if (isLogin) return harden(NextResponse.next({ request }));

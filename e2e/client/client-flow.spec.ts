@@ -246,6 +246,9 @@ test("вхід: повторний запит коду скидає стару �
   await page.getByLabel("Код із листа").fill("000000");
   await page.getByRole("button", { name: "Увійти" }).click();
   await expect(page.locator("main [role=alert]")).toContainText("Код невірний або застарів");
+  // Supabase не дозволяє повторний лист тій самій адресі частіше за інтервал max_frequency (за замовчуванням 60 с):
+  // чекаємо його завершення замість того, щоб покладатися на конфіг, який CLI міг не застосувати.
+  await page.waitForTimeout(Math.max(0, 62_000 - (Date.now() - since)));
   await page.getByRole("button", { name: "Надіслати код ще раз" }).click();
   await expect(page.locator("main [role=alert]")).toHaveCount(0); // стара помилка не лишається після повторного запиту
   const { code } = await latestLoginMail(emailB, since + 1);

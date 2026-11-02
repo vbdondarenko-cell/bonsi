@@ -281,9 +281,13 @@ test("чат: понад 500 повідомлень — клієнт бачит�
   await page.goto(`/app/projects/${projectA2}/messages`);
   await expect(page.getByText("Історія №620", { exact: true })).toBeVisible();
   await expect(page.getByText("Історія №1", { exact: true })).toHaveCount(0);
-  for (let i = 0; i < 20 && (await page.getByRole("button", { name: "Показати старіші повідомлення" }).count()); i++) {
-    await page.getByRole("button", { name: "Показати старіші повідомлення" }).click();
-    await page.waitForLoadState("networkidle");
+  const older = page.getByRole("button", { name: "Показати старіші повідомлення" });
+  const loading = page.getByRole("button", { name: "Завантажуємо…" });
+  for (let i = 0; i < 30; i++) {
+    // Під час підвантаження кнопка змінює підпис: чекаємо завершення, і лише тоді вирішуємо, чи є ще сторінки.
+    await expect(loading).toBeHidden();
+    if ((await older.count()) === 0) break;
+    await older.click();
   }
   await expect(page.getByText("Історія №1", { exact: true })).toBeVisible();
   const bodies = await page.locator('[role="log"] .whitespace-pre-wrap').allTextContents();

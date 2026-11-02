@@ -3,6 +3,9 @@
 const env = process.env;
 const errors = [];
 const warnings = [];
+// У production (або з CHECK_ENV_STRICT=1) небезпечна конфігурація блокує запуск, а не лишається попередженням.
+const strict = env.NODE_ENV === "production" || env.CHECK_ENV_STRICT === "1";
+const risk = (message) => (strict ? errors : warnings).push(message);
 
 const need = (name) => {
   if (!env[name]) errors.push(`${name} не задано`);
@@ -16,7 +19,7 @@ if (url) {
     const u = new URL(url);
     host = u.hostname;
     if (u.protocol !== "https:") errors.push("SUPABASE_URL має бути https://");
-    if (!host.endsWith(".supabase.co")) warnings.push("SUPABASE_URL не схожий на *.supabase.co (self-hosted?)");
+    if (!host.endsWith(".supabase.co")) risk("SUPABASE_URL не схожий на *.supabase.co (self-hosted?)");
   } catch {
     errors.push("SUPABASE_URL не є коректним URL");
   }
@@ -26,7 +29,7 @@ if (url) {
     errors.push(`SUPABASE_URL вказує на заборонений проєкт (${ref}). Використовуйте окремий проєкт BONSI.`);
   }
   if (forbidden.length === 0) {
-    warnings.push("SUPABASE_FORBIDDEN_PROJECT_REFS порожній: задайте ref сторонніх проєктів (напр. LinkUp), щоб випадково до них не підключитись");
+    risk("SUPABASE_FORBIDDEN_PROJECT_REFS порожній: задайте ref сторонніх проєктів (напр. LinkUp), щоб випадково до них не підключитись");
   }
 }
 
@@ -41,8 +44,12 @@ for (const name of Object.keys(env)) {
 
 const proxy = env.TRUSTED_PROXY ?? "";
 if (proxy && !/^(none|vercel|cloudflare|hops:[1-9]\d?)$/.test(proxy)) errors.push(`TRUSTED_PROXY має некоректне значення: ${proxy}`);
-if (!env.NEXT_PUBLIC_SITE_URL || env.NEXT_PUBLIC_SITE_URL.startsWith("http://localhost")) {
-  warnings.push("NEXT_PUBLIC_SITE_URL не задано для production (sitemap/OG/canonical)");
+if (!proxy) risk("TRUSTED_PROXY не задано: без нього IP клієнта для обмежень частоти визначається ненадійно");
+const site = env.NEXT_PUBLIC_SITE_URL ?? "";
+if (!site || /^http:\/\/(localhost|127\.)/.test(site)) {
+  risk("NEXT_PUBLIC_SITE_URL не задано або вказує на localhost (sitemap/OG/canonical/посилання входу)");
+} else if (strict && !site.startsWith("https://")) {
+  errors.push("NEXT_PUBLIC_SITE_URL у production має бути https://");
 }
 
 for (const w of warnings) console.warn(`⚠ ${w}`);

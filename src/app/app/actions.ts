@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireClient } from "@/lib/client/auth";
+import { getMessages, getMessagesAfter } from "@/lib/client/data";
+import { toThreadMessages, type ThreadMessage } from "@/lib/client/thread";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
-export type FormState = { ok?: boolean; error?: string; notice?: string } | null;
+export type FormState = { ok?: boolean; error?: string; notice?: string; sentAt?: number } | null;
 
 const uuid = z.string().uuid();
 const MESSAGE_ERRORS: Record<string, string> = {
@@ -33,8 +35,30 @@ export async function sendClientMessageAction(_prev: FormState, formData: FormDa
     const attach = await supabase.rpc("attach_files_to_message", { p_message: sent.data, p_files: fileIds.data });
     if (attach.error) return { error: "Повідомлення надіслано, але вкладення прикріпити не вдалося." };
   }
-  revalidatePath(`/app/projects/${projectId.data}/messages`);
-  return { ok: true };
+  return { ok: true, sentAt: Date.now() };
+}
+
+export type ThreadPage =
+  | { ok: true; messages: ThreadMessage[]; hasMore: boolean }
+  | { ok: false; error: string };
+
+/** Підвантаження історії (before) або нових повідомлень (after) за курсором id; відповідь без дублікатів визначається клієнтом за id. */
+export async function loadMessagesAction(projectId: string, cursor: { before?: number; after?: number }): Promise<ThreadPage> {
+  const id = uuid.safeParse(projectId);
+  const before = z.number().int().positive().optional().safeParse(cursor.before);
+  const after = z.number().int().min(0).optional().safeParse(cursor.after);
+  if (!id.success || !before.success || !after.success) return { ok: false, error: "Некоректний запит." };
+  try {
+    const { supabase } = await requireClient();
+    if (after.data !== undefined) {
+      const rows = await getMessagesAfter(supabase, id.data, after.data);
+      return { ok: true, messages: await toThreadMessages(supabase, id.data, rows), hasMore: false };
+    }
+    const page = await getMessages(supabase, id.data, { before: before.data });
+    return { ok: true, messages: await toThreadMessages(supabase, id.data, page.messages), hasMore: page.hasMore };
+  } catch {
+    return { ok: false, error: "Не вдалося завантажити повідомлення. Перевірте зʼєднання." };
+  }
 }
 
 export async function markReadAction(projectId: string) {

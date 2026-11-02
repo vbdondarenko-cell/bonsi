@@ -890,9 +890,9 @@ begin
     v_remaining := v_inv.amount - public.invoice_paid_raw(v_inv.id);
     if p_status <> 'success' then
       insert into public.payments (invoice_id, project_id, kind, method, amount, currency, status, provider_payment_id, note, decided_at)
-      values (v_inv.id, v_inv.project_id, 'payment', p_provider, v_inv.amount, v_inv.currency, 'failed', p_provider_payment_id,
-              left('Статус провайдера: ' || coalesce(p_status, '?'), 1000), now())
-      on conflict (method, provider_payment_id) do nothing;
+      -- Невдалу спробу не прив'язуємо до provider_payment_id: наступна успішна спроба з тим самим id не повинна впиратися в унікальність.
+      values (v_inv.id, v_inv.project_id, 'payment', p_provider, v_inv.amount, v_inv.currency, 'failed', null,
+              left('Статус провайдера: ' || coalesce(p_status, '?') || ' (' || coalesce(p_provider_payment_id, '-') || ')', 1000), now());
       v_outcome := 'provider_failed';
     elsif round(p_amount, 2) <> v_remaining or v_remaining <= 0 then
       v_outcome := 'amount_mismatch';
@@ -900,9 +900,13 @@ begin
       insert into public.payments (invoice_id, project_id, kind, method, amount, currency, status, provider_payment_id, decided_at)
       values (v_inv.id, v_inv.project_id, 'payment', p_provider, v_remaining, v_inv.currency, 'confirmed', p_provider_payment_id, now())
       on conflict (method, provider_payment_id) do nothing;
-      v_outcome := 'confirmed';
-      perform public.project_log(v_inv.project_id, null, 'system', 'payment_confirmed',
-        jsonb_build_object('number', v_inv.number, 'amount', v_remaining, 'currency', v_inv.currency));
+      if found then
+        v_outcome := 'confirmed';
+        perform public.project_log(v_inv.project_id, null, 'system', 'payment_confirmed',
+          jsonb_build_object('number', v_inv.number, 'amount', v_remaining, 'currency', v_inv.currency));
+      else
+        v_outcome := 'duplicate_payment';
+      end if;
     end if;
   end if;
   insert into public.payment_events (provider, event_id, invoice_id, outcome, payload)

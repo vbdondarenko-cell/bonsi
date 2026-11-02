@@ -322,6 +322,7 @@ describe.skipIf(!dbEnabled)("етап 2: етапи, файли, оплати (P
     });
 
     it("успішна подія підтверджує рівно раз; повтор тієї ж події — duplicate; інша подія з тим самим платежем не дублює", async () => {
+      // Раніше невдала спроба з іншим id не блокує успішну, а успішна після pending-подій не губиться.
       expect((await apply("e5")).rows[0].r).toBe("confirmed");
       expect((await apply("e5")).rows[0].r).toBe("duplicate");
       expect((await apply("e6", { pid: "pay-e5" })).rows[0].r).toBe("amount_mismatch");

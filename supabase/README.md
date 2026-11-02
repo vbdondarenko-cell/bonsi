@@ -7,6 +7,10 @@ BONSI використовує **окремий** проєкт Supabase. Про�
    - `20261031000000_orders.sql` — таблиця `orders`, RLS без політик, відкликані права anon/authenticated;
    - `20261031010000_create_order_function.sql` — атомарна функція `create_order` з лімітами (доступна лише `service_role`);
    - `20261101000000_admin_workspace.sql` — адмінпанель: allowlist `admin_users` (максимум 2), `assigned_to`, нотатки, історія змін, outbox сповіщень, RLS з вимогою MFA (aal2), функції керування заявками. Міграція лише додає об'єкти, нічого не видаляє.
+   - `20261101010000_admin_registration.sql` — закрита реєстрація адміністраторів;
+   - `20261102000000_client_workspace.sql` (V0.4) — клієнти, проєкти, етапи, чат, внутрішні нотатки, комерційні пропозиції, журнал погоджень, `create_order_v2` (необов'язкові поля), RLS і функції; міграція адитивна, наявні заявки лишаються чинними;
+   - `20261102010000_auth_throttle.sql` — ліміти спроб входу;
+   - `20261102020000_project_assignee_name.sql` — ім'я виконавця для клієнта без доступу до `admin_users`.
 3. Задайте змінні на хостингу (не в git): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ORDER_HASH_SALT` (`openssl rand -hex 32`), `TRUSTED_PROXY`.
 4. У `SUPABASE_FORBIDDEN_PROJECT_REFS` внесіть ref сторонніх проєктів, а перед деплоєм запустіть `npm run check:env`.
 5. Ключ `service_role` ніколи не використовується в браузері й не має префікса `NEXT_PUBLIC_`.

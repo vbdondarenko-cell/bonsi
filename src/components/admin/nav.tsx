@@ -7,6 +7,8 @@ import { cn } from "@/lib/cn";
 const items = [
   { href: "/admin", label: "Огляд", exact: true },
   { href: "/admin/orders", label: "Заявки", exact: false },
+  { href: "/admin/projects", label: "Проєкти", exact: false },
+  { href: "/admin/clients", label: "Клієнти", exact: false },
   { href: "/admin/settings", label: "Налаштування", exact: false },
 ];
 

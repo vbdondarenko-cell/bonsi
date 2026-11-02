@@ -5,7 +5,8 @@ import { AssignForm, NoteForm, StatusForm } from "@/components/admin/order-forms
 import { PageHeader, Panel, StatusBadge, formatDateTime } from "@/components/admin/ui";
 import { STATUS_LABELS, uuidSchema, type OrderStatus } from "@/lib/admin/orders";
 import { requireAdmin } from "@/lib/admin/guard";
-import { BUDGET_LABELS, DEADLINE_LABELS, type BudgetId, type DeadlineId } from "@/lib/orders/options";
+import { BUDGET_LABELS, DEADLINE_LABELS, SERVICE_QUESTIONS, isServiceId, type BudgetId, type DeadlineId } from "@/lib/orders/options";
+import { InviteClientForm } from "@/components/admin/project-forms";
 import { services } from "@/lib/services";
 
 export const metadata: Metadata = { title: "Заявка" };
@@ -17,15 +18,16 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
   if (!uuidSchema.safeParse(id).success) notFound();
 
   const { supabase } = await requireAdmin();
-  const [order, notes, events, admins] = await Promise.all([
+  const [order, notes, events, admins, project] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, ticket_number, service, idea, budget, deadline, name, email, phone, status, assigned_to, consent_at, consent_policy_version, created_at, updated_at")
+      .select("id, ticket_number, service, idea, budget, deadline, details, links, client_id, name, email, phone, status, assigned_to, consent_at, consent_policy_version, created_at, updated_at")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("order_notes").select("id, author_id, body, created_at").eq("order_id", id).order("created_at", { ascending: false }),
     supabase.from("order_events").select("id, actor_id, type, data, created_at").eq("order_id", id).order("created_at", { ascending: false }).order("id", { ascending: false }),
     supabase.from("admin_users").select("user_id, display_name").eq("active", true),
+    supabase.from("projects").select("id").eq("order_id", id).maybeSingle(),
   ]);
 
   if (order.error) {
@@ -45,6 +47,14 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
   const serviceTitle = services.find((s) => s.id === o.service)?.title ?? o.service;
   const label = (value: unknown) =>
     typeof value === "string" ? STATUS_LABELS[value as OrderStatus] ?? value : "—";
+
+  const details = (o.details ?? {}) as Record<string, string>;
+  const links = ((o.links ?? []) as string[]).filter((link) => /^https?:\/\//i.test(link));
+  const questions = isServiceId(o.service as string) ? SERVICE_QUESTIONS[o.service as keyof typeof SERVICE_QUESTIONS] : [];
+  const answers = questions.flatMap((question) => {
+    const option = question.options.find((item) => item.id === details[question.id]);
+    return option ? [{ label: question.label, value: option.label }] : [];
+  });
 
   const describe = (event: EventRow) => {
     switch (event.type) {
@@ -75,16 +85,37 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
           <Panel title="Деталі заявки">
             <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
               <Item label="Послуга" value={serviceTitle} />
-              <Item label="Бюджет" value={BUDGET_LABELS[o.budget as BudgetId] ?? (o.budget as string)} />
-              <Item label="Терміни" value={DEADLINE_LABELS[o.deadline as DeadlineId] ?? (o.deadline as string)} />
+              <Item label="Бюджет" value={o.budget ? BUDGET_LABELS[o.budget as BudgetId] ?? (o.budget as string) : "Не вказано"} />
+              <Item label="Терміни" value={o.deadline ? DEADLINE_LABELS[o.deadline as DeadlineId] ?? (o.deadline as string) : "Не вказано"} />
               <Item label="Створено" value={formatDateTime(o.created_at as string)} />
               <Item label="Email" value={<a className="break-all text-accent-soft underline-offset-4 hover:underline" href={`mailto:${o.email}`}>{o.email as string}</a>} />
               <Item label="Телефон" value={(o.phone as string | null) ?? "—"} />
             </dl>
+            {answers.length > 0 ? (
+              <dl className="mt-6 grid gap-x-8 gap-y-5 border-t border-line pt-5 sm:grid-cols-2">
+                {answers.map((answer) => (
+                  <Item key={answer.label} label={answer.label} value={answer.value} />
+                ))}
+              </dl>
+            ) : null}
             <div className="mt-6 border-t border-line pt-5">
-              <h3 className="text-xs uppercase tracking-wider text-muted">Опис ідеї</h3>
-              <p className="mt-2 whitespace-pre-wrap break-words leading-relaxed">{o.idea as string}</p>
+              <h3 className="text-xs uppercase tracking-wider text-muted">Опис</h3>
+              <p className="mt-2 whitespace-pre-wrap break-words leading-relaxed">{(o.idea as string | null) || "Клієнт не залишив опису."}</p>
             </div>
+            {links.length > 0 ? (
+              <div className="mt-6 border-t border-line pt-5">
+                <h3 className="text-xs uppercase tracking-wider text-muted">Посилання на приклади</h3>
+                <ul className="mt-2 flex flex-col gap-1">
+                  {links.map((link) => (
+                    <li key={link}>
+                      <a href={link} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-accent-soft underline-offset-4 hover:underline">
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <p className="mt-5 text-xs text-muted">
               Згода на обробку даних: {formatDateTime(o.consent_at as string)} (політика {o.consent_policy_version as string})
             </p>
@@ -115,6 +146,16 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
               <StatusForm orderId={id} status={o.status as string} />
               <AssignForm orderId={id} assignee={o.assigned_to as string | null} admins={adminList} />
             </div>
+          </Panel>
+
+          <Panel title="Кабінет клієнта">
+            {project.data ? (
+              <Link prefetch={false} href={`/admin/projects/${project.data.id as string}`} className="text-accent-soft underline underline-offset-4">
+                Відкрити проєкт клієнта
+              </Link>
+            ) : (
+              <InviteClientForm orderId={id} />
+            )}
           </Panel>
 
           <Panel title="Історія змін">

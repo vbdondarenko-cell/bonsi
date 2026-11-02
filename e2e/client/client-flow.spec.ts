@@ -164,12 +164,13 @@ test("8. пропозиція: запит змін → нова версія →
   await expect(page.getByRole("textbox")).toHaveAttribute("required", "");
   await page.getByRole("textbox").fill("Додайте адмінку та інтеграцію з CRM.");
   await page.getByRole("button", { name: "Надіслати запит на зміни" }).click();
-  await expect(page.getByText("Запит на зміни надіслано студії.")).toBeVisible();
+  // Одноразове повідомлення зникає, коли сторінка перемальовується; перевіряємо тривалий результат: статус і журнал рішень.
+  await expect(page.getByText("Запитано зміни").first()).toBeVisible();
 
   await proposal();
   await page.goto(`/app/projects/${projectA}/proposal`);
   await page.getByRole("button", { name: "Погодити пропозицію" }).click();
-  await expect(page.getByText("Пропозицію погоджено. Студія побачить ваше рішення.")).toBeVisible();
+  await expect(page.getByText("Погоджено").first()).toBeVisible();
   const decisions = await db.from("proposal_decisions").select("decision").eq("project_id", projectA).order("id");
   expect(decisions.data?.map((d) => d.decision)).toEqual(["changes_requested", "approved"]);
 });
@@ -179,10 +180,12 @@ test("10. результат етапу: правки → нова версія 
   await rpc(studioApi, "admin_submit_deliverable", { p_id: d1 });
   await signIn(page, emailA);
   await page.goto(`/app/projects/${projectA}/milestones`);
-  await page.getByRole("button", { name: /Попросити змін|Запросити правки|правки/i }).first().click();
+  await page.getByRole("button", { name: "Попросити правок" }).click();
   await page.getByRole("textbox").fill("Змінити кольори.");
-  await page.getByRole("button", { name: /Надіслати/ }).first().click();
-  await expect(page.getByText(/надіслано студії|Правки/i).first()).toBeVisible();
+  await page.getByRole("button", { name: "Надіслати правки" }).click();
+  await expect.poll(async () => (await db.from("deliverable_decisions").select("decision").eq("project_id", projectA)).data?.map((d) => d.decision)).toEqual(["changes_requested"]);
+  await page.reload();
+  await expect(page.getByText("Запитано правки").first()).toBeVisible();
 
   await page.goto(`/app/projects/${projectA}/files`);
   await page.locator('input[type="file"]').first().setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: PNG });

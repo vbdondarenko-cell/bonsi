@@ -160,8 +160,8 @@ test("8. пропозиція: запит змін → нова версія →
   await page.goto(`/app/projects/${projectA}/proposal`);
   await expect(page.getByText(/Онлайн-еквайринг поки не підключений/)).toBeVisible();
   await page.getByRole("button", { name: "Попросити змін" }).click();
-  await page.getByRole("button", { name: "Надіслати запит на зміни" }).click();
-  await expect(page.locator("main [role=alert]")).toContainText("Опишіть, що саме потрібно змінити");
+  // Порожній коментар не відправляється: поле обовʼязкове (сервер дублює перевірку, її покривають DB-тести).
+  await expect(page.getByRole("textbox")).toHaveAttribute("required", "");
   await page.getByRole("textbox").fill("Додайте адмінку та інтеграцію з CRM.");
   await page.getByRole("button", { name: "Надіслати запит на зміни" }).click();
   await expect(page.getByText("Запит на зміни надіслано студії.")).toBeVisible();

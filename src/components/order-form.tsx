@@ -10,10 +10,13 @@ import {
   BUDGET_LABELS,
   DEADLINE_IDS,
   DEADLINE_LABELS,
+  MAX_LINKS,
+  parseLinks,
   SERVICE_IDS,
+  SERVICE_QUESTIONS,
   type ServiceId,
 } from "@/lib/orders/options";
-import { orderSchema, type OrderFieldErrors } from "@/lib/orders/schema";
+import { checkedOrderSchema, type OrderFieldErrors } from "@/lib/orders/schema";
 import { services } from "@/lib/services";
 
 type Values = {
@@ -21,6 +24,10 @@ type Values = {
   idea: string;
   budget: string;
   deadline: string;
+  /** Відповіді на уточнення обраної послуги. */
+  details: Record<string, string>;
+  /** Посилання на приклади: по одному в рядок. */
+  links: string;
   name: string;
   email: string;
   phone: string;
@@ -32,6 +39,8 @@ const emptyValues: Values = {
   idea: "",
   budget: "",
   deadline: "",
+  details: {},
+  links: "",
   name: "",
   email: "",
   phone: "",
@@ -89,10 +98,12 @@ const serverMessages: Record<number, string> = {
   503: "Приймання заявок тимчасово недоступне. Спробуйте трохи пізніше.",
 };
 
-export function OrderForm() {
+export function OrderForm({ initialService }: { initialService?: ServiceId }) {
   const toast = useToast();
   const startedAt = useRef(Date.now());
-  const [values, setValues] = useState<Values>(emptyValues);
+  const [values, setValues] = useState<Values>({ ...emptyValues, service: initialService ?? "" });
+  // Послугу обрано заздалегідь (картка послуги чи посилання): форма її не перепитує.
+  const [changingService, setChangingService] = useState(false);
   const [honeypot, setHoneypot] = useState("");
   const [errors, setErrors] = useState<OrderFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -124,18 +135,31 @@ export function OrderForm() {
     event.preventDefault();
     if (submitting) return;
 
+    const questions = values.service ? SERVICE_QUESTIONS[values.service] : [];
+    const details = Object.fromEntries(
+      Object.entries(values.details).filter(([key, answer]) => answer && questions.some((q) => q.id === key)),
+    );
+    const links = parseLinks(values.links);
     const candidate = {
-      ...values,
+      service: values.service,
+      idea: values.idea.trim() === "" ? undefined : values.idea,
+      budget: values.budget === "" ? undefined : values.budget,
+      deadline: values.deadline === "" ? undefined : values.deadline,
+      details: Object.keys(details).length ? details : undefined,
+      links: links.length ? links : undefined,
+      name: values.name,
+      email: values.email,
+      consent: values.consent,
       phone: values.phone.trim() === "" ? undefined : values.phone,
       website: honeypot,
       startedAt: startedAt.current,
     };
 
-    const parsed = orderSchema.safeParse(candidate);
+    const parsed = checkedOrderSchema.safeParse(candidate);
     if (!parsed.success) {
       const fieldErrors = parsed.error.flatten().fieldErrors as OrderFieldErrors;
       setErrors(fieldErrors);
-      const order = ["service", "idea", "budget", "deadline", "name", "email", "phone", "consent"];
+      const order = ["service", "idea", "links", "budget", "deadline", "name", "email", "phone", "consent"];
       const first = order.find((name) => fieldErrors[name as keyof OrderFieldErrors]);
       if (first) focusField(first);
       return;
@@ -211,7 +235,8 @@ export function OrderForm() {
   }
 
   function reset() {
-    setValues(emptyValues);
+    setValues({ ...emptyValues, service: initialService ?? "" });
+    setChangingService(false);
     setErrors({});
     setTicket(null);
     startedAt.current = Date.now();
@@ -250,54 +275,118 @@ export function OrderForm() {
       noValidate
       className="flex flex-col gap-8 rounded-[var(--radius-card)] border border-line bg-surface/60 p-6 sm:p-10"
     >
-      <fieldset
-        id="field-service"
-        tabIndex={-1}
-        aria-describedby={describedBy("service")}
-        className="flex flex-col gap-3 outline-none"
-      >
-        <legend className="mb-1 text-sm font-medium">1. Тип послуги</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {SERVICE_IDS.map((id) => {
-            const selected = values.service === id;
-            return (
-              <label
-                key={id}
-                className={cn(
-                  "flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition-colors",
-                  selected ? "border-accent-soft bg-surface-2" : "border-line hover:border-muted/60",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="service"
-                  value={id}
-                  checked={selected}
-                  onChange={() => update("service", id)}
-                  className="size-4 accent-[var(--color-accent)]"
-                />
-                <span>{serviceTitles[id]}</span>
-              </label>
-            );
-          })}
-        </div>
-        {firstError("service") ? (
-          <p id="field-service-error" className="text-sm text-danger">
-            {firstError("service")}
+      {values.service && !changingService && initialService ? (
+        <div
+          id="field-service"
+          tabIndex={-1}
+          className="flex flex-col gap-3 rounded-2xl border border-accent-soft/60 bg-surface-2 p-4 outline-none sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p>
+            <span className="text-sm text-muted">Послуга</span>
+            <span className="mt-1 block text-lg font-medium">{serviceTitles[values.service]}</span>
           </p>
-        ) : null}
-      </fieldset>
+          <button
+            type="button"
+            onClick={() => setChangingService(true)}
+            className="self-start rounded-full border border-line px-4 py-2 text-sm text-muted hover:text-fg sm:self-auto"
+          >
+            Змінити послугу
+          </button>
+        </div>
+      ) : (
+        <fieldset
+          id="field-service"
+          tabIndex={-1}
+          aria-describedby={describedBy("service")}
+          className="flex flex-col gap-3 outline-none"
+        >
+          <legend className="mb-1 text-sm font-medium">Яка послуга потрібна?</legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {SERVICE_IDS.map((id) => {
+              const selected = values.service === id;
+              return (
+                <label
+                  key={id}
+                  className={cn(
+                    "flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition-colors",
+                    selected ? "border-accent-soft bg-surface-2" : "border-line hover:border-muted/60",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="service"
+                    value={id}
+                    checked={selected}
+                    onChange={() => {
+                      // Відповіді на уточнення стосуються конкретної послуги: при зміні послуги скидаємо їх.
+                      setValues((current) => ({ ...current, service: id, details: id === current.service ? current.details : {} }));
+                      setErrors((current) => {
+                        const next = { ...current };
+                        delete next.service;
+                        return next;
+                      });
+                    }}
+                    className="size-4 accent-[var(--color-accent)]"
+                  />
+                  <span>{serviceTitles[id]}</span>
+                </label>
+              );
+            })}
+          </div>
+          {firstError("service") ? (
+            <p id="field-service-error" className="text-sm text-danger">
+              {firstError("service")}
+            </p>
+          ) : null}
+        </fieldset>
+      )}
+
+      {values.service ? (
+        <div className="flex flex-col gap-6" data-testid="service-questions">
+          {SERVICE_QUESTIONS[values.service].map((question) => (
+            <fieldset key={question.id} className="flex flex-col gap-3">
+              <legend className="mb-1 text-sm font-medium">
+                {question.label} <span className="font-normal text-muted">(необовʼязково)</span>
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {question.options.map((option) => {
+                  const selected = values.details[question.id] === option.id;
+                  return (
+                    <label
+                      key={option.id}
+                      className={cn(
+                        "flex min-h-11 cursor-pointer items-center rounded-full border px-4 py-2 text-sm transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-soft",
+                        selected ? "border-accent-soft bg-surface-2 text-fg" : "border-line text-muted hover:border-muted/60 hover:text-fg",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name={`detail-${question.id}`}
+                        value={option.id}
+                        checked={selected}
+                        onChange={() => update("details", { ...values.details, [question.id]: option.id })}
+                        className="sr-only"
+                      />
+                      {option.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+      ) : null}
 
       <Field
         id="field-idea"
-        label="2. Опишіть ідею"
-        hint="Що за продукт, для кого, які задачі він має вирішувати. Мінімум 20 символів."
+        label="Коротко про задачу (необовʼязково)"
+        hint="Кілька речень своїми словами. Деталі обговоримо вже в кабінеті проєкту."
         error={firstError("idea")}
       >
         <textarea
           id="field-idea"
           name="idea"
-          rows={6}
+          rows={4}
           value={values.idea}
           onChange={onText("idea")}
           maxLength={3000}
@@ -307,8 +396,28 @@ export function OrderForm() {
         />
       </Field>
 
+      <Field
+        id="field-links"
+        label="Посилання на приклади (необовʼязково)"
+        hint={`Сайти, Figma, Google Drive тощо — до ${MAX_LINKS} посилань, кожне з нового рядка.`}
+        error={firstError("links")}
+      >
+        <textarea
+          id="field-links"
+          name="links"
+          rows={2}
+          inputMode="url"
+          autoComplete="off"
+          value={values.links}
+          onChange={onText("links")}
+          aria-invalid={Boolean(firstError("links"))}
+          aria-describedby={describedBy("links", true)}
+          className={cn(fieldClass, "resize-y")}
+        />
+      </Field>
+
       <div className="grid gap-8 sm:grid-cols-2">
-        <Field id="field-budget" label="3. Орієнтовний бюджет" error={firstError("budget")}>
+        <Field id="field-budget" label="Орієнтовний бюджет (необовʼязково)" error={firstError("budget")}>
           <select
             id="field-budget"
             name="budget"
@@ -318,9 +427,7 @@ export function OrderForm() {
             aria-describedby={describedBy("budget")}
             className={fieldClass}
           >
-            <option value="" disabled>
-              Оберіть бюджет
-            </option>
+            <option value="">Не вказувати</option>
             {BUDGET_IDS.map((id) => (
               <option key={id} value={id}>
                 {BUDGET_LABELS[id]}
@@ -328,7 +435,7 @@ export function OrderForm() {
             ))}
           </select>
         </Field>
-        <Field id="field-deadline" label="Бажані терміни" error={firstError("deadline")}>
+        <Field id="field-deadline" label="Бажані терміни (необовʼязково)" error={firstError("deadline")}>
           <select
             id="field-deadline"
             name="deadline"
@@ -338,9 +445,7 @@ export function OrderForm() {
             aria-describedby={describedBy("deadline")}
             className={fieldClass}
           >
-            <option value="" disabled>
-              Оберіть терміни
-            </option>
+            <option value="">Не вказувати</option>
             {DEADLINE_IDS.map((id) => (
               <option key={id} value={id}>
                 {DEADLINE_LABELS[id]}
@@ -351,7 +456,7 @@ export function OrderForm() {
       </div>
 
       <div className="grid gap-8 sm:grid-cols-2">
-        <Field id="field-name" label="4. Імʼя" error={firstError("name")}>
+        <Field id="field-name" label="Імʼя" error={firstError("name")}>
           <input
             id="field-name"
             name="name"

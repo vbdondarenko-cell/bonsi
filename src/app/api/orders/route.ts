@@ -2,7 +2,7 @@ import { after } from "next/server";
 import { dispatchSafely } from "@/lib/notifications/dispatch";
 import { PayloadTooLargeError, readBodyLimited } from "@/lib/http/read-body";
 import { getClientIp, ipBucket, parseTrustedProxy } from "@/lib/orders/client-ip";
-import { orderSchema } from "@/lib/orders/schema";
+import { checkedOrderSchema } from "@/lib/orders/schema";
 import { ConfigError, RateLimitError, createOrder } from "@/lib/orders/service";
 import { site } from "@/lib/site";
 
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     return json({ error: "invalid_json" }, 400);
   }
 
-  const parsed = orderSchema.safeParse(raw);
+  const parsed = checkedOrderSchema.safeParse(raw);
   if (!parsed.success) {
     return json(
       { error: "validation", fieldErrors: parsed.error.flatten().fieldErrors },

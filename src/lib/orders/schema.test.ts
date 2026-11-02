@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orderSchema } from "./schema";
+import { checkedOrderSchema, orderSchema } from "./schema";
 
 const valid = {
   service: "webapp",
@@ -25,12 +25,14 @@ describe("orderSchema", () => {
     expect(orderSchema.safeParse({ ...valid, phone: "" }).success).toBe(true);
   });
 
-  it("відхиляє занадто короткий опис ідеї", () => {
-    const result = orderSchema.safeParse({ ...valid, idea: "Сайт" });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.flatten().fieldErrors.idea).toBeDefined();
-    }
+  it("приймає короткий опис, а також заявку взагалі без опису, бюджету й термінів", () => {
+    expect(orderSchema.safeParse({ ...valid, idea: "Сайт" }).success).toBe(true);
+    const minimal = { service: "landing", name: "Іван", email: "ivan@example.com", consent: true, startedAt: 1 };
+    expect(orderSchema.safeParse(minimal).success).toBe(true);
+  });
+
+  it("відхиляє опис довший за 3000 символів", () => {
+    expect(orderSchema.safeParse({ ...valid, idea: "а".repeat(3001) }).success).toBe(false);
   });
 
   it("відхиляє невідомий тип послуги, бюджет і терміни", () => {
@@ -47,5 +49,28 @@ describe("orderSchema", () => {
   it("вимагає згоду на обробку даних", () => {
     expect(orderSchema.safeParse({ ...valid, consent: false }).success).toBe(false);
     expect(orderSchema.safeParse({ ...valid, consent: undefined }).success).toBe(false);
+  });
+});
+
+describe("checkedOrderSchema: уточнення за послугою й посилання", () => {
+  const base = { service: "landing", name: "Іван", email: "ivan@example.com", consent: true, startedAt: 1 };
+
+  it("приймає уточнення, що належать обраній послузі", () => {
+    expect(checkedOrderSchema.safeParse({ ...base, details: { goal: "leads", content: "ready" } }).success).toBe(true);
+  });
+
+  it("відхиляє уточнення іншої послуги, невідомі відповіді й підроблені ключі", () => {
+    expect(checkedOrderSchema.safeParse({ ...base, details: { platform: "ios" } }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...base, details: { goal: "world-domination" } }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...base, details: { __proto__: "x", constructor: "y" } }).success).toBe(false);
+  });
+
+  it("приймає до 5 http(s)-посилань і відхиляє решту", () => {
+    const ok = Array.from({ length: 5 }, (_, i) => `https://example.com/ref/${i}`);
+    expect(checkedOrderSchema.safeParse({ ...base, links: ok }).success).toBe(true);
+    expect(checkedOrderSchema.safeParse({ ...base, links: [...ok, "https://example.com/6"] }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...base, links: ["javascript:alert(1)"] }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...base, links: ["ftp://example.com/file"] }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...base, links: ["не посилання"] }).success).toBe(false);
   });
 });

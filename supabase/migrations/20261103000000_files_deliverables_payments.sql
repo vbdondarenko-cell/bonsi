@@ -943,6 +943,9 @@ revoke all on function
   public.payments_apply_provider_event(text, text, text, numeric, text, text, text, jsonb)
   from public, anon, authenticated;
 
+-- Обгортка з перевіркою власника всередині: доступна лише авторизованим (не anon).
+revoke all on function public.invoice_paid_amount(uuid) from public, anon;
+
 grant execute on function
   public.invoice_payment_state(uuid),
   public.admin_create_deliverable(uuid, text, text, text, text),
@@ -964,6 +967,7 @@ grant execute on function
   public.admin_reject_payment(uuid, text),
   public.admin_record_refund(uuid, numeric, text)
   to authenticated;
+grant execute on function public.invoice_paid_amount(uuid) to authenticated;
 grant execute on function public.payments_apply_provider_event(text, text, text, numeric, text, text, text, jsonb) to service_role;
 
 -- ---------------------------------------------------------------------------

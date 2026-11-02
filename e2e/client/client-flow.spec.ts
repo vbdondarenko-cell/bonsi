@@ -111,7 +111,7 @@ test("5. повідомлення студії з лічильником неп�
   await field.fill("Референси: https://example.com/ref");
   await context.setOffline(true);
   await page.getByRole("button", { name: "Надіслати" }).click();
-  await expect(page.getByRole("alert")).toContainText(/зʼєднання|Не вдалося/);
+  await expect(page.locator("main [role=alert]")).toContainText(/зʼєднання|Не вдалося/);
   await expect(field).toHaveValue("Референси: https://example.com/ref");
   await context.setOffline(false);
 
@@ -161,7 +161,7 @@ test("8. пропозиція: запит змін → нова версія →
   await expect(page.getByText(/Онлайн-еквайринг поки не підключений/)).toBeVisible();
   await page.getByRole("button", { name: "Попросити змін" }).click();
   await page.getByRole("button", { name: "Надіслати запит на зміни" }).click();
-  await expect(page.getByRole("alert")).toContainText("Опишіть, що саме потрібно змінити");
+  await expect(page.locator("main [role=alert]")).toContainText("Опишіть, що саме потрібно змінити");
   await page.getByRole("textbox").fill("Додайте адмінку та інтеграцію з CRM.");
   await page.getByRole("button", { name: "Надіслати запит на зміни" }).click();
   await expect(page.getByText("Запит на зміни надіслано студії.")).toBeVisible();
@@ -239,9 +239,9 @@ test("вхід: повторний запит коду скидає стару �
   await page.getByRole("button", { name: "Отримати код" }).click();
   await page.getByLabel("Код із листа").fill("000000");
   await page.getByRole("button", { name: "Увійти" }).click();
-  await expect(page.getByRole("alert")).toContainText("Код невірний або застарів");
+  await expect(page.locator("main [role=alert]")).toContainText("Код невірний або застарів");
   await page.getByRole("button", { name: "Надіслати код ще раз" }).click();
-  await expect(page.getByRole("alert")).toHaveCount(0); // стара помилка не лишається після повторного запиту
+  await expect(page.locator("main [role=alert]")).toHaveCount(0); // стара помилка не лишається після повторного запиту
   const { code } = await latestLoginMail(emailB, since + 1);
   await page.getByLabel("Код із листа").fill(code);
   await page.getByRole("button", { name: "Увійти" }).click();
@@ -253,7 +253,7 @@ test("вхід: повторний запит коду скидає стару �
   await page.getByRole("button", { name: "Отримати код" }).click();
   await page.getByLabel("Код із листа").fill(code);
   await page.getByRole("button", { name: "Увійти" }).click();
-  await expect(page.getByRole("alert")).toContainText("Код невірний або застарів");
+  await expect(page.locator("main [role=alert]")).toContainText("Код невірний або застарів");
 });
 
 test("чат: понад 500 повідомлень — клієнт бачить найновіші, старіші підвантажуються, дублікатів немає", async ({ page }) => {

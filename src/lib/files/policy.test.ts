@@ -55,3 +55,13 @@ describe("sanitizeName і storagePath", () => {
     expect(one).not.toBe(two);
   });
 });
+
+describe("подвійні розширення", () => {
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  it.each(["shell.php.png", "invoice.exe.pdf", "a.html.png", "x.SVG.png", "evil.js.png"])("%s відхиляється", (name) => {
+    expect(checkFile(name, 10, png)).toEqual({ ok: false, reason: "name" });
+  });
+  it("звичайна назва з крапками проходить", () => {
+    expect(checkFile("logo v2.final.png", 10, png)).toMatchObject({ ok: true });
+  });
+});

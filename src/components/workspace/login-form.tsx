@@ -7,17 +7,18 @@ import { Button } from "@/components/ui/button";
 
 /** Вхід без пароля: email → код із листа (або посилання з того ж листа). */
 export function ClientLoginForm({ initialEmail, next, initialError }: { initialEmail?: string; next?: string; initialError?: string }) {
-  const [requested, requestAction, requesting] = useActionState<LoginState, FormData>(requestCodeAction, null);
-  const [verified, verifyAction, verifying] = useActionState<LoginState, FormData>(verifyCodeAction, null);
-
-  // Остання відповідь визначає крок: після помилки коду лишаємося на кроці коду.
-  const state: LoginState = verified ?? requested;
+  // Один стан на обидві дії: відповідь останньої дії завжди замінює попередню (раніше `verified ?? requested`
+  // тримав застарілу помилку коду після повторного надсилання). Дію обираємо за прихованим полем intent.
+  const [state, dispatch, busy] = useActionState<LoginState, FormData>((previous, formData) => (formData.get("intent") === "verify" ? verifyCodeAction(previous, formData) : requestCodeAction(previous, formData)), null);
+  const verifying = busy;
+  const requesting = busy;
   const step = state?.step ?? "email";
 
   if (step === "code" && state && "email" in state) {
     return (
       <div className="flex flex-col gap-5">
-      <form action={verifyAction} className="flex flex-col gap-5" noValidate>
+      <form action={dispatch} className="flex flex-col gap-5" noValidate>
+        <input type="hidden" name="intent" value="verify" />
         <input type="hidden" name="email" value={state.email} />
         <input type="hidden" name="next" value={next ?? ""} />
         <p role="status" className="rounded-xl border border-line bg-surface-2 p-4 text-sm text-muted">
@@ -51,7 +52,8 @@ export function ClientLoginForm({ initialEmail, next, initialError }: { initialE
           {verifying ? "Перевіряємо…" : "Увійти"}
         </Button>
       </form>
-      <form action={requestAction}>
+      <form action={dispatch}>
+        <input type="hidden" name="intent" value="request" />
         <input type="hidden" name="email" value={state.email} />
         <button type="submit" disabled={requesting} className="text-sm text-muted underline underline-offset-4 hover:text-fg disabled:opacity-60">
           {requesting ? "Надсилаємо…" : "Надіслати код ще раз"}
@@ -63,7 +65,8 @@ export function ClientLoginForm({ initialEmail, next, initialError }: { initialE
 
   const error = (state && "error" in state ? state.error : undefined) ?? initialError;
   return (
-    <form action={requestAction} className="flex flex-col gap-5" noValidate>
+    <form action={dispatch} className="flex flex-col gap-5" noValidate>
+      <input type="hidden" name="intent" value="request" />
       <div className="flex flex-col gap-2">
         <label htmlFor="email" className="text-sm font-medium">
           Email

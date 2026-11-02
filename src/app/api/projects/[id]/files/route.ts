@@ -9,6 +9,7 @@ import {
   MAX_REQUEST_BYTES,
   checkFile,
 } from "@/lib/files/policy";
+import { PayloadTooLargeError, withBodyLimit } from "@/lib/http/read-body";
 import { storagePath } from "@/lib/files/storage";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -16,6 +17,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BUCKET = "project-files";
+/** Одночасні завантаження одного користувача (в межах інстансу): обмежує пам'ять, яку може зайняти один обліковий запис. */
+const MAX_CONCURRENT_UPLOADS = 3;
+const inFlight = new Map<string, number>();
 const json = (body: unknown, status: number) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 /**
@@ -38,11 +42,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const project = await actor.supabase.from("projects").select("id").eq("id", projectId).maybeSingle();
   if (project.error || !project.data) return json({ error: "not_found" }, 404);
 
+  const active = inFlight.get(actor.userId) ?? 0;
+  if (active >= MAX_CONCURRENT_UPLOADS) return json({ error: "too_many_uploads" }, 429);
+  inFlight.set(actor.userId, active + 1);
+  try {
+    return await handle(request, projectId, actor);
+  } finally {
+    const left = (inFlight.get(actor.userId) ?? 1) - 1;
+    if (left <= 0) inFlight.delete(actor.userId);
+    else inFlight.set(actor.userId, left);
+  }
+}
+
+async function handle(request: Request, projectId: string, actor: NonNullable<Awaited<ReturnType<typeof getActor>>>) {
   let form: FormData;
   try {
-    form = await request.formData();
-  } catch {
-    return json({ error: "invalid_form" }, 400);
+    // Ліміт рахується під час читання: заголовок Content-Length клієнт може збрехати.
+    form = await withBodyLimit(request, MAX_REQUEST_BYTES).formData();
+  } catch (error) {
+    const tooLarge = error instanceof PayloadTooLargeError || (error instanceof Error && error.cause instanceof PayloadTooLargeError);
+    return tooLarge ? json({ error: "payload_too_large" }, 413) : json({ error: "invalid_form" }, 400);
   }
 
   const categories = actor.role === "admin" ? ADMIN_CATEGORIES : CLIENT_CATEGORIES;

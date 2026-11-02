@@ -95,4 +95,38 @@ describe("POST /api/projects/[id]/files", () => {
     expect(res.status).toBe(201);
     expect(rpc).toHaveBeenCalledWith("admin_register_file", expect.objectContaining({ p_category: "final", p_visible: false }));
   });
+  it("Content-Length бреше (заявлено 1000 байт, надіслано понад ліміт) — 413, у сховище нічого не потрапило", async () => {
+    const { MAX_REQUEST_BYTES } = await import("@/lib/files/policy");
+    const body = new Uint8Array(MAX_REQUEST_BYTES + 1024);
+    const lying = new Request("http://localhost/api/projects/" + PROJECT + "/files", {
+      method: "POST",
+      body,
+      headers: { "content-type": "multipart/form-data; boundary=zzz", "content-length": "1000" },
+    });
+    const res = await POST(lying, ctx());
+    expect(res.status).toBe(413);
+    expect(upload).not.toHaveBeenCalled();
+  });
+  it("withBodyLimit переривається потоково при неправдивому Content-Length", async () => {
+    const { withBodyLimit } = await import("@/lib/http/read-body");
+    const req = new Request("http://localhost/x", { method: "POST", body: new Uint8Array(2048), headers: { "content-length": "10" } });
+    await expect(withBodyLimit(req, 1024).arrayBuffer()).rejects.toThrow();
+  });
+  it("подвійне розширення не потрапляє до сховища", async () => {
+    const res = await POST(await request([["shell.php.png", PNG]]), ctx());
+    expect(res.status).toBe(400);
+    expect(upload).not.toHaveBeenCalled();
+  });
+  it("четвертий одночасний запит того ж користувача — 429, після завершення слот звільняється", async () => {
+    const releases: Array<() => void> = [];
+    upload.mockImplementation(() => new Promise((resolve) => releases.push(() => resolve({ error: null }))));
+    const running = [] as Array<Promise<Response>>;
+    for (let i = 0; i < 3; i++) running.push(POST(await request([["a.png", PNG]]), ctx()));
+    await vi.waitFor(() => expect(releases).toHaveLength(3));
+    expect((await POST(await request([["a.png", PNG]]), ctx())).status).toBe(429);
+    releases.forEach((release) => release());
+    expect((await Promise.all(running)).map((r) => r.status)).toEqual([201, 201, 201]);
+    upload.mockResolvedValue({ error: null });
+    expect((await POST(await request([["a.png", PNG]]), ctx())).status).toBe(201);
+  });
 });

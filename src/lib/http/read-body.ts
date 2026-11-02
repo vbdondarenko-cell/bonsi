@@ -32,3 +32,20 @@ export async function readBodyLimited(request: Request, maxBytes: number): Promi
   }
   return Buffer.concat(chunks).toString("utf8");
 }
+
+/**
+ * Обгортає запит так, що тіло рахується під час читання: при перевищенні ліміту потік падає з PayloadTooLargeError,
+ * навіть якщо Content-Length збрехав. Для formData(), який інакше буферизує тіло повністю.
+ */
+export function withBodyLimit(request: Request, maxBytes: number): Request {
+  if (!request.body) return request;
+  let total = 0;
+  const limiter = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      total += chunk.byteLength;
+      if (total > maxBytes) controller.error(new PayloadTooLargeError());
+      else controller.enqueue(chunk);
+    },
+  });
+  return new Request(request.url, { method: request.method, headers: request.headers, body: request.body.pipeThrough(limiter), duplex: "half" } as RequestInit);
+}

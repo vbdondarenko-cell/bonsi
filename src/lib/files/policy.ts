@@ -76,11 +76,22 @@ export function matchesSignature(ext: string, bytes: Uint8Array): boolean {
   }
 }
 
+/**
+ * Проміжні розширення, що роблять файл небезпечним при "подвійному розширенні" (`shell.php.png`, `invoice.exe.pdf`):
+ * якщо десь у назві є виконуваний/активний тип, файл відхиляється, навіть коли останнє розширення дозволене.
+ */
+const ACTIVE_EXTENSIONS = new Set(["exe", "dll", "msi", "bat", "cmd", "com", "scr", "ps1", "vbs", "js", "mjs", "jar", "sh", "php", "phtml", "asp", "aspx", "jsp", "py", "pl", "rb", "html", "htm", "xhtml", "svg", "swf", "apk", "app", "lnk", "hta"]);
+
+export function hasActiveExtension(name: string): boolean {
+  return name.toLowerCase().split(".").slice(1, -1).some((part) => ACTIVE_EXTENSIONS.has(part.trim()));
+}
+
 export function checkFile(rawName: string, size: number, head: Uint8Array): FileCheck {
   if (size <= 0) return { ok: false, reason: "empty" };
   if (size > MAX_FILE_BYTES) return { ok: false, reason: "too_large" };
   const name = sanitizeName(rawName);
   if (!name) return { ok: false, reason: "name" };
+  if (hasActiveExtension(name)) return { ok: false, reason: "name" };
   const ext = extensionOf(name);
   const mime = ALLOWED_TYPES[ext];
   if (!mime) return { ok: false, reason: "extension" };

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "check:env": "node scripts/check-env.mjs"
+    "check:env": "node scripts/check-env.mjs",
+    "storage:orphans": "node scripts/cleanup-orphan-files.mjs"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.0",

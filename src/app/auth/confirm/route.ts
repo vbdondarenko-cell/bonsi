@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { safeNext } from "@/lib/client/safe-next";
+import { sessionIsStaff } from "@/lib/client/separation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,11 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" });
     if (error) return fail;
+    // Адміністратори входять лише через /admin.
+    if (await sessionIsStaff(supabase)) {
+      await supabase.auth.signOut();
+      return fail;
+    }
     await supabase.rpc("client_claim_orders");
   } catch {
     return fail;

@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
+import { settleMotion } from "./support/a11y";
 
 const widths = [320, 375, 768, 1024, 1440];
 const pages = ["/", "/services", "/portfolio", "/about", "/contact", "/privacy"];
@@ -16,22 +17,9 @@ for (const width of widths) {
       const response = await page.goto(url, { waitUntil: "networkidle" });
       expect(response?.status()).toBe(200);
 
-      // Прокрутка, щоб спрацювали reveal-анімації перед знімком.
-      await page.evaluate(async () => {
-        for (let y = 0; y < document.body.scrollHeight; y += 500) {
-          window.scrollTo({ top: y, behavior: "instant" });
-          await new Promise((r) => setTimeout(r, 150));
-        }
-        window.scrollTo({ top: 0, behavior: "instant" });
-      });
-      // Усі reveal-блоки мають з'явитися (інакше контент лишився б невидимим).
-      const hiddenSel = () =>
-        Array.from(document.querySelectorAll<HTMLElement>("main [style*='opacity']"))
-          .filter((el) => !el.closest("[aria-hidden='true']") && Number(getComputedStyle(el).opacity) < 0.9)
-          .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 50)} opacity=${getComputedStyle(el).opacity} text="${(el.textContent ?? "").slice(0, 30)}"`);
-      await expect
-        .poll(() => page.evaluate(hiddenSel), { message: "елементи лишилися прозорими після прокрутки", timeout: 8000 })
-        .toEqual([]);
+      // Усі reveal-блоки мають з'явитися (інакше контент лишився б невидимим): помічник підводить кожен прихований блок
+      // до вʼюпорту й чекає завершення анімацій; у WebKit IntersectionObserver інколи потребує кількох кадрів.
+      await settleMotion(page);
       await page.waitForTimeout(300);
 
       const overflow = await page.evaluate(() => {

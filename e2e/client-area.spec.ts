@@ -91,3 +91,27 @@ test.describe("видимі точки входу в кабінет", () => {
     await expect(link).toHaveAttribute("href", "/login?email=ivan%40example.com");
   });
 });
+
+test.describe("розділення входів: на сайті немає шляху до адмінки", () => {
+  test("шапка, футер, мобільне меню й sitemap не містять посилань на /admin", async ({ page, request }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    for (const path of ["/", "/services", "/contact", "/login"]) {
+      await page.goto(path);
+      const hrefs = await page.locator("a[href]").evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+      expect(hrefs.filter((href) => href.includes("/admin")), path).toEqual([]);
+    }
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Відкрити меню" }).click();
+    const mobile = await page.locator("#mobile-menu a[href]").evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+    expect(mobile.filter((href) => href.includes("/admin"))).toEqual([]);
+    expect(await (await request.get("/sitemap.xml")).text()).not.toContain("/admin");
+  });
+
+  test("сторінка входу клієнта не згадує адмінпанель, а вхід адміністратора не пропонує клієнтський вхід", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page.locator("main")).not.toContainText(/адмін/i);
+    await page.goto("/admin/login");
+    await expect(page.locator("main").getByRole("link", { name: /Кабінет клієнта|Отримати код/ })).toHaveCount(0);
+  });
+});

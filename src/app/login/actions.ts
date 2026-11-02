@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeNext } from "@/lib/client/safe-next";
+import { isStaffEmail, sessionIsStaff } from "@/lib/client/separation";
 import { getClientIp, ipBucket, parseTrustedProxy } from "@/lib/orders/client-ip";
 import { hashValue } from "@/lib/orders/service";
 import { site } from "@/lib/site";
@@ -50,6 +51,10 @@ export async function requestCodeAction(_prev: LoginState, formData: FormData): 
     if (!(await allowed("requestIp", ip, LIMITS.requestIp)) || !(await allowed("requestEmail", email.data, LIMITS.requestEmail))) {
       return { step: "email", error: TOO_MANY };
     }
+    // Адміністратори входять лише через /admin: код їм не надсилаємо, а відповідь та сама, що й для всіх.
+    if (await isStaffEmail(email.data)) {
+      return { step: "code", email: email.data, notice: "Ми надіслали лист із кодом і посиланням для входу." };
+    }
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.signInWithOtp({
       email: email.data,
@@ -78,6 +83,11 @@ export async function verifyCodeAction(_prev: LoginState, formData: FormData): P
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.verifyOtp({ email: email.data, token: code.data, type: "email" });
     if (error) return { step: "code", email: email.data, error: "Код невірний або застарів. Запросіть новий." };
+    // Сесія адміністратора через клієнтські двері не допускається: закриваємо її й відповідаємо як на невірний код.
+    if (await sessionIsStaff(supabase)) {
+      await supabase.auth.signOut();
+      return { step: "code", email: email.data, error: "Код невірний або застарів. Запросіть новий." };
+    }
     await supabase.rpc("client_claim_orders");
   } catch {
     return { step: "code", email: email.data, error: UNAVAILABLE };

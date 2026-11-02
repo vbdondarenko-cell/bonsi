@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { AuthConfigError, createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -53,7 +53,8 @@ export async function requireClient() {
     case "client":
       return state;
     case "admin":
-      redirect("/admin");
+      // Кабінет клієнта для адміністратора не існує: його вхід і робоче місце — лише /admin.
+      notFound();
     default:
       redirect(CLIENT_LOGIN_URL);
   }

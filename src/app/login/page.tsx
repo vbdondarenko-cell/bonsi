@@ -16,7 +16,6 @@ export default async function ClientLoginPage({
   const state = await getClientState();
   const params = await searchParams;
   if (state.kind === "client") redirect(safeNext(params.next));
-  if (state.kind === "admin") redirect("/admin");
 
   const email = typeof params.email === "string" && params.email.length <= 200 ? params.email : undefined;
 

@@ -60,6 +60,8 @@ export async function requestCodeAction(_prev: LoginState, formData: FormData): 
       email: email.data,
       options: { shouldCreateUser: true, emailRedirectTo: `${site.url}/auth/confirm` },
     });
+    // Лише службові поля (без email/токенів), щоб відрізнити ліміт Supabase від збою доставки.
+    if (error) console.error("[login] signInWithOtp failed", error.status, error.code);
     if (error && error.status !== 429) return { step: "email", error: UNAVAILABLE };
     if (error) return { step: "email", error: TOO_MANY };
   } catch {

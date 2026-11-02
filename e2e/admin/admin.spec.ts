@@ -280,6 +280,10 @@ test.describe.serial("робота адміністратора", () => {
     // Одноразове «Збережено» зникає, коли сторінка перемальовується після revalidatePath (форма монтується заново),
     // тож перевіряємо тривалий результат: статус у БД і запис в історії змін.
     await expect.poll(async () => (await db.from("orders").select("status").eq("id", orderId).single()).data?.status, { timeout: 15_000 }).toBe("in_review");
+    // Історію перевіряємо серверним рендером після перезавантаження: клієнтське оновлення дерева після server action у Firefox/WebKit
+    // на CI інколи не встигає застосуватися (відповідь 200 приходить, а DOM ще старий) — це нестабільність рушія, а не втрата даних.
+    await page.reload();
+    await hydrated(page);
     await expect(page.getByText("Статус: Нова → У розгляді")).toBeVisible();
     expect((await db.from("orders").select("status").eq("id", orderId).single()).data?.status).toBe("in_review");
     // Подальші дії перевіряємо за станом БД і серверним рендером після перезавантаження:

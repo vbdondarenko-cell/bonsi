@@ -235,6 +235,7 @@ test("12. рахунок → 13. «Я сплатив(ла)» ≠ оплачен�
 });
 
 test("вхід: повторний запит коду скидає стару помилку; використаний і прострочений код відхиляються", async ({ page }) => {
+  test.setTimeout(300_000);
   // Усі запити з одного хоста CI ділять один IP-кошик, а сценарій вище вже використав ліміт входів (12/год).
   // Лічильники очищаються, щоб тест перевіряв логіку коду, а не ліміт (він покритий окремими модульними тестами).
   expect((await db.from("auth_throttle").delete().gte("window_start", "1970-01-01")).error).toBeNull();
@@ -255,8 +256,9 @@ test("вхід: повторний запит коду скидає стару �
   await page.getByLabel("Код із листа").fill(code);
   await page.getByRole("button", { name: "Увійти" }).click();
   await page.waitForURL(/\/app/);
-  // Той самий код вдруге не працює.
+  // Той самий код вдруге не працює (новий лист цій адресі Supabase дозволяє не раніше ніж через інтервал max_frequency).
   await page.context().clearCookies();
+  await page.waitForTimeout(62_000);
   await page.goto("/login");
   await page.getByLabel("Email").fill(emailB);
   await page.getByRole("button", { name: "Отримати код" }).click();

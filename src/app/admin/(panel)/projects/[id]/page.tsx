@@ -10,11 +10,24 @@ import {
   StageForm,
   type DraftProposal,
 } from "@/components/admin/project-forms";
+import {
+  DeleteFileForm,
+  DeliverableDraftForm,
+  InvoicesFromProposalForm,
+  IssueInvoiceForm,
+  NewDeliverableForm,
+  NewInvoiceForm,
+  PaymentDecisionForms,
+  RefundForm,
+  VoidInvoiceForm,
+} from "@/components/admin/stage2-forms";
 import { PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
+import { FileUploader } from "@/components/workspace/file-uploader";
+import { ADMIN_CATEGORIES } from "@/lib/files/policy";
 import { ProjectStatusPill, StageTimeline } from "@/components/workspace/ui";
 import { requireAdmin } from "@/lib/admin/guard";
 import { uuidSchema } from "@/lib/admin/orders";
-import { PROPOSAL_STATUS_LABELS, formatMoney } from "@/lib/client/labels";
+import { DELIVERABLE_STATUS_LABELS, FILE_CATEGORY_LABELS, PAYMENT_STATE_LABELS, PROPOSAL_STATUS_LABELS, STAGE_LABELS, formatBytes, formatMoney, type Stage } from "@/lib/client/labels";
 
 export const metadata: Metadata = { title: "Проєкт" };
 
@@ -43,7 +56,7 @@ export default async function AdminProjectPage({ params }: { params: Promise<{ i
   };
   const order = Array.isArray(p.order) ? p.order[0] : p.order;
 
-  const [stages, messages, reads, notes, proposals, decisions, events, admins] = await Promise.all([
+  const [stages, messages, reads, notes, proposals, decisions, events, admins, deliverables, files, invoicesRes, paymentsRes] = await Promise.all([
     supabase.from("project_stages").select("stage,state,position").eq("project_id", id).order("position"),
     supabase.from("project_messages").select("id,author_role,body,created_at").eq("project_id", id).order("id").limit(500),
     supabase.from("project_message_reads").select("last_read_id").eq("project_id", id).eq("reader_role", "client").maybeSingle(),
@@ -52,7 +65,20 @@ export default async function AdminProjectPage({ params }: { params: Promise<{ i
     supabase.from("proposal_decisions").select("id,proposal_version,decision,comment,created_at").eq("project_id", id).order("id", { ascending: false }),
     supabase.from("project_events").select("id,type,actor_role,data,client_visible,created_at").eq("project_id", id).order("id", { ascending: false }).limit(50),
     supabase.from("admin_users").select("user_id,display_name").eq("active", true),
+    supabase.from("deliverables").select("id,stage,version,status,title,description,preview_url").eq("project_id", id).order("stage").order("version", { ascending: false }),
+    supabase.from("project_files").select("id,category,display_name,size_bytes,uploader_role,client_visible,message_id,deliverable_id,created_at").eq("project_id", id).is("deleted_at", null).order("created_at", { ascending: false }).limit(300),
+    supabase.from("invoices").select("id,number,label,amount,currency,status,due_date").eq("project_id", id).order("created_at"),
+    supabase.from("payments").select("id,invoice_id,kind,method,amount,currency,status,reference,note,created_at").eq("project_id", id).order("created_at"),
   ]);
+  const invoiceList = (invoicesRes.data ?? []) as Array<{ id: string; number: string; label: string; amount: string; currency: string; status: string; due_date: string | null }>;
+  const paymentList = (paymentsRes.data ?? []) as Array<{ id: string; invoice_id: string; kind: string; method: string; amount: string; currency: string; status: string; reference: string | null; note: string | null; created_at: string }>;
+  const invoiceStates = new Map<string, string>();
+  for (const invoice of invoiceList) {
+    const { data } = await supabase.rpc("invoice_payment_state", { p_invoice: invoice.id });
+    invoiceStates.set(invoice.id, typeof data === "string" ? data : "unpaid");
+  }
+  const deliverableList = (deliverables.data ?? []) as Array<{ id: string; stage: string; version: number; status: string; title: string; description: string; preview_url: string | null }>;
+  const fileList = (files.data ?? []) as Array<{ id: string; category: string; display_name: string; size_bytes: number; uploader_role: string; client_visible: boolean; message_id: number | null; deliverable_id: string | null; created_at: string }>;
 
   const clientRead = Number(reads.data?.last_read_id ?? 0);
   const chat = (messages.data ?? []) as Array<{ id: number; author_role: "client" | "admin"; body: string; created_at: string }>;
@@ -107,6 +133,89 @@ export default async function AdminProjectPage({ params }: { params: Promise<{ i
                   ))}
               </ul>
             ) : null}
+          </Panel>
+
+          <Panel title="Результати етапів (дизайн-рев’ю, прев’ю, QA, передача)">
+            <div className="flex flex-col gap-6">
+              {deliverableList.length === 0 ? <p className="text-sm text-muted">Результатів ще немає.</p> : null}
+              {deliverableList.map((item) => (
+                <div key={item.id} className="rounded-xl border border-line p-4">
+                  <p className="font-medium">
+                    {STAGE_LABELS[item.stage as Stage] ?? item.stage} · версія {item.version}: {item.title}
+                  </p>
+                  <p className="text-sm text-muted">{DELIVERABLE_STATUS_LABELS[item.status] ?? item.status}</p>
+                  {item.status === "draft" ? (
+                    <div className="mt-4 flex flex-col gap-4">
+                      <DeliverableDraftForm projectId={id} id={item.id} title={item.title} description={item.description} previewUrl={item.preview_url} />
+                      <FileUploader projectId={id} categories={ADMIN_CATEGORIES} fixedCategory="mockup" deliverableId={item.id} label="Файли результату" />
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+              {!deliverableList.some((item) => item.status === "draft") ? <NewDeliverableForm projectId={id} /> : null}
+            </div>
+          </Panel>
+
+          <Panel title="Файли проєкту">
+            <FileUploader projectId={id} categories={ADMIN_CATEGORIES} allowVisibility />
+            <ul className="mt-6 flex flex-col gap-2">
+              {fileList.filter((file) => !file.message_id).map((file) => (
+                <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line px-4 py-3 text-sm">
+                  <span className="min-w-0">
+                    <a href={`/api/files/${file.id}`} rel="nofollow" className="break-all text-accent-soft underline-offset-4 hover:underline">
+                      {file.display_name}
+                    </a>
+                    <span className="block text-xs text-muted">
+                      {FILE_CATEGORY_LABELS[file.category] ?? file.category} · {formatBytes(file.size_bytes)} · {file.uploader_role === "admin" ? "студія" : "клієнт"}
+                      {file.client_visible ? "" : " · прихований від клієнта"} · {formatDateTime(file.created_at)}
+                    </span>
+                  </span>
+                  <DeleteFileForm projectId={id} fileId={file.id} />
+                </li>
+              ))}
+            </ul>
+          </Panel>
+
+          <Panel title="Рахунки й оплати">
+            <div className="flex flex-col gap-6">
+              {allProposals.find((item) => item.status === "approved") ? (
+                <InvoicesFromProposalForm proposalId={allProposals.find((item) => item.status === "approved")!.id} projectId={id} />
+              ) : (
+                <p className="text-sm text-muted">Рахунки за графіком пропозиції створюються після того, як клієнт погодить пропозицію. Окремий рахунок можна створити вручну.</p>
+              )}
+              {invoiceList.map((invoice) => {
+                const state = invoiceStates.get(invoice.id) ?? "unpaid";
+                const pending = paymentList.filter((payment) => payment.invoice_id === invoice.id && payment.status === "pending");
+                const history = paymentList.filter((payment) => payment.invoice_id === invoice.id && payment.status !== "pending");
+                return (
+                  <div key={invoice.id} className="flex flex-col gap-4 rounded-xl border border-line p-4">
+                    <p className="font-medium">
+                      {invoice.number} · {invoice.label} · {formatMoney(invoice.amount, invoice.currency)}
+                    </p>
+                    <p className="text-sm text-muted">
+                      Документ: {invoice.status === "draft" ? "чернетка" : invoice.status === "issued" ? "виставлено" : "анульовано"} · Оплата: {PAYMENT_STATE_LABELS[state] ?? state}
+                    </p>
+                    {history.length > 0 ? (
+                      <ul className="flex flex-col gap-1 text-xs text-muted">
+                        {history.map((payment) => (
+                          <li key={payment.id}>
+                            {payment.kind === "refund" ? "Повернення" : "Платіж"} {formatMoney(payment.amount, payment.currency)} · {payment.status === "confirmed" ? "підтверджено" : "відхилено/помилка"} · {payment.method}
+                            {payment.note ? ` · ${payment.note}` : ""} · {formatDateTime(payment.created_at)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {pending.map((payment) => (
+                      <PaymentDecisionForms key={payment.id} paymentId={payment.id} projectId={id} amount={formatMoney(payment.amount, payment.currency)} />
+                    ))}
+                    {invoice.status === "draft" ? <IssueInvoiceForm invoiceId={invoice.id} projectId={id} /> : null}
+                    {invoice.status !== "void" && (state === "paid" || state === "partial") ? <RefundForm invoiceId={invoice.id} projectId={id} /> : null}
+                    {invoice.status !== "void" && state === "unpaid" ? <VoidInvoiceForm invoiceId={invoice.id} projectId={id} /> : null}
+                  </div>
+                );
+              })}
+              <NewInvoiceForm projectId={id} />
+            </div>
           </Panel>
 
           <Panel title="Журнал погоджень">

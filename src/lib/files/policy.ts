@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 /** Політика завантаження файлів: розмір, типи, назви, сигнатури. Сервер перевіряє все; база дублює список MIME. */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_FILES_PER_REQUEST = 5;
@@ -88,11 +86,6 @@ export function checkFile(rawName: string, size: number, head: Uint8Array): File
   if (!mime) return { ok: false, reason: "extension" };
   if (!matchesSignature(ext, head)) return { ok: false, reason: "signature" };
   return { ok: true, mime, name };
-}
-
-/** Шлях у приватному бакеті: `<project>/<uuid>`; ім'я користувача в шлях не потрапляє. */
-export function storagePath(projectId: string): string {
-  return `${projectId}/${randomUUID()}`;
 }
 
 export const FILE_ERRORS: Record<string, string> = {

@@ -117,3 +117,130 @@ export async function getDecisions(supabase: SupabaseClient, projectId: string):
     .order("id", { ascending: false });
   return (data ?? []) as DecisionRow[];
 }
+
+export type DeliverableRow = {
+  id: string;
+  stage: string;
+  version: number;
+  status: string;
+  title: string;
+  description: string;
+  preview_url: string | null;
+  submitted_at: string | null;
+  decided_at: string | null;
+};
+
+export async function getDeliverables(supabase: SupabaseClient, projectId: string): Promise<DeliverableRow[]> {
+  const { data } = await supabase
+    .from("deliverables")
+    .select("id,stage,version,status,title,description,preview_url,submitted_at,decided_at")
+    .eq("project_id", projectId)
+    .order("stage")
+    .order("version", { ascending: false });
+  return (data ?? []) as DeliverableRow[];
+}
+
+export type DeliverableDecisionRow = { id: number; stage: string; version: number; decision: string; comment: string | null; created_at: string };
+
+export async function getDeliverableDecisions(supabase: SupabaseClient, projectId: string): Promise<DeliverableDecisionRow[]> {
+  const { data } = await supabase
+    .from("deliverable_decisions")
+    .select("id,stage,version,decision,comment,created_at")
+    .eq("project_id", projectId)
+    .order("id", { ascending: false });
+  return (data ?? []) as DeliverableDecisionRow[];
+}
+
+export type FileRow = {
+  id: string;
+  category: string;
+  display_name: string;
+  mime: string;
+  size_bytes: number;
+  uploader_role: "client" | "admin";
+  message_id: number | null;
+  deliverable_id: string | null;
+  client_visible: boolean;
+  created_at: string;
+};
+
+export async function getFiles(supabase: SupabaseClient, projectId: string): Promise<FileRow[]> {
+  const { data } = await supabase
+    .from("project_files")
+    .select("id,category,display_name,mime,size_bytes,uploader_role,message_id,deliverable_id,client_visible,created_at")
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  return (data ?? []) as FileRow[];
+}
+
+export type InvoiceRow = {
+  id: string;
+  number: string;
+  label: string;
+  amount: string;
+  currency: string;
+  due_date: string | null;
+  status: string;
+  issued_at: string | null;
+  created_at: string;
+};
+
+export type PaymentRow = {
+  id: string;
+  invoice_id: string;
+  kind: "payment" | "refund";
+  method: string;
+  amount: string;
+  currency: string;
+  status: "pending" | "confirmed" | "failed";
+  reference: string | null;
+  note: string | null;
+  created_at: string;
+  decided_at: string | null;
+};
+
+export type PaymentState = "unpaid" | "awaiting_confirmation" | "partial" | "paid" | "void";
+
+/** Оплата рахунків: статус «оплачено» береться лише з підтверджених записів журналу (invoice_payment_state у БД). */
+export async function getInvoicesWithPayments(supabase: SupabaseClient, projectId: string) {
+  const [invoices, payments] = await Promise.all([
+    supabase.from("invoices").select("id,number,label,amount,currency,due_date,status,issued_at,created_at").eq("project_id", projectId).order("created_at"),
+    supabase.from("payments").select("id,invoice_id,kind,method,amount,currency,status,reference,note,created_at,decided_at").eq("project_id", projectId).order("created_at"),
+  ]);
+  const list = (invoices.data ?? []) as InvoiceRow[];
+  const states = await Promise.all(
+    list.map(async (invoice) => {
+      const { data } = await supabase.rpc("invoice_payment_state", { p_invoice: invoice.id });
+      return [invoice.id, (typeof data === "string" ? data : "unpaid") as PaymentState] as const;
+    }),
+  );
+  const stateById = new Map(states);
+  return {
+    invoices: list.map((invoice) => ({ ...invoice, state: stateById.get(invoice.id) ?? ("unpaid" as PaymentState) })),
+    payments: (payments.data ?? []) as PaymentRow[],
+  };
+}
+
+export type BankDetails = { recipient: string; iban: string; bank_name: string; tax_id: string; purpose_hint: string };
+
+export async function getBankDetails(supabase: SupabaseClient): Promise<BankDetails | null> {
+  const { data } = await supabase.rpc("client_bank_details");
+  return (data as BankDetails | null) ?? null;
+}
+
+export async function getMessageAttachments(supabase: SupabaseClient, projectId: string): Promise<Record<number, Array<{ id: string; name: string; size: number }>>> {
+  const { data } = await supabase
+    .from("project_files")
+    .select("id,display_name,size_bytes,message_id")
+    .eq("project_id", projectId)
+    .not("message_id", "is", null)
+    .is("deleted_at", null);
+  const result: Record<number, Array<{ id: string; name: string; size: number }>> = {};
+  for (const row of data ?? []) {
+    const key = Number(row.message_id);
+    (result[key] ??= []).push({ id: row.id as string, name: row.display_name as string, size: Number(row.size_bytes) });
+  }
+  return result;
+}

@@ -36,6 +36,17 @@ export const EVENT_LABELS: Record<string, string> = {
   proposal_sent: "Студія надіслала комерційну пропозицію",
   proposal_approved: "Ви погодили комерційну пропозицію",
   proposal_changes_requested: "Ви попросили змін у комерційній пропозиції",
+  deliverable_submitted: "Студія надіслала результат етапу на погодження",
+  deliverable_approved: "Ви погодили результат етапу",
+  deliverable_changes_requested: "Ви попросили правок до результату етапу",
+  file_uploaded: "Завантажено файл",
+  file_shared: "Студія поділилася файлом",
+  invoice_issued: "Студія виставила рахунок",
+  invoice_voided: "Рахунок анульовано",
+  payment_reported: "Ви повідомили про оплату; очікуємо підтвердження студії",
+  payment_confirmed: "Студія підтвердила надходження оплати",
+  payment_rejected: "Студія не підтвердила платіж",
+  payment_refunded: "Записано повернення коштів",
 };
 
 export type StageRow = { stage: string; state: string; position: number };
@@ -84,3 +95,38 @@ const CURRENCY_SYMBOL: Record<string, string> = { UAH: "₴", USD: "$", EUR: "�
 export function formatMoney(amount: number | string, currency: string): string {
   return `${money.format(Number(amount))} ${CURRENCY_SYMBOL[currency] ?? currency}`;
 }
+
+export const DELIVERABLE_STATUS_LABELS: Record<string, string> = {
+  draft: "Чернетка",
+  submitted: "Очікує вашого рішення",
+  approved: "Погоджено",
+  changes_requested: "Запитано правки",
+  superseded: "Замінено новою версією",
+};
+
+export const PAYMENT_STATE_LABELS: Record<string, string> = {
+  unpaid: "Не сплачено",
+  awaiting_confirmation: "Очікує підтвердження студією",
+  partial: "Сплачено частково",
+  paid: "Сплачено",
+  void: "Анульовано",
+};
+
+export const FILE_CATEGORY_LABELS: Record<string, string> = {
+  logo: "Логотипи",
+  text: "Тексти",
+  mockup: "Макети й референси",
+  document: "Документи",
+  final: "Фінальні файли",
+  handover: "Передача проєкту",
+  attachment: "Вкладення в чаті",
+  other: "Інше",
+};
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
+}
+
+export const DELIVERABLE_STAGES = ["design", "development", "qa", "delivery"] as const;

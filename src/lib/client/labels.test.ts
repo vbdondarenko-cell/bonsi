@@ -35,3 +35,17 @@ describe("formatMoney", () => {
     expect(formatMoney("99.5", "USD")).toMatch(/\$$/);
   });
 });
+
+import { PAYMENT_STATE_LABELS, formatBytes } from "./labels";
+
+describe("оплати й файли: підписи", () => {
+  it("статус «Сплачено» — окремий і не збігається з очікуванням підтвердження", () => {
+    expect(PAYMENT_STATE_LABELS.paid).toBe("Сплачено");
+    expect(PAYMENT_STATE_LABELS.awaiting_confirmation).not.toMatch(/^Сплачено$/);
+  });
+  it("розмір файлу", () => {
+    expect(formatBytes(900)).toBe("900 Б");
+    expect(formatBytes(2048)).toBe("2.0 КБ");
+    expect(formatBytes(5 * 1024 * 1024)).toBe("5.0 МБ");
+  });
+});

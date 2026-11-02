@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ALLOWED_TYPES, MAX_FILE_BYTES, checkFile, sanitizeName, storagePath } from "./policy";
+import { ALLOWED_TYPES, MAX_FILE_BYTES, checkFile, sanitizeName } from "./policy";
+import { storagePath } from "./storage";
 
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
 const PDF = Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d]);

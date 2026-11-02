@@ -49,6 +49,8 @@ export default async function ProjectOverviewPage({ params }: { params: Promise<
                       {EVENT_LABELS[event.type] ?? "Оновлення проєкту"}
                       {detail ? <strong>: {detail}</strong> : null}
                       {typeof event.data.version === "number" ? ` (версія ${event.data.version})` : null}
+                      {typeof event.data.number === "string" ? ` · ${event.data.number}` : null}
+                      {typeof event.data.name === "string" ? ` · ${event.data.name}` : null}
                     </span>
                     <time dateTime={event.created_at} className="text-xs text-muted">
                       {formatWhen(event.created_at)}

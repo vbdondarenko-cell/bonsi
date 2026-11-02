@@ -22,7 +22,7 @@ function makeActor(role: "admin" | "client") {
 }
 function request(files: Array<[string, Uint8Array]>, fields: Record<string, string> = {}, headers: Record<string, string> = {}) {
   const form = new FormData();
-  for (const [name, bytes] of files) form.append("files", new File([bytes], name));
+  for (const [name, bytes] of files) form.append("files", new File([bytes as unknown as BlobPart], name));
   for (const [key, value] of Object.entries(fields)) form.append(key, value);
   const probe = new Request("http://localhost/x", { method: "POST", body: form });
   return probe.arrayBuffer().then((buf) =>

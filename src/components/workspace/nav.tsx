@@ -44,6 +44,10 @@ export function ProjectTabs({ projectId, unread }: { projectId: string; unread: 
     { href: base, label: "Огляд", exact: true },
     { href: `${base}/messages`, label: "Повідомлення", exact: false, badge: unread },
     { href: `${base}/proposal`, label: "Пропозиція", exact: false },
+    { href: `${base}/milestones`, label: "Етапи й погодження", exact: false },
+    { href: `${base}/files`, label: "Файли", exact: false },
+    { href: `${base}/documents`, label: "Документи", exact: false },
+    { href: `${base}/payments`, label: "Оплата", exact: false },
   ];
   return (
     <div className="flex flex-col gap-3">
@@ -71,9 +75,6 @@ export function ProjectTabs({ projectId, unread }: { projectId: string; unread: 
           );
         })}
       </nav>
-      <p className="text-xs text-muted">
-        Скоро в кабінеті: дизайн-рев’ю, файли, оплата й документи — поки ці розділи недоступні, зверніться до студії в повідомленнях.
-      </p>
     </div>
   );
 }

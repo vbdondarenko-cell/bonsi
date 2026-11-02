@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PaymentSettingsForm } from "@/components/admin/stage2-forms";
 import { PageHeader, Panel } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin/guard";
 import { isTelegramEnabled } from "@/lib/notifications/telegram";
@@ -7,10 +8,11 @@ export const metadata: Metadata = { title: "Налаштування" };
 
 export default async function SettingsPage() {
   const admin = await requireAdmin();
-  const [factors, outbox, admins] = await Promise.all([
+  const [factors, outbox, admins, bank] = await Promise.all([
     admin.supabase.auth.mfa.listFactors(),
     admin.supabase.from("notification_outbox").select("status"),
     admin.supabase.from("admin_users").select("display_name, email, active").order("created_at"),
+    admin.supabase.from("payment_settings").select("recipient, iban, bank_name, tax_id, purpose_hint, online_provider").maybeSingle(),
   ]);
 
   const verified = factors.data?.totp.filter((f) => f.status === "verified").length ?? 0;
@@ -28,6 +30,20 @@ export default async function SettingsPage() {
           <p className="mt-4 text-sm">
             MFA (TOTP): <span className="text-ok">{verified > 0 ? "увімкнено" : "не налаштовано"}</span>
           </p>
+        </Panel>
+
+        <Panel title="Реквізити для оплати">
+          <p className="mb-4 text-sm text-muted">
+            Показуються клієнту лише коли йому виставлено рахунок. Онлайн-еквайринг:{" "}
+            <span className="text-muted">{bank.data?.online_provider ? `налаштовано (${bank.data.online_provider})` : "не активний (немає мерчант-акаунта); оплата за реквізитами з ручною перевіркою"}</span>
+          </p>
+          <PaymentSettingsForm
+            recipient={(bank.data?.recipient as string | undefined) ?? ""}
+            iban={(bank.data?.iban as string | undefined) ?? ""}
+            bank={(bank.data?.bank_name as string | undefined) ?? ""}
+            taxId={(bank.data?.tax_id as string | undefined) ?? ""}
+            hint={(bank.data?.purpose_hint as string | undefined) ?? "Оплата за розробку, рахунок {number}"}
+          />
         </Panel>
 
         <Panel title="Сповіщення в Telegram">

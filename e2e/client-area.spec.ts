@@ -36,3 +36,29 @@ test.describe("кабінет клієнта без авторизації", () 
     expect(response.headers()["x-robots-tag"]).toContain("noindex");
   });
 });
+
+test.describe("етап 2: захист нових маршрутів без авторизації", () => {
+  const project = "00000000-0000-4000-8000-000000000000";
+  for (const section of ["milestones", "files", "documents", "payments"]) {
+    test(`/app/projects/[id]/${section} без сесії веде на /login`, async ({ page }) => {
+      await page.goto(`/app/projects/${project}/${section}`);
+      await expect(page).toHaveURL(/\/login(\?|$)/);
+    });
+  }
+
+  test("файли не віддаються без сесії, завантаження без сесії відхиляється", async ({ request }) => {
+    const download = await request.get(`/api/files/${project}`, { maxRedirects: 0 });
+    expect([401, 503]).toContain(download.status());
+    expect(download.headers()["cache-control"]).toContain("no-store");
+    const upload = await request.post(`/api/projects/${project}/files`, { multipart: { files: { name: "a.png", mimeType: "image/png", buffer: Buffer.from([1, 2, 3]) } } });
+    expect([401, 503]).toContain(upload.status());
+  });
+
+  test("webhook платіжного провайдера без ключів мерчанта не активний", async ({ request }) => {
+    const response = await request.post("/api/payments/webhook/liqpay", { form: { data: "e30=", signature: "x" } });
+    expect(response.status()).toBe(503);
+    expect((await request.post("/api/payments/webhook/monobank", { data: {} })).status()).toBe(503);
+    expect((await request.post("/api/payments/webhook/unknown", { data: {} })).status()).toBe(404);
+    expect((await request.get("/api/payments/webhook/liqpay")).status()).toBe(405);
+  });
+});

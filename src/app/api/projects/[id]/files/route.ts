@@ -8,8 +8,8 @@ import {
   MAX_FILES_PER_REQUEST,
   MAX_REQUEST_BYTES,
   checkFile,
-  storagePath,
 } from "@/lib/files/policy";
+import { storagePath } from "@/lib/files/storage";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";

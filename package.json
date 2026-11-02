@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:client": "playwright test -c playwright.client.config.ts",
     "test:e2e": "playwright test",
     "check:env": "node scripts/check-env.mjs",
     "storage:orphans": "node scripts/cleanup-orphan-files.mjs"

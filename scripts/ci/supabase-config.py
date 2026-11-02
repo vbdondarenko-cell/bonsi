@@ -5,6 +5,8 @@ import re
 import sys
 
 path = sys.argv[1]
+# Режим `client`: потрібен лист із кодом (Mailpit), Storage для файлів і відкрита реєстрація (як у продакшені: клієнт створюється при першому вході).
+client_mode = "client" in sys.argv[2:]
 text = open(path, encoding="utf-8").read()
 
 
@@ -23,10 +25,20 @@ def set_in_section(text: str, section: str, key: str, value: str) -> str:
     return text[: match.start(2)] + body + text[match.end(2) :]
 
 
-for section in ["studio", "inbucket", "mailpit", "realtime", "storage", "edge_runtime", "analytics", "db.pooler"]:
+disabled = ["studio", "realtime", "edge_runtime", "analytics", "db.pooler"]
+if not client_mode:
+    disabled += ["inbucket", "mailpit", "storage"]
+for section in disabled:
     text = set_in_section(text, section, "enabled", "false")
 
-text = set_in_section(text, "auth", "enable_signup", "false")
+text = set_in_section(text, "auth", "enable_signup", "true" if client_mode else "false")
+if client_mode:
+    for section in ["inbucket", "mailpit", "storage"]:
+        text = set_in_section(text, section, "enabled", "true")
+    text = set_in_section(text, "auth.rate_limit", "email_sent", "200")
+    text = set_in_section(text, "auth.email", "enable_confirmations", "false")
+    for name in ["magic_link", "confirmation"]:
+        text += f'\n[auth.email.template.{name}]\nsubject = "Код входу BONSI"\ncontent_path = "./supabase/templates/{name}.html"\n'
 text = set_in_section(text, "auth", "site_url", '"http://localhost:3100"')
 text = set_in_section(text, "auth.mfa.totp", "enroll_enabled", "true")
 text = set_in_section(text, "auth.mfa.totp", "verify_enabled", "true")

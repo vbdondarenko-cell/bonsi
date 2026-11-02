@@ -31,3 +31,24 @@ BONSI використовує **окремий** проєкт Supabase. Про�
 5. Змінні: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL`. Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`, `CRON_SECRET` + зовнішній cron на `POST /api/internal/notifications` з `Authorization: Bearer $CRON_SECRET`.
 
 Сторонні люди можуть створити акаунт Supabase через публічний API, але без запрошення в `admin_invites` вони не потраплять в `admin_users`, а RLS не віддає їм жодних даних.
+
+## Вхід клієнта за кодом: шаблони листів і доставка пошти
+
+Кабінет клієнта входить кодом (`verifyOtp`, `type: "email"`) або посиланням `/auth/confirm?token_hash=…&type=email`. Тож **у шаблонах Authentication → Emails** («Magic link» і «Confirm signup») мають бути і `{{ .Token }}`, і посилання `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`. Еталон — `supabase/templates/*.html` (їх використовує локальний CI).
+
+Доставка: вбудований SMTP Supabase обмежений і не для продакшену. Для реальних клієнтів підключіть **Custom SMTP** (Authentication → SMTP Settings) — Resend, Postmark, Mailgun, SES тощо. Домен відправника мусить мати:
+
+- **SPF**: `v=spf1 include:<провайдер> ~all`;
+- **DKIM**: ключі від провайдера (CNAME/TXT);
+- **DMARC**: `_dmarc TXT "v=DMARC1; p=none; rua=mailto:dmarc@<домен>"`, після спостереження — `quarantine`;
+- From: `BONSI <no-reply@<домен>>`, Reply-To: адреса студії.
+
+Без цих записів листи з кодом потраплятимуть у спам. Ключі SMTP зберігаються лише в Supabase Dashboard/секретах хостингу, не в git.
+
+## Черга листів (`email_outbox`)
+
+Таблиця й функції `email_enqueue / email_claim / email_complete` (міграція `20261104000000_audit_hardening.sql`) — ідемпотентна черга з експоненційним backoff (1, 2, 4, 8, 16 хв) і межею 6 спроб. Без налаштованого провайдера рядки лишаються в `pending`, а не «відправляються» уявно.
+
+## Відновлення історії міграцій
+
+Якщо в проєкті зареєстровано не всі міграції (`supabase_migrations.schema_migrations`), але схема відповідає файлам, історію вирівнюють лише метаданими: `supabase migration repair --status applied <версія>`. `supabase db reset` на продакшені не виконується ніколи.

@@ -20,6 +20,9 @@ export function Footer() {
               {item.label}
             </Link>
           ))}
+          <Link href="/login" className="text-accent-soft transition-colors hover:text-fg">
+            Кабінет клієнта
+          </Link>
         </nav>
       </Container>
       <Container className="border-t border-line py-6">

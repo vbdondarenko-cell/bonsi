@@ -72,13 +72,28 @@ describe("POST /api/orders", () => {
     expect(createOrderMock).not.toHaveBeenCalled();
   });
 
+  it("приймає мінімальну заявку без опису, бюджету й термінів та передає уточнення й посилання", async () => {
+    createOrderMock.mockResolvedValue({ ticket: "BON-2026-00002" });
+    const response = await post(
+      payload({ idea: undefined, budget: undefined, deadline: undefined, service: "landing", details: { goal: "leads" }, links: ["https://example.com/ref"] }),
+    );
+    expect(response.status).toBe(201);
+    expect(createOrderMock.mock.calls[0]![0]).toMatchObject({ service: "landing", details: { goal: "leads" }, links: ["https://example.com/ref"] });
+  });
+
+  it("відхиляє уточнення, що не належать обраній послузі", async () => {
+    const response = await post(payload({ service: "landing", details: { platform: "ios" } }));
+    expect(response.status).toBe(400);
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
   it("повертає 400 і помилки полів на невалідні дані", async () => {
-    const response = await post(payload({ email: "oops", idea: "коротко" }));
+    const response = await post(payload({ email: "oops", links: ["javascript:alert(1)"] }));
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.error).toBe("validation");
     expect(body.fieldErrors.email).toBeDefined();
-    expect(body.fieldErrors.idea).toBeDefined();
+    expect(body.fieldErrors.links).toBeDefined();
     expect(createOrderMock).not.toHaveBeenCalled();
   });
 

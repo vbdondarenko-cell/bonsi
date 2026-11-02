@@ -38,6 +38,9 @@ export default function ServicesPage() {
                       {service.title}
                     </h2>
                     <p className="mt-4 max-w-md leading-relaxed text-muted">{service.summary}</p>
+                    <ButtonLink href={`/contact?service=${service.id}#order`} className="mt-6" variant="ghost">
+                      Замовити цю послугу
+                    </ButtonLink>
                   </div>
                   <ul className="flex flex-col gap-3 self-center">
                     {service.points.map((point) => (

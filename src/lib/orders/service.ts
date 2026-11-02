@@ -50,14 +50,16 @@ export async function createOrder(
   const db = getClient();
   const ipHash = meta.ipBucket ? hashValue(`ip:${meta.ipBucket}`) : null;
 
-  const { data, error } = await db.rpc("create_order", {
+  const { data, error } = await db.rpc("create_order_v2", {
     p_service: input.service,
-    p_idea: input.idea,
-    p_budget: input.budget,
-    p_deadline: input.deadline,
+    p_idea: input.idea ? input.idea : null,
+    p_budget: input.budget ?? null,
+    p_deadline: input.deadline ?? null,
     p_name: input.name,
     p_email: input.email,
     p_phone: input.phone ? input.phone : null,
+    p_details: input.details ?? {},
+    p_links: input.links ?? [],
     p_ip_hash: ipHash,
     p_user_agent: meta.userAgent.slice(0, 300),
     p_consent_policy_version: PRIVACY_POLICY_VERSION,

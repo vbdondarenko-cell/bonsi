@@ -13,5 +13,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Інтеграційні тести SQL скидають схему public: файли з базою виконуються по черзі.
+    fileParallelism: false,
   },
 });

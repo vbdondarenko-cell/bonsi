@@ -1,5 +1,5 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "./support/a11y";
 
 test.describe("форма заявки", () => {
   test("показує помилки валідації й фокусує перше невалідне поле", async ({ page }) => {
@@ -69,8 +69,7 @@ test.describe("замовлення без зайвих запитань", () =>
   test("форма з обраною послугою та уточненнями доступна за axe", async ({ page }) => {
     await page.goto("/contact?service=webapp");
     await expect(page.getByTestId("service-questions")).toBeVisible();
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations).toEqual([]);
+    await expectNoA11yViolations(page, "/contact?service=webapp");
   });
 
   test("невідома послуга в адресі ігнорується", async ({ page }) => {

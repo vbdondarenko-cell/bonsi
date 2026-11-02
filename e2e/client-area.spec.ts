@@ -1,5 +1,5 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "./support/a11y";
 
 // Без Supabase у середовищі e2e кабінет чесно показує, що не налаштований, і нічого не імітує.
 test.describe("кабінет клієнта без авторизації", () => {
@@ -15,8 +15,7 @@ test.describe("кабінет клієнта без авторизації", () 
     await expect(page.getByRole("heading", { name: "Кабінет клієнта" })).toBeVisible();
     await expect(page.locator("main [role=alert]")).toContainText("не налаштований");
     await expect(page.locator("meta[name=robots]")).toHaveAttribute("content", /noindex/);
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations).toEqual([]);
+    await expectNoA11yViolations(page, "/login");
   });
 
   test("/login не допускає відкритих перенаправлень через next", async ({ page }) => {

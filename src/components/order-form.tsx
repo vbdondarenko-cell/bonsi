@@ -249,7 +249,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
         className="rounded-[var(--radius-card)] border border-ok/50 bg-surface p-8 sm:p-10"
       >
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-ok">Заявку збережено</p>
-        <h3 className="mt-5 text-3xl font-semibold tracking-tight">Дякуємо, ми отримали вашу заявку</h3>
+        <h2 className="mt-5 text-3xl font-semibold tracking-tight">Дякуємо, ми отримали вашу заявку</h2>
         <p className="mt-4 text-muted">Номер вашого звернення — збережіть його для подальшого спілкування:</p>
         <p className="mt-5 inline-block rounded-2xl border border-line bg-surface-2 px-5 py-3 font-mono text-2xl tracking-wider">
           {ticket}

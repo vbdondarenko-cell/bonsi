@@ -10,7 +10,7 @@ const base =
   "disabled:pointer-events-none disabled:opacity-60";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-white hover:bg-[#7d60ff]",
+  primary: "bg-accent text-white hover:bg-accent-hover",
   ghost: "border border-line text-fg hover:border-accent-soft hover:bg-surface",
 };
 

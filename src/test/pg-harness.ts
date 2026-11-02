@@ -77,3 +77,33 @@ export async function asUserCommit<T>(pool: pg.Pool, session: Session, fn: (q: Q
     client.release();
   }
 }
+
+/** Виконує SQL від імені service_role (як сервер із service-ключем); транзакція відкочується. */
+export async function asService<T>(pool: pg.Pool, fn: (q: Query) => Promise<T>) {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query("set local role service_role");
+    return await fn((sql, values) => client.query(sql, values));
+  } finally {
+    await client.query("rollback").catch(() => undefined);
+    client.release();
+  }
+}
+
+/** Те саме, але зміни зберігаються. */
+export async function asServiceCommit<T>(pool: pg.Pool, fn: (q: Query) => Promise<T>) {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query("set local role service_role");
+    const result = await fn((sql, values) => client.query(sql, values));
+    await client.query("commit");
+    return result;
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}

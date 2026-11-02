@@ -4,10 +4,13 @@ export function EmptyState({
   title,
   description,
   action,
+  as: Heading = "h2",
 }: {
   title: string;
   description: string;
   action?: ReactNode;
+  /** Рівень заголовка: за замовчуванням h2, щоб не пропускати рівень після h1 сторінки. */
+  as?: "h2" | "h3";
 }) {
   return (
     <div className="flex flex-col items-start gap-5 rounded-[var(--radius-card)] border border-dashed border-line bg-surface/50 p-8 sm:p-12">
@@ -25,7 +28,7 @@ export function EmptyState({
         <circle cx="14" cy="12" r="1" fill="currentColor" />
       </svg>
       <div className="max-w-xl">
-        <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
+        <Heading className="text-xl font-semibold tracking-tight">{title}</Heading>
         <p className="mt-3 leading-relaxed text-muted">{description}</p>
       </div>
       {action}

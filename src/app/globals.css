@@ -10,6 +10,8 @@
   --color-muted: #a3a3b5;
   --color-accent: #6c4cf5;
   --color-accent-soft: #9b82ff;
+  /* Наведення на головну кнопку: біла мітка на #5f3fe8 дає 6.24:1 (на попередньому #7d60ff було 4.21:1 < WCAG AA). */
+  --color-accent-hover: #5f3fe8;
   --color-ok: #3dd68c;
   --color-danger: #ff7a88;
 

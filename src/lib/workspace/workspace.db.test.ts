@@ -112,6 +112,29 @@ describe.skipIf(!dbEnabled)("client workspace (PostgreSQL)", () => {
     });
   });
 
+  describe("ліміт спроб входу", () => {
+    it("дозволяє рівно N спроб у вікні навіть під паралельними запитами", async () => {
+      const results = await Promise.all(
+        Array.from({ length: 20 }, () => pool.query("select public.auth_throttle_hit('k-concurrent', 5, interval '1 hour') as ok")),
+      );
+      expect(results.filter((r) => r.rows[0].ok === true)).toHaveLength(5);
+    });
+
+    it("окремі ключі не впливають один на одного, а вікно скидається", async () => {
+      expect((await pool.query("select public.auth_throttle_hit('k-other', 1, interval '1 hour') as ok")).rows[0].ok).toBe(true);
+      expect((await pool.query("select public.auth_throttle_hit('k-other', 1, interval '1 hour') as ok")).rows[0].ok).toBe(false);
+      await pool.query("update public.auth_throttle set window_start = now() - interval '2 hours' where key = 'k-other'");
+      expect((await pool.query("select public.auth_throttle_hit('k-other', 1, interval '1 hour') as ok")).rows[0].ok).toBe(true);
+    });
+
+    it("недоступний браузерним ролям", async () => {
+      for (const session of [null, a]) {
+        await expect(asUser(pool, session, (q) => q("select public.auth_throttle_hit('x', 1, interval '1 hour')"))).rejects.toThrow(/permission denied/);
+        await expect(asUser(pool, session, (q) => q("select * from public.auth_throttle"))).rejects.toThrow(/permission denied/);
+      }
+    });
+  });
+
   describe("прив'язка заявки до підтвердженої особи", () => {
     it("створює проєкт для підтвердженого email і не чіпає чужі заявки", async () => {
       const mine = await asUser(pool, a, (q) => q("select title, stage, status, next_action_owner from public.projects"));
@@ -243,6 +266,17 @@ describe.skipIf(!dbEnabled)("client workspace (PostgreSQL)", () => {
       expect(msgs.rows.map((r) => r.author_role)).toEqual(["client", "admin"]);
       const proposals = await asUser(pool, b, (q) => q("select status, version from public.proposals"));
       expect(proposals.rows).toEqual([{ status: "sent", version: 1 }]);
+    });
+  });
+
+  describe("виконавець проєкту", () => {
+    it("клієнт бачить ім'я виконавця лише свого проєкту", async () => {
+      await asUserCommit(pool, admin, (q) => q("select public.admin_update_project($1, 'active', $2, 'studio', 'Працюємо')", [projectA, ADMIN]));
+      const own = await asUser(pool, a, (q) => q("select public.project_assignee_name($1) as n", [projectA]));
+      expect(own.rows[0].n).toBe("Адмін");
+      const foreign = await asUser(pool, a, (q) => q("select public.project_assignee_name($1) as n", [projectB]));
+      expect(foreign.rows[0].n).toBeNull();
+      await expect(asUser(pool, a, (q) => q("select * from public.admin_users"))).resolves.toMatchObject({ rows: [] });
     });
   });
 

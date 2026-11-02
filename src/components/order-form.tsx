@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
 import {
@@ -254,10 +254,16 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
         <p className="mt-5 inline-block rounded-2xl border border-line bg-surface-2 px-5 py-3 font-mono text-2xl tracking-wider">
           {ticket}
         </p>
+        <p className="mt-6 max-w-xl text-muted">
+          Далі — увійдіть у кабінет за цією поштою (пароль не потрібен): там зʼявиться ваш проєкт, чат зі студією й пропозиція.
+        </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button type="button" onClick={copyTicket}>
             Скопіювати номер
           </Button>
+          <Link href={`/login?email=${encodeURIComponent(values.email.trim().toLowerCase())}`} className={buttonStyles("ghost")}>
+            Увійти в кабінет за цією поштою
+          </Link>
           <Button type="button" variant="ghost" onClick={reset}>
             Надіслати ще одну заявку
           </Button>

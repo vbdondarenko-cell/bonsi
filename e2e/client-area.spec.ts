@@ -62,3 +62,32 @@ test.describe("етап 2: захист нових маршрутів без а�
     expect((await request.get("/api/payments/webhook/liqpay")).status()).toBe(405);
   });
 });
+
+test.describe("видимі точки входу в кабінет", () => {
+  test("у шапці й футері є посилання «Кабінет», що веде на /login", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("banner").getByRole("link", { name: "Кабінет" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "Кабінет клієнта" })).toBeVisible();
+  });
+
+  test("у мобільному меню є «Кабінет клієнта»", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Відкрити меню" }).click();
+    await expect(page.locator("#mobile-menu").getByRole("link", { name: "Кабінет клієнта" })).toHaveAttribute("href", "/login");
+  });
+
+  test("після заявки пропонується увійти в кабінет із підставленою поштою", async ({ page }) => {
+    await page.route("**/api/orders", (route) => route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ ticket: "BON-2026-00099" }) }));
+    await page.goto("/contact?service=landing");
+    await page.waitForTimeout(3200);
+    await page.locator("#field-name").fill("Іван");
+    await page.locator("#field-email").fill("Ivan@Example.com");
+    await page.locator("#field-consent").check();
+    await page.getByRole("button", { name: "Надіслати заявку" }).click();
+    const link = page.getByRole("link", { name: "Увійти в кабінет за цією поштою" });
+    await expect(link).toHaveAttribute("href", "/login?email=ivan%40example.com");
+  });
+});

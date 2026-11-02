@@ -72,7 +72,14 @@ export function Header() {
               </Link>
             );
           })}
-          <Link href={orderHref} className={buttonStyles("primary", "ml-3 min-h-10 px-5 text-sm")}>
+          <Link
+            href="/login"
+            aria-current={pathname === "/login" ? "page" : undefined}
+            className="ml-2 rounded-full border border-line px-4 py-2 text-sm text-muted transition-colors hover:border-accent-soft hover:text-fg"
+          >
+            Кабінет
+          </Link>
+          <Link href={orderHref} className={buttonStyles("primary", "ml-2 min-h-10 px-5 text-sm")}>
             Обговорити проєкт
           </Link>
         </nav>
@@ -118,6 +125,9 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            <Link href="/login" className="border-b border-line py-5 text-3xl font-semibold tracking-tight text-accent-soft">
+              Кабінет клієнта
+            </Link>
           </nav>
           <Link href={orderHref} className={buttonStyles("primary", "mt-8 w-full")}>
             Обговорити проєкт

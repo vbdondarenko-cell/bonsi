@@ -1,3 +1,4 @@
+import { enqueueEmail, providerFromEnv } from "@/lib/email/service";
 import "server-only";
 import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -72,6 +73,14 @@ export async function createOrder(
   }
   if (typeof data !== "string" || data === "") {
     throw new StorageError("Порожня відповідь бази даних");
+  }
+  // Лист-підтвердження: лише коли налаштований провайдер, і ніколи не ламає прийняття заявки (черга може бути ще не розгорнута).
+  if (providerFromEnv()) {
+    try {
+      await enqueueEmail(db, { key: `order-received:${data}`, template: "order_received", to: input.email.trim().toLowerCase(), name: input.name, payload: { ticket: data } });
+    } catch (error) {
+      console.error("[orders] email enqueue failed:", error instanceof Error ? error.message : "unknown");
+    }
   }
   return { ticket: data };
 }

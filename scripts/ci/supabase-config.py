@@ -37,6 +37,8 @@ if client_mode:
         text = set_in_section(text, section, "enabled", "true")
     text = set_in_section(text, "auth.rate_limit", "email_sent", "200")
     text = set_in_section(text, "auth.email", "enable_confirmations", "false")
+    # Supabase дозволяє повторний лист тій самій адресі не частіше, ніж раз на 60 с; для тесту «надіслати код ще раз» скорочуємо.
+    text = set_in_section(text, "auth.email", "max_frequency", '"1s"')
     for name in ["magic_link", "confirmation"]:
         text += f'\n[auth.email.template.{name}]\nsubject = "Код входу BONSI"\ncontent_path = "./supabase/templates/{name}.html"\n'
 text = set_in_section(text, "auth", "site_url", '"http://localhost:3100"')

@@ -277,13 +277,9 @@ test.describe.serial("робота адміністратора", () => {
 
     await page.locator("select#status").selectOption("in_review");
     await page.getByRole("button", { name: "Змінити" }).click();
-    try {
-      await expect(page.getByRole("status").filter({ hasText: "Збережено" })).toBeVisible();
-    } catch (error) {
-      const row = (await db.from("orders").select("status").eq("id", orderId).single()).data;
-      const form = await page.locator("form:has(select#status)").innerText().catch(() => "n/a");
-      throw new Error(`Статус: немає підтвердження. db.status=${row?.status} form="${form.replace(/\n/g, " | ")}" url=${page.url()}\nNET:\n${netLog.slice(-25).join("\n")}\n${String(error).slice(0, 120)}`);
-    }
+    // Одноразове «Збережено» зникає, коли сторінка перемальовується після revalidatePath (форма монтується заново),
+    // тож перевіряємо тривалий результат: статус у БД і запис в історії змін.
+    await expect.poll(async () => (await db.from("orders").select("status").eq("id", orderId).single()).data?.status, { timeout: 15_000 }).toBe("in_review");
     await expect(page.getByText("Статус: Нова → У розгляді")).toBeVisible();
     expect((await db.from("orders").select("status").eq("id", orderId).single()).data?.status).toBe("in_review");
     // Подальші дії перевіряємо за станом БД і серверним рендером після перезавантаження:

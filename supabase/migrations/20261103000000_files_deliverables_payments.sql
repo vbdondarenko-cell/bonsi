@@ -102,7 +102,7 @@ immutable
 set search_path = ''
 as $$
   select p_mime in (
-    'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml',
+    'image/png', 'image/jpeg', 'image/webp', 'image/gif',
     'application/pdf', 'text/plain', 'text/markdown', 'text/csv',
     'application/zip',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

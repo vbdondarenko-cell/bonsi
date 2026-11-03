@@ -61,7 +61,8 @@ export function ActionForm({
   className?: string;
 }) {
   const [state, run, pending] = useActionState<ActionState, FormData>(action, null);
-  useRefreshOnSuccess(state);
+  // Оновлення сторінки виконує сама серверна дія через revalidatePath; додатковий router.refresh() накладався б на нього
+  // й міг залишити перехід у стані pending.
   // До гідрації клік по кнопці запустив би звичайну навігацію форми замість серверної дії: кнопка неактивна, доки форма не готова.
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);

@@ -1,37 +1,55 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/admin/ui";
-import { Card } from "@/components/workspace/ui";
+import { CreateTicketForm } from "@/components/workspace/support-forms";
+import { Card, Pill, formatWhen } from "@/components/workspace/ui";
 import { requireClient } from "@/lib/client/auth";
-import { listProjects } from "@/lib/client/data";
+import { getTickets, listProjects } from "@/lib/client/data";
+import { TICKET_CATEGORY_LABELS, TICKET_STATUS_LABELS } from "@/lib/client/labels";
 
 export const metadata: Metadata = { title: "Підтримка" };
 
 export default async function SupportPage() {
   const { supabase } = await requireClient();
-  const projects = await listProjects(supabase);
+  const [projects, tickets] = await Promise.all([listProjects(supabase), getTickets(supabase)]);
+  const eligible = projects.filter((p) => p.status === "active" || p.status === "completed");
   return (
     <div className="flex flex-col gap-8">
       <PageHeader eyebrow="Кабінет" title="Підтримка" />
-      <Card title="Як звернутися">
-        <ul className="flex flex-col gap-3">
-          {projects.map((project) => (
-            <li key={project.id}>
-              З питань проєкту <span className="font-mono text-sm">{project.title}</span> —{" "}
-              <Link prefetch={false} href={`/app/projects/${project.id}/messages`} className="text-accent-soft underline underline-offset-4">
-                напишіть студії в чаті проєкту
-              </Link>
-              .
-            </li>
-          ))}
-          <li>
-            Питання щодо доступу до кабінету або нова задача —{" "}
+      <Card title="Нове звернення">
+        {eligible.length === 0 ? (
+          <p className="text-muted">
+            Звернення створюються для активних і завершених проєктів. Питання до початку роботи можна поставити в чаті проєкту або через{" "}
             <Link prefetch={false} href="/contact" className="text-accent-soft underline underline-offset-4">
-              форма заявки на сайті
+              форму заявки
             </Link>
             .
-          </li>
-        </ul>
+          </p>
+        ) : (
+          <CreateTicketForm projects={eligible.map((p) => ({ id: p.id, title: p.title }))} />
+        )}
+      </Card>
+      <Card title="Мої звернення">
+        {tickets.length === 0 ? (
+          <p className="text-muted">Звернень ще немає.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {tickets.map((t) => (
+              <li key={t.id} className="rounded-xl border border-line p-4">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-muted">{t.number}</span>
+                  <Link prefetch={false} href={`/app/support/${t.id}`} className="font-semibold underline-offset-4 hover:underline">
+                    {t.subject}
+                  </Link>
+                  <Pill tone={t.status === "closed" || t.status === "resolved" ? "ok" : t.status === "waiting_client" ? "warn" : "muted"}>{TICKET_STATUS_LABELS[t.status] ?? t.status}</Pill>
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  {TICKET_CATEGORY_LABELS[t.category] ?? t.category} · оновлено {formatWhen(t.updated_at)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
     </div>
   );

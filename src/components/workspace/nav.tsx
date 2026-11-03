@@ -50,6 +50,7 @@ export function ProjectTabs({ projectId, unread }: { projectId: string; unread: 
     { href: `${base}/documents`, label: "Договори й документи", exact: false },
     { href: `${base}/changes`, label: "Зміни", exact: false },
     { href: `${base}/payments`, label: "Оплата", exact: false },
+    { href: `${base}/handover`, label: "Передача", exact: false },
   ];
   return (
     <div className="flex flex-col gap-3">

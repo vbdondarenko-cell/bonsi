@@ -1,10 +1,12 @@
 export type EmailTemplate =
   | "order_received" | "login_code" | "cabinet_invite" | "new_message" | "new_proposal"
-  | "proposal_decision" | "deliverable_decision" | "invoice_issued" | "payment_confirmed" | "project_completed";
+  | "proposal_decision" | "deliverable_decision" | "invoice_issued" | "payment_confirmed" | "project_completed"
+  | "document_for_approval" | "budget_change" | "stage_completed" | "handover_ready" | "support_update" | "order_rejected";
 
 export const EMAIL_TEMPLATES: EmailTemplate[] = [
   "order_received", "login_code", "cabinet_invite", "new_message", "new_proposal",
   "proposal_decision", "deliverable_decision", "invoice_issued", "payment_confirmed", "project_completed",
+  "document_for_approval", "budget_change", "stage_completed", "handover_ready", "support_update", "order_rejected",
 ];
 
 export type Rendered = { subject: string; html: string; text: string };
@@ -24,6 +26,12 @@ const COPY: Record<EmailTemplate, Record<"uk" | "en", { subject: string; body: s
   deliverable_decision: { uk: { subject: "Результат етапу: рішення збережено", body: "Рішення щодо етапу проєкту «{title}» зафіксовано." }, en: { subject: "Milestone decision recorded", body: "Your decision on a milestone of “{title}” has been recorded." } },
   invoice_issued: { uk: { subject: "Виставлено рахунок {number}", body: "Рахунок {number} на {amount} {currency} доступний у розділі «Оплата». Оплата — банківським переказом; статус «Сплачено» зʼявиться після підтвердження надходження." }, en: { subject: "Invoice {number} issued", body: "Invoice {number} for {amount} {currency} is in Payments. Pay by bank transfer; it is marked paid only after the studio confirms receipt." } },
   payment_confirmed: { uk: { subject: "Оплату рахунку {number} підтверджено", body: "Ми підтвердили надходження {amount} {currency} за рахунком {number}. Дякуємо!" }, en: { subject: "Payment for invoice {number} confirmed", body: "We confirmed receipt of {amount} {currency} for invoice {number}. Thank you!" } },
+  document_for_approval: { uk: { subject: "Документ очікує вашого погодження", body: "У проєкті «{title}» є документ, який потрібно переглянути й погодити в кабінеті." }, en: { subject: "A document awaits your approval", body: "Project “{title}” has a document to review and approve in your workspace." } },
+  budget_change: { uk: { subject: "Оцінка зміни: потрібне ваше рішення", body: "Студія оцінила запит на зміну в проєкті «{title}». Перегляньте додаткову угоду (вартість і терміни) та ухваліть рішення. До вашого погодження зміна в роботу не йде." }, en: { subject: "Change estimate: your decision is needed", body: "The studio estimated your change request in “{title}”. Review the addendum (cost and timing) and decide. Nothing starts until you approve." } },
+  stage_completed: { uk: { subject: "Етап проєкту завершено", body: "У проєкті «{title}» є результат етапу, який потрібно перевірити та погодити." }, en: { subject: "A project stage is ready", body: "Project “{title}” has a stage result to review and approve." } },
+  handover_ready: { uk: { subject: "Передача проєкту готова до приймання", body: "Студія підготувала передачу проєкту «{title}». Перевірте дані та підтвердіть приймання в кабінеті." }, en: { subject: "Project handover is ready", body: "The studio prepared the handover of “{title}”. Review and confirm acceptance in your workspace." } },
+  support_update: { uk: { subject: "Оновлення за вашим зверненням {number}", body: "У зверненні {number} (проєкт «{title}») є нова відповідь або зміна статусу." }, en: { subject: "Update on your request {number}", body: "Your support request {number} (project “{title}”) has a new reply or status." } },
+  order_rejected: { uk: { subject: "Щодо вашої заявки", body: "Студія не може взяти вашу заявку в роботу. Причину ви знайдете в розділі «Мої заявки» кабінету." }, en: { subject: "About your request", body: "The studio cannot take your request. The reason is in My Requests in your workspace." } },
   project_completed: { uk: { subject: "Проєкт «{title}» завершено", body: "Фінальні файли й документи доступні в кабінеті." }, en: { subject: "Project “{title}” completed", body: "Final files and documents are available in your workspace." } },
 };
 

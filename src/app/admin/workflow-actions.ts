@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
+import { queueProjectEmail } from "@/lib/email/events";
 import { DOCUMENT_KINDS, renderTemplate, type DocumentKind } from "@/lib/documents/templates";
 import { formatMoney } from "@/lib/client/labels";
 import { services } from "@/lib/services";
@@ -54,6 +55,9 @@ export async function rejectOrderAction(_prev: ActionState, formData: FormData):
   if (!reason.success) return { fieldError: reason.error.issues[0]?.message ?? "Вкажіть причину." };
   const { error } = await admin.supabase.rpc("admin_reject_order", { p_order: orderId.data, p_reason: reason.data });
   if (error) return { error: message(error) };
+  // Клієнту (якщо заявку вже привʼязано до кабінету) іде лист-повідомлення без причини: причину він бачить у кабінеті.
+  const project = await admin.supabase.from("projects").select("id").eq("order_id", orderId.data).maybeSingle();
+  if (project.data) await queueProjectEmail({ projectId: project.data.id as string, template: "order_rejected", key: `order-rejected:${orderId.data}` });
   revalidatePath(`/admin/orders/${orderId.data}`);
   return { ok: true, notice: "Заявку відхилено. Клієнт бачить причину в кабінеті." };
 }
@@ -108,6 +112,8 @@ export async function sendDocumentAction(_prev: ActionState, formData: FormData)
   if (!parsed.success) return { error: "Некоректні дані." };
   const { error } = await admin.supabase.rpc("admin_send_document", { p_doc: parsed.data.id });
   if (error) return { error: message(error) };
+  const sent = await admin.supabase.from("documents").select("current_version").eq("id", parsed.data.id).maybeSingle();
+  await queueProjectEmail({ projectId: parsed.data.projectId, template: "document_for_approval", key: `document-sent:${parsed.data.id}:${sent.data?.current_version ?? 0}` });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Документ відправлено клієнту на погодження. Текст цієї версії зафіксовано." };
 }
@@ -153,6 +159,7 @@ export async function quoteChangeAction(_prev: ActionState, formData: FormData):
     p_days: parsed.data.days,
   });
   if (error) return { error: message(error) };
+  await queueProjectEmail({ projectId: parsed.data.projectId, template: "budget_change", key: `change-quoted:${parsed.data.id}` });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Оцінку надіслано клієнту як додаткову угоду." };
 }

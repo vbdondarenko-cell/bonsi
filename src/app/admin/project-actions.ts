@@ -254,6 +254,8 @@ export async function submitDeliverableAction(_prev: ActionState, formData: Form
   if (!parsed.success) return { error: "Некоректні дані." };
   const { error } = await admin.supabase.rpc("admin_submit_deliverable", { p_id: parsed.data.id });
   if (error) return { error: rpcMessage(error.message) };
+  const version = await admin.supabase.from("deliverables").select("version").eq("id", parsed.data.id).maybeSingle();
+  await queueProjectEmail({ projectId: parsed.data.projectId, template: "stage_completed", key: `deliverable:${parsed.data.id}:${version.data?.version ?? 0}` });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Надіслано клієнту на погодження." };
 }

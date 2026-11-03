@@ -174,3 +174,23 @@ export const DECISION_LABELS: Record<string, string> = {
   changes_requested: "Запитано зміни",
   rejected: "Відхилено",
 };
+
+export const TICKET_CATEGORY_LABELS: Record<string, string> = {
+  bug: "Помилка в роботі",
+  warranty_fix: "Гарантійне виправлення",
+  paid_work: "Платне доопрацювання",
+  tech_question: "Технічне питання",
+  hosting: "Проблема з хостингом",
+  post_update: "Проблема після оновлення",
+  other: "Інше",
+};
+export const TICKET_STATUS_LABELS: Record<string, string> = {
+  new: "Нове",
+  in_progress: "В роботі",
+  waiting_client: "Очікує вашої відповіді",
+  resolved: "Вирішено",
+  closed: "Закрито",
+};
+export const TICKET_PRIORITY_LABELS: Record<string, string> = { low: "Низький", normal: "Звичайний", high: "Високий", urgent: "Терміново" };
+export const HANDOVER_KIND_LABELS: Record<string, string> = { website: "Сайт", mobile: "Мобільний застосунок", other: "Інший продукт" };
+export const HANDOVER_STATUS_LABELS: Record<string, string> = { draft: "Чернетка", submitted: "Очікує вашого приймання", accepted: "Прийнято", changes_requested: "Потрібні правки" };

@@ -44,6 +44,10 @@ export default defineConfig({
       },
     },
   ],
-  // Одна платформа: наскрізний сценарій з поштою й чергою входів не повторюємо в трьох рушіях (кросбраузерність покриває публічний e2e та a11y).
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // Повний сценарій виконується в кожному браузері послідовно (кожен — зі своїми користувачами й заявками).
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, dependencies: ["chromium"] },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, dependencies: ["firefox"] },
+  ],
 });

@@ -50,6 +50,7 @@ export function ActionForm({
   pendingLabel = "…",
   variant = "primary",
   resetOnSuccess = false,
+  disabled = false,
   className,
 }: {
   action: Action;
@@ -59,6 +60,8 @@ export function ActionForm({
   pendingLabel?: string;
   variant?: "primary" | "ghost";
   resetOnSuccess?: boolean;
+  /** Кнопку вимкнено (наприклад, запис зафіксовано); сервер у будь-якому разі перевіряє стан повторно. */
+  disabled?: boolean;
   className?: string;
 }) {
   const { state, run, pending, formRef: ref, ready } = useGuardedAction<ActionState>(action, { resetOnSuccess });
@@ -69,7 +72,7 @@ export function ActionForm({
       ))}
       {children}
       <Feedback state={state} />
-      <Button type="submit" variant={variant} disabled={pending || !ready} className="min-h-11 self-start px-5">
+      <Button type="submit" variant={variant} disabled={pending || !ready || disabled} className="min-h-11 self-start px-5">
         {pending ? pendingLabel : submit}
       </Button>
     </form>

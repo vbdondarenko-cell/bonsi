@@ -186,7 +186,7 @@ export function EstimateEditor({
   const byCategory = new Map(lines.map((l) => [l.category, l]));
   return (
     <div className="flex flex-col gap-4">
-      <ActionForm action={saveEstimateAction} hidden={{ id }} submit={locked ? "Кошторис зафіксовано" : "Зберегти кошторис"} pendingLabel="Зберігаємо…">
+      <ActionForm action={saveEstimateAction} hidden={{ id }} submit={locked ? "Кошторис зафіксовано" : "Зберегти кошторис"} pendingLabel="Зберігаємо…" disabled={locked}>
         <fieldset disabled={locked} className="flex flex-col gap-4">
           <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Рядки кошторису (прокручується)">
             <table className="w-full min-w-[28rem] text-left text-sm">

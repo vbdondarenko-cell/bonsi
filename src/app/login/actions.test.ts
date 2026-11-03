@@ -76,4 +76,38 @@ describe("клієнтський вхід: розділення з адмінк�
     expect(rpc).toHaveBeenCalledWith("client_claim_orders");
     expect(signOut).not.toHaveBeenCalled();
   });
+
+  it("429 від Supabase Auth: людське повідомлення про ліміт, перехід до кроку коду не відбувається", async () => {
+    signInWithOtp.mockResolvedValue({ error: { status: 429, code: "over_email_send_rate_limit" } });
+    const result = await requestCodeAction(null, form({ email: "client@example.com" }));
+    expect(result).toEqual({ step: "email", error: expect.stringContaining("Забагато спроб") });
+  });
+
+  it("збій доставки листа (SMTP/Send Email Hook повернув 5xx) → «недоступний», а не «код надіслано»", async () => {
+    signInWithOtp.mockResolvedValue({ error: { status: 500, code: "unexpected_failure" } });
+    const result = await requestCodeAction(null, form({ email: "client@example.com" }));
+    expect(result).toEqual({ step: "email", error: expect.stringContaining("недоступний") });
+  });
+
+  it("повторне надсилання коду проходить той самий шлях і повертає крок коду без старої помилки", async () => {
+    const first = await requestCodeAction(null, form({ email: "client@example.com" }));
+    const again = await requestCodeAction(first, form({ email: "client@example.com" }));
+    expect(again).toMatchObject({ step: "code", email: "client@example.com" });
+    expect((again as { error?: string }).error).toBeUndefined();
+    expect(signInWithOtp).toHaveBeenCalledTimes(2);
+  });
+
+  it("прострочений або використаний код: однакове повідомлення, сесія не створюється, заявки не прив'язуються", async () => {
+    verifyOtp.mockResolvedValue({ error: { status: 403, code: "otp_expired" } });
+    const result = await verifyCodeAction(null, form({ email: "client@example.com", code: "123456" }));
+    expect(result).toMatchObject({ step: "code", error: expect.stringContaining("Код невірний або застарів") });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("локальний ліміт спроб входу спрацьовує до звернення до Supabase", async () => {
+    throttle.mockResolvedValue({ data: false, error: null });
+    const result = await requestCodeAction(null, form({ email: "client@example.com" }));
+    expect(signInWithOtp).not.toHaveBeenCalled();
+    expect(result).toEqual({ step: "email", error: expect.stringContaining("Забагато спроб") });
+  });
 });

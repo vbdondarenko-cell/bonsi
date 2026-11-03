@@ -42,3 +42,23 @@ export function renderEmail(template: EmailTemplate, locale: "uk" | "en", vars: 
     text: `${fill(copy.body, vars, false)}\n\n${cta}: ${link}\n\nBONSI Studios`,
   };
 }
+
+/**
+ * Лист із кодом входу. Окремо від черги: код — секрет, тож його ніколи не записують у email_outbox (там лише змінні шаблонів).
+ * Лист відправляється одразу з Send Email Hook; якщо провайдер недоступний, хук повертає помилку, і вхід чесно повідомляє про збій.
+ */
+export function renderLoginCodeEmail(input: { code: string; link: string; locale?: "uk" | "en" }): Rendered {
+  const locale = input.locale ?? "uk";
+  const uk = locale === "uk";
+  const subject = uk ? "Код входу в кабінет BONSI" : "Your BONSI sign-in code";
+  const intro = uk ? "Ваш одноразовий код входу:" : "Your one-time sign-in code:";
+  const linkText = uk ? "Або відкрийте посилання:" : "Or open this link:";
+  const note = uk ? "Код дійсний обмежений час і спрацьовує один раз. Якщо ви не запитували вхід, проігноруйте цей лист." : "The code is valid for a short time and works once. Ignore this email if you did not request it.";
+  const code = escapeHtml(input.code);
+  const link = escapeHtml(input.link);
+  return {
+    subject,
+    html: `<!doctype html><html lang="${locale}"><body style="font-family:system-ui,sans-serif;max-width:560px;margin:auto"><p>${intro}</p><p style="font-size:28px;letter-spacing:6px;font-weight:600">${code}</p><p>${linkText} <a href="${link}">${link}</a></p><p style="color:#666;font-size:12px">${note}</p></body></html>`,
+    text: `${intro} ${input.code}\n\n${linkText} ${input.link}\n\n${note}`,
+  };
+}

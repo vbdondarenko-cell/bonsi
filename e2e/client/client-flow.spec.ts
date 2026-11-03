@@ -294,3 +294,20 @@ test("чат: понад 500 повідомлень — клієнт бачит�
   expect(new Set(bodies).size).toBe(bodies.length);
   expect(bodies).toHaveLength(620);
 });
+
+test("адаптивність кабінету: без горизонтального скролу на 320–1920 px, axe на крайніх розмірах", async ({ page }) => {
+  test.setTimeout(300_000);
+  await signIn(page, emailA);
+  const sections = ["", "/messages", "/proposal", "/milestones", "/files", "/documents", "/payments"];
+  const urls = ["/app", "/app/projects", "/app/profile", "/app/support", ...sections.map((s) => `/app/projects/${projectA}${s}`)];
+  for (const width of [320, 375, 390, 768, 1024, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const url of urls) {
+      const response = await page.goto(url, { waitUntil: "networkidle" });
+      expect(response?.status(), `${url} @ ${width}`).toBe(200);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `горизонтальний скрол ${url} @ ${width}px`).toBeLessThanOrEqual(1);
+      if ((width === 320 || width === 1920) && url.endsWith("/payments")) await expectNoA11yViolations(page, `${url} @ ${width}`);
+    }
+  }
+});

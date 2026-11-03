@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { settleMotion } from "./support/a11y";
 
-const widths = [320, 375, 768, 1024, 1440];
+const widths = [320, 375, 390, 768, 1024, 1440, 1920];
 const pages = ["/", "/services", "/portfolio", "/about", "/contact", "/privacy"];
 
 for (const width of widths) {

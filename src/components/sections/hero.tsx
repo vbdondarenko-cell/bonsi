@@ -26,34 +26,26 @@ export function Hero() {
           <p className="mb-8 font-mono text-xs uppercase tracking-[0.2em] text-accent-soft">
             BONSI Studios · Digital product studio
           </p>
-          <motion.h1
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-5xl text-[clamp(2.6rem,8.5vw,6.75rem)] font-semibold leading-[0.98] tracking-[-0.045em]"
+          {/* Поява тексту героя — CSS-анімація, а не JS: заголовок (LCP) не чекає на гідратацію й бібліотеку анімацій. */}
+          <h1
+            style={{ "--rise": "28px", "--dur": "0.8s" } as React.CSSProperties}
+            className="hero-rise max-w-5xl text-[clamp(2.6rem,8.5vw,6.75rem)] font-semibold leading-[0.98] tracking-[-0.045em]"
           >
             Створюємо цифрові продукти, які <span className="text-accent-soft">працюють</span>
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-8 max-w-2xl text-lg leading-relaxed text-muted sm:text-xl"
+          </h1>
+          <p
+            style={{ "--delay": "0.15s" } as React.CSSProperties}
+            className="hero-rise mt-8 max-w-2xl text-lg leading-relaxed text-muted sm:text-xl"
           >
             Сайти, вебплатформи та мобільні додатки на замовлення. Двоє розробників, які ведуть
             проєкт від ідеї й дизайну до запуску.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-10 flex flex-col gap-3 sm:flex-row"
-          >
+          </p>
+          <div style={{ "--delay": "0.3s" } as React.CSSProperties} className="hero-rise mt-10 flex flex-col gap-3 sm:flex-row">
             <ButtonLink href="#order">Обговорити проєкт</ButtonLink>
             <ButtonLink href="/services" variant="ghost">
               Наші послуги
             </ButtonLink>
-          </motion.div>
+          </div>
         </motion.div>
       </Container>
     </section>

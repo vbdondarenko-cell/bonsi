@@ -38,7 +38,11 @@ export default async function AdminHandoverPage({ params }: { params: Promise<{ 
         {editable ? (
           <HandoverEditor projectId={id} record={r} kind={kind} />
         ) : (
-          <p className="text-muted">Передачу відправлено або прийнято — змінити її вже не можна.</p>
+          <p role="status" className="text-muted">
+            {r?.status === "accepted"
+              ? "Клієнт прийняв передачу. Змінити її вже не можна."
+              : "Передачу відправлено клієнту на приймання. Очікуємо його рішення; змінити дані вже не можна."}
+          </p>
         )}
       </Panel>
 

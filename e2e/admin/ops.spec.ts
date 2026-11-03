@@ -53,8 +53,8 @@ test("завдання: створення, чекліст і посилання
   await page1.goto("/admin/tasks");
   await settle(page1);
   await page1.getByLabel("Назва", { exact: true }).fill(taskTitle);
-  await page1.getByLabel("Проєкт", { exact: true }).selectOption(projectId);
-  await page1.getByLabel("Пріоритет", { exact: true }).selectOption("high");
+  await page1.locator("select[name=projectId]").first().selectOption(projectId);
+  await page1.locator("select[name=priority]").first().selectOption("high");
   await page1.getByRole("button", { name: "Створити завдання" }).click();
   const card = page1.locator("li[data-task-id]", { hasText: taskTitle });
   await expect(card).toBeVisible();
@@ -144,7 +144,7 @@ test("фінанси: прогноз, виставлено й отримано �
   await expect(metric("unpaid")).toContainText(/^0|0[,.]00/);
 
   // Витрата 300 через інтерфейс → маржа 700.
-  await page1.getByLabel("Проєкт", { exact: true }).first().selectOption(projectId);
+  await page1.locator("select[name=projectId]").first().selectOption(projectId);
   await page1.getByLabel("Категорія", { exact: true }).fill("Хостинг");
   await page1.getByLabel("Сума", { exact: true }).fill("300");
   await page1.getByRole("button", { name: "Записати витрату" }).click();
@@ -161,7 +161,7 @@ test("кошторис: калькулятор рахує рекомендова
   await settle(page1);
   const form = page1.locator("form", { has: page1.getByRole("button", { name: "Створити кошторис" }) });
   await form.getByLabel("Назва", { exact: true }).fill("Сайт-платформа");
-  await form.getByLabel("Проєкт", { exact: true }).selectOption(projectId);
+  await form.locator("select[name=projectId]").selectOption(projectId);
   await form.getByRole("button", { name: "Створити кошторис" }).click();
   await page1.getByRole("link", { name: "Сайт-платформа" }).click();
   await settle(page1);

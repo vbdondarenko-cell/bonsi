@@ -375,7 +375,7 @@ test("12. передача: адмін готує і відправляє; се�
 
   await adminPage.reload();
   await adminPage.getByRole("button", { name: "Відправити клієнту на приймання" }).click();
-  await expect(adminPage.getByText("Передачу відправлено клієнту на приймання.")).toBeVisible({ timeout: 15_000 });
+  await expect(adminPage.getByRole("status").filter({ hasText: "Передачу відправлено клієнту на приймання" })).toBeVisible({ timeout: 15_000 });
   await expect(rpc(studioApi, "admin_complete_project", { p_project: projectA, p_warranty_until: null })).rejects.toThrow(/handover_not_accepted/);
 
   await page.goto(`/app/projects/${projectA}/handover`);

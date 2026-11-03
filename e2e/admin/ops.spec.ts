@@ -210,11 +210,14 @@ test("фінанси: прогноз, виставлено й отримано �
 test("кошторис: калькулятор рахує рекомендовану ціну; зафіксований кошторис не редагується", async () => {
   await page1.goto("/admin/finance");
   await settle(page1);
+  // Назва унікальна для кожного прогону: БД спільна для всіх браузерів і повторів, а кошторис після фіксації незмінний.
+  const estimateTitle = `Сайт-платформа ${Date.now() % 1_000_000}`;
   const form = page1.locator("form", { has: page1.getByRole("button", { name: "Створити кошторис" }) });
-  await form.getByLabel("Назва", { exact: true }).fill("Сайт-платформа");
+  await expect(form.getByRole("button", { name: "Створити кошторис" })).toBeEnabled();
+  await form.getByLabel("Назва", { exact: true }).fill(estimateTitle);
   await form.locator("select[name=projectId]").selectOption(projectId);
   await form.getByRole("button", { name: "Створити кошторис" }).click();
-  await page1.getByRole("link", { name: "Сайт-платформа" }).click();
+  await page1.getByRole("link", { name: estimateTitle }).click();
   await settle(page1);
   await page1.getByLabel("Дизайн: години").fill("10");
   await page1.getByLabel("Дизайн: ставка").fill("1000");

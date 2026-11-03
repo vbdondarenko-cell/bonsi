@@ -18,10 +18,6 @@
 -- Записи не видаляються автоматично (кілька байтів на дію), щоб пізній повтор не виконав дію вдруге.
 begin;
 
-drop function if exists public.admin_claim_operation(uuid, text);
-drop function if exists public.admin_release_operation(uuid);
-drop table if exists public.admin_operations;
-
 create table if not exists public.operations (
   op_id       uuid primary key,
   actor_id    uuid not null references auth.users (id) on delete restrict,

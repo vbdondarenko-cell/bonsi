@@ -15,7 +15,11 @@ begin
     alter table public.projects add column activated_by uuid references public.admin_users (user_id) on delete set null;
     alter table public.projects add column activation_note text check (activation_note is null or char_length(activation_note) <= 500);
     -- Зворотна сумісність: усі проєкти, що існували до цієї міграції, лишаються активними.
+    -- Заповнення не повинно змінювати «останнє оновлення» існуючих проєктів: на час оновлення вимикаємо тригер updated_at
+    -- (у межах цієї ж транзакції; після оновлення вмикаємо назад).
+    alter table public.projects disable trigger projects_set_updated_at;
     update public.projects set activated_at = created_at;
+    alter table public.projects enable trigger projects_set_updated_at;
   end if;
 end $$;
 

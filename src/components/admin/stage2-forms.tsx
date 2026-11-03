@@ -22,7 +22,7 @@ import { DELIVERABLE_STAGES, STAGE_LABELS } from "@/lib/client/labels";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
-function Feedback({ state }: { state: ActionState }) {
+export function Feedback({ state }: { state: ActionState }) {
   if (state?.error || state?.fieldError) {
     return (
       <p role="alert" className="text-sm text-danger">
@@ -41,7 +41,7 @@ function Feedback({ state }: { state: ActionState }) {
 }
 
 /** Типова форма адмінки: прихані поля, контент, кнопка, відгук. Очищається після успіху, якщо resetOnSuccess. */
-function ActionForm({
+export function ActionForm({
   action,
   hidden,
   children,
@@ -80,7 +80,7 @@ function ActionForm({
   );
 }
 
-const Field = ({ label, children }: { label: string; children: ReactNode }) => (
+export const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="flex flex-col gap-2 text-sm font-medium">
     {label}
     {children}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useEffect, type ReactNode } from "react";
+import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
   createDeliverableAction,
@@ -60,6 +61,7 @@ function ActionForm({
   className?: string;
 }) {
   const [state, run, pending] = useActionState<ActionState, FormData>(action, null);
+  useRefreshOnSuccess(state);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (resetOnSuccess && state?.ok) ref.current?.reset();
@@ -133,6 +135,7 @@ export function DeliverableDraftForm({ projectId, id, title, description, previe
 
 export function DeleteFileForm({ projectId, fileId }: { projectId: string; fileId: string }) {
   const [state, run, pending] = useActionState<ActionState, FormData>(deleteProjectFileAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={run} className="flex items-center gap-2">
       <input type="hidden" name="projectId" value={projectId} />

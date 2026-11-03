@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import { addNoteAction, assignOrderAction, updateStatusAction, type ActionState } from "@/app/admin/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ function Feedback({ state }: { state: ActionState }) {
 
 export function StatusForm({ orderId, status }: { orderId: string; status: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(updateStatusAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderId" value={orderId} />
@@ -59,6 +61,7 @@ export function AssignForm({
   admins: Array<{ user_id: string; display_name: string }>;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(assignOrderAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderId" value={orderId} />
@@ -85,6 +88,7 @@ export function AssignForm({
 
 export function NoteForm({ orderId }: { orderId: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(addNoteAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-3" key={state?.ok ? "saved" : "editing"}>
       <input type="hidden" name="orderId" value={orderId} />

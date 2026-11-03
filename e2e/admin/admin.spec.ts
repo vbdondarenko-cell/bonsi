@@ -14,6 +14,8 @@ import {
   waitForTelegram,
 } from "./helpers";
 
+const STATUS_OPTION: Record<string, string> = { new: "Нова", in_review: "У розгляді", accepted: "Прийнята", in_progress: "У роботі", done: "Завершена", rejected: "Відхилена" };
+
 test.skip(!process.env.SUPABASE_URL, "Потрібен локальний Supabase (SUPABASE_URL)");
 
 const ORDER_PAYLOAD = (email: string, name: string) => ({
@@ -268,6 +270,30 @@ test.describe.serial("робота адміністратора", () => {
     await expect(page.getByText("Такої сторінки немає")).toBeVisible();
   });
 
+  test("живий стан: п'ять змін статусу поспіль, історія оновлюється без перезавантаження", async () => {
+    // Окрема заявка, щоб не зачіпати стан, на який спираються інші тести.
+    const email = uniqueEmail("live-state");
+    const created = await db.rpc("create_order_v2", {
+      p_service: "landing", p_idea: "Перевірка живого стану", p_budget: null, p_deadline: null, p_name: "Живий стан", p_email: email, p_phone: null,
+      p_details: {}, p_links: [], p_ip_hash: `ip-live-${Date.now()}`, p_user_agent: "e2e", p_consent_policy_version: "2026-11-04", p_notify: false,
+    });
+    expect(created.error).toBeNull();
+    const liveId = (await db.from("orders").select("id").eq("ticket_number", created.data as string).single()).data!.id as string;
+    await page.goto(`/admin/orders/${liveId}`);
+    await hydrated(page);
+    await page.waitForLoadState("networkidle");
+    const labels = ["Прийнята", "У роботі", "Завершена", "У розгляді", "Прийнята"];
+    let previous = "new";
+    for (const [index, label] of labels.entries()) {
+      const value = Object.entries(STATUS_OPTION).find(([, text]) => text === label)![0];
+      if (value === previous) continue;
+      await page.locator("select#status").selectOption(value);
+      await page.getByRole("button", { name: "Змінити" }).click();
+      await expect(page.getByText(`Статус: ${STATUS_OPTION[previous]} → ${label}`).first(), `крок ${index + 1}`).toBeVisible();
+      previous = value;
+    }
+  });
+
   test("деталі: зміна статусу, призначення, нотатки та історія", async () => {
     await page.goto(`/admin/orders/${orderId}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(clientName);
@@ -277,13 +303,8 @@ test.describe.serial("робота адміністратора", () => {
 
     await page.locator("select#status").selectOption("in_review");
     await page.getByRole("button", { name: "Змінити" }).click();
-    // Одноразове «Збережено» зникає, коли сторінка перемальовується після revalidatePath (форма монтується заново),
-    // тож перевіряємо тривалий результат: статус у БД і запис в історії змін.
-    await expect.poll(async () => (await db.from("orders").select("status").eq("id", orderId).single()).data?.status, { timeout: 15_000 }).toBe("in_review");
-    // Історію перевіряємо серверним рендером після перезавантаження: клієнтське оновлення дерева після server action у Firefox/WebKit
-    // на CI інколи не встигає застосуватися (відповідь 200 приходить, а DOM ще старий) — це нестабільність рушія, а не втрата даних.
-    await page.reload();
-    await hydrated(page);
+    // Підтвердження і історія мають зʼявитися самі, без перезавантаження: це і є «живий стан після дії».
+    await expect(page.getByRole("status").filter({ hasText: "Збережено" })).toBeVisible();
     await expect(page.getByText("Статус: Нова → У розгляді")).toBeVisible();
     expect((await db.from("orders").select("status").eq("id", orderId).single()).data?.status).toBe("in_review");
     // Подальші дії перевіряємо за станом БД і серверним рендером після перезавантаження:

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
   addInternalNoteAction,
@@ -39,6 +40,7 @@ function Feedback({ state }: { state: ActionState }) {
 
 export function InviteClientForm({ orderId }: { orderId: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(inviteClientAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderId" value={orderId} />
@@ -67,6 +69,7 @@ export function ProjectControlForm({
   admins: Array<{ user_id: string; display_name: string }>;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(updateProjectAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="projectId" value={projectId} />
@@ -113,6 +116,7 @@ export function ProjectControlForm({
 
 export function StageForm({ projectId, stage }: { projectId: string; stage: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(setStageAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="projectId" value={projectId} />
@@ -143,6 +147,7 @@ const time = new Intl.DateTimeFormat("uk-UA", { dateStyle: "short", timeStyle: "
 export function AdminChat({ projectId, messages, lastClientId }: { projectId: string; messages: AdminThreadMessage[]; lastClientId: number }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<ActionState, FormData>(sendAdminMessageAction, null);
+  useRefreshOnSuccess(state);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -194,6 +199,7 @@ export function AdminChat({ projectId, messages, lastClientId }: { projectId: st
 
 export function InternalNoteForm({ projectId }: { projectId: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(addInternalNoteAction, null);
+  useRefreshOnSuccess(state);
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state?.ok) formRef.current?.reset();
@@ -215,6 +221,7 @@ export function InternalNoteForm({ projectId }: { projectId: string }) {
 
 export function CreateProposalForm({ projectId, copyFrom }: { projectId: string; copyFrom: string | null }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(createProposalAction, null);
+  useRefreshOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="projectId" value={projectId} />

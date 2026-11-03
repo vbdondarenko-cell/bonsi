@@ -365,6 +365,8 @@ test("12. передача: адмін готує і відправляє; се�
   await adminPage.getByRole("button", { name: "Зберегти чернетку" }).click();
   await expect(adminPage.getByRole("alert").filter({ hasText: /https|паролі|недопустиме/i }).first()).toBeVisible({ timeout: 15_000 });
 
+  // Після відхиленого збереження форма скинута до збережених значень: вводимо дані знову.
+  await adminPage.getByLabel("Production URL", { exact: true }).fill("https://example.com");
   await adminPage.getByLabel("Документація (https)", { exact: true }).fill("https://example.com/docs");
   await adminPage.getByRole("button", { name: "Зберегти чернетку" }).click();
   await expect(adminPage.getByText("Чернетку передачі збережено.")).toBeVisible({ timeout: 15_000 });

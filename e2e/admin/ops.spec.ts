@@ -67,6 +67,8 @@ test("завдання: створення, чекліст і посилання
   await expect(card.getByRole("alert")).toContainText("вкажіть причину");
   expect((await db.from("studio_tasks").select("status").eq("id", taskId).single()).data?.status).toBe("backlog");
 
+  // Після відхиленої дії React скидає поля форми: обираємо колонку й вводимо причину знову.
+  await card.getByLabel("Нова колонка").selectOption("blocked");
   await card.getByLabel("Причина блокування").fill("Чекаємо макети від клієнта");
   await card.getByRole("button", { name: "Перемістити" }).click();
   await expect(page1.locator("section", { has: page1.getByRole("heading", { name: "Blocked" }) })).toContainText("Блокер: Чекаємо макети від клієнта");

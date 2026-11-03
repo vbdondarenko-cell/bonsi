@@ -122,6 +122,26 @@ test("два адміністратори: застарілий екран не 
   await expectNoA11yViolations(page1, "/admin/tasks");
 });
 
+test("адмінські розділи адаптивні: без горизонтального скролу на 320–1440 px і без порушень доступності", async () => {
+  const pages = ["/admin", "/admin/orders", "/admin/projects", "/admin/finance", "/admin/support", "/admin/portfolio", "/admin/settings", `/admin/projects/${projectId}/workflow`, `/admin/projects/${projectId}/handover`];
+  for (const width of [320, 390, 768, 1440]) {
+    await page1.setViewportSize({ width, height: 900 });
+    for (const path of pages) {
+      const response = await page1.goto(path);
+      expect(response?.status(), `${path} @ ${width}`).toBe(200);
+      await page1.waitForLoadState("networkidle");
+      const overflow = await page1.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `${path} @ ${width}`).toBeLessThanOrEqual(1);
+    }
+  }
+  await page1.setViewportSize({ width: 1280, height: 800 });
+  for (const path of ["/admin/support", "/admin/portfolio", `/admin/projects/${projectId}/handover`]) {
+    await page1.goto(path);
+    await settle(page1);
+    await expectNoA11yViolations(page1, path);
+  }
+});
+
 test("подвійний клік і повтор відправки не створюють дублікатів (завдання, кошторис)", async () => {
   const unique = `Дубль ${Date.now() % 1_000_000}`;
   await page1.goto("/admin/tasks");

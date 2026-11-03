@@ -251,6 +251,11 @@ test("7. договір: адміністратор створює за шабл
   expect(pdf.headers()["cache-control"]).toContain("no-store");
   expect(pdf.headers()["content-disposition"]).toMatch(/attachment; filename="DOC-\d{4}-[0-9A-F]{8}-v1\.pdf"/);
   expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+  // Адміністратор (MFA) отримує PDF тієї ж версії; без входу адміністратора PDF недоступний.
+  const adminPdf = await adminPage.request.get(`/admin/projects/${projectA}/documents/${contractId}/pdf`);
+  expect(adminPdf.status()).toBe(200);
+  expect(adminPdf.headers()["content-type"]).toBe("application/pdf");
+  expect((await adminPdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
   // Неіснуюча версія не віддається.
   expect((await page.request.get(`/app/projects/${projectA}/documents/${contractId}/pdf?v=99`)).status()).toBe(404);
 });
@@ -417,7 +422,16 @@ test("13. підтримка: клієнт створює звернення; а
   await signIn(page, emailA);
   await page.goto("/app/support");
   await page.waitForLoadState("networkidle");
+  // Помилка валідації не губить введене: тема й категорія лишаються, поки користувач виправляє опис.
+  await expect(page.getByRole("button", { name: "Створити звернення" })).toBeEnabled();
   await page.getByLabel("Тема").fill("Кнопка оплати не натискається");
+  await page.locator("select[name=category]").selectOption("hosting");
+  await page.getByLabel("Опис").fill("мало");
+  await page.getByRole("button", { name: "Створити звернення" }).click();
+  await expect(page.locator("p[role=alert]").first()).toContainText("Опишіть проблему детальніше");
+  await expect(page.getByLabel("Тема")).toHaveValue("Кнопка оплати не натискається");
+  await expect(page.locator("select[name=category]")).toHaveValue("hosting");
+  await expect(page.getByLabel("Опис")).toHaveValue("мало");
   await page.getByLabel("Опис").fill("Після оновлення кнопка на сторінці кошика не реагує на клік.");
   await page.getByRole("button", { name: "Створити звернення" }).click();
   await page.waitForURL(/\/app\/support\/[0-9a-f-]{36}/, { timeout: 20_000 });

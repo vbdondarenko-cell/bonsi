@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
+import { once } from "@/lib/admin/once";
 import { queueProjectEmail } from "@/lib/email/events";
 import type { ActionState } from "./actions";
 
@@ -45,19 +46,23 @@ export async function saveHandoverAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Чернетку передачі збережено." };
 }
 
-export async function submitHandoverAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const submitHandoverAction = once("submitHandoverAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const projectId = uuid.safeParse(formData.get("projectId"));
   if (!projectId.success) return { error: "Некоректні дані." };
   const { error } = await admin.supabase.rpc("admin_submit_handover", { p_project: projectId.data });
   if (error) return { error: message(error) };
-  await queueProjectEmail({ projectId: projectId.data, template: "handover_ready", key: `handover-ready:${projectId.data}:${Date.now() >> 16}` });
+  // Ключ листа залежить від моменту відправки в БД, а не від годинника процесу: повтор тієї ж відправки не створює другого листа,
+  // а повторна відправка після правок клієнта (новий submitted_at) — створює.
+  const record = await admin.supabase.from("handover_records").select("submitted_at").eq("project_id", projectId.data).maybeSingle();
+  const submittedAt = (record.data as { submitted_at?: string | null } | null)?.submitted_at;
+  if (submittedAt) await queueProjectEmail({ projectId: projectId.data, template: "handover_ready", key: `handover-ready:${projectId.data}:${submittedAt}` });
   revalidatePath(`/admin/projects/${projectId.data}/handover`);
   revalidatePath(`/app/projects/${projectId.data}`, "layout");
   return { ok: true, notice: "Передачу відправлено клієнту на приймання." };
-}
+});
 
-export async function completeProjectAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const completeProjectAction = once("completeProjectAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ projectId: uuid, warranty: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).transform((v) => v || null) })
@@ -69,12 +74,12 @@ export async function completeProjectAction(_prev: ActionState, formData: FormDa
   revalidatePath(`/admin/projects/${parsed.data.projectId}`);
   revalidatePath(`/admin/projects/${parsed.data.projectId}/handover`);
   return { ok: true, notice: "Проєкт завершено. Підтримка лишається доступною клієнту." };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Підтримка (адміністратор)
 // ---------------------------------------------------------------------------
-export async function replyTicketAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const replyTicketAction = once("replyTicketAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, body: z.string().trim().min(1, "Напишіть відповідь.").max(4000), internal: z.boolean() }).safeParse({ id: formData.get("id"), body: formData.get("body"), internal: formData.get("internal") === "on" });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Напишіть відповідь." };
@@ -86,7 +91,7 @@ export async function replyTicketAction(_prev: ActionState, formData: FormData):
   }
   revalidatePath(`/admin/support/${parsed.data.id}`);
   return { ok: true, notice: parsed.data.internal ? "Внутрішню нотатку додано." : "Відповідь надіслано клієнту." };
-}
+});
 
 export async function updateTicketAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -104,7 +109,7 @@ export async function updateTicketAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Збережено." };
 }
 
-export async function ticketToChangeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const ticketToChangeAction = once("ticketToChangeAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const id = uuid.safeParse(formData.get("id"));
   if (!id.success) return { error: "Некоректні дані." };
@@ -112,4 +117,4 @@ export async function ticketToChangeAction(_prev: ActionState, formData: FormDat
   if (error) return { error: message(error) };
   revalidatePath(`/admin/support/${id.data}`);
   return { ok: true, notice: "Створено запит на платне доопрацювання. Оцінка й погодження — у розділі проєкту «Життєвий цикл»." };
-}
+});

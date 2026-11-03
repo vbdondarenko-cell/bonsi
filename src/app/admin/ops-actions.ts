@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
+import { once } from "@/lib/admin/once";
 import { TASK_PRIORITIES, TASK_STATUSES, parseChecklist, parseLinks } from "@/lib/admin/tasks";
 import type { ActionState } from "./actions";
 
@@ -35,7 +36,7 @@ const createInput = z.object({
   status: z.enum(["backlog", "todo", "in_progress", "in_review", "done"]),
 });
 
-export async function createTaskAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const createTaskAction = once("createTaskAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = createInput.safeParse({
     title: formData.get("title"), description: formData.get("description") ?? "", projectId: formData.get("projectId") ?? "", assigneeId: formData.get("assigneeId") ?? "",
@@ -49,7 +50,7 @@ export async function createTaskAction(_prev: ActionState, formData: FormData): 
   if (error) return { error: message(error) };
   refreshTasks();
   return { ok: true, notice: "Завдання створено." };
-}
+});
 
 export async function moveTaskAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -89,7 +90,7 @@ export async function updateTaskAction(_prev: ActionState, formData: FormData): 
   return { ok: true, notice: "Завдання збережено." };
 }
 
-export async function commentTaskAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const commentTaskAction = once("commentTaskAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, body: z.string().trim().min(1, "Напишіть коментар.").max(4000) }).safeParse({ id: formData.get("id"), body: formData.get("body") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Напишіть коментар." };
@@ -97,14 +98,14 @@ export async function commentTaskAction(_prev: ActionState, formData: FormData):
   if (error) return { error: message(error) };
   refreshTasks(parsed.data.id);
   return { ok: true, notice: "Коментар додано." };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Кошториси й витрати
 // ---------------------------------------------------------------------------
 const CATEGORIES = ["design", "frontend", "backend", "database", "android", "ios", "integrations", "qa", "deployment", "support"] as const;
 
-export async function createEstimateAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const createEstimateAction = once("createEstimateAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ title: z.string().trim().min(1, "Вкажіть назву.").max(160), projectId: uuid, currency: z.enum(["UAH", "USD", "EUR"]) })
@@ -114,7 +115,7 @@ export async function createEstimateAction(_prev: ActionState, formData: FormDat
   if (error) return { error: message(error) };
   revalidatePath("/admin/finance");
   return { ok: true, notice: "Кошторис створено." };
-}
+});
 
 export async function saveEstimateAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -142,7 +143,7 @@ export async function saveEstimateAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Кошторис збережено. Це внутрішній розрахунок, а не пропозиція ціни клієнту." };
 }
 
-export async function finalizeEstimateAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const finalizeEstimateAction = once("finalizeEstimateAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const id = uuid.safeParse(formData.get("id"));
   if (!id.success) return { error: "Некоректні дані." };
@@ -150,9 +151,9 @@ export async function finalizeEstimateAction(_prev: ActionState, formData: FormD
   if (error) return { error: message(error) };
   revalidatePath(`/admin/finance/estimates/${id.data}`);
   return { ok: true, notice: "Кошторис зафіксовано." };
-}
+});
 
-export async function addExpenseAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const addExpenseAction = once("addExpenseAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ projectId: uuid, category: z.string().trim().min(1, "Вкажіть категорію.").max(60), amount: z.coerce.number({ invalid_type_error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0.").max(1_000_000_000), currency: z.enum(["UAH", "USD", "EUR"]), on: optionalDate, note: z.string().trim().max(500) })
@@ -162,4 +163,4 @@ export async function addExpenseAction(_prev: ActionState, formData: FormData): 
   if (error) return { error: message(error) };
   revalidatePath("/admin/finance");
   return { ok: true, notice: "Витрату записано." };
-}
+});

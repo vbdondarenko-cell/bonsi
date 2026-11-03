@@ -123,6 +123,29 @@ test("два адміністратори: застарілий екран не 
   await expectNoA11yViolations(page1, "/admin/tasks");
 });
 
+test("подвійний клік і повтор відправки не створюють дублікатів (завдання, кошторис)", async () => {
+  const unique = `Дубль ${Date.now() % 1_000_000}`;
+  await page1.goto("/admin/tasks");
+  await settle(page1);
+  await expect(page1.getByRole("button", { name: "Створити завдання" })).toBeEnabled();
+  await page1.getByLabel("Назва", { exact: true }).fill(unique);
+  await page1.getByRole("button", { name: "Створити завдання" }).dblclick();
+  await expect.poll(async () => (await db.from("studio_tasks").select("id").eq("title", unique)).data?.length, { timeout: 20_000 }).toBe(1);
+  await page1.waitForTimeout(1_500); // запізнілий другий запит встиг би створити дубль
+  expect((await db.from("studio_tasks").select("id").eq("title", unique)).data).toHaveLength(1);
+
+  const estimate = `Кошторис ${Date.now() % 1_000_000}`;
+  await page1.goto("/admin/finance");
+  await settle(page1);
+  const form = page1.locator("form", { has: page1.getByRole("button", { name: "Створити кошторис" }) });
+  await expect(form.getByRole("button", { name: "Створити кошторис" })).toBeEnabled();
+  await form.getByLabel("Назва", { exact: true }).fill(estimate);
+  await form.getByRole("button", { name: "Створити кошторис" }).dblclick();
+  await expect.poll(async () => (await db.from("estimates").select("id").eq("title", estimate)).data?.length, { timeout: 20_000 }).toBe(1);
+  await page1.waitForTimeout(1_500);
+  expect((await db.from("estimates").select("id").eq("title", estimate)).data).toHaveLength(1);
+});
+
 test("дошка завдань адаптивна: без горизонтального скролу сторінки на 320–1440 px", async () => {
   for (const width of [320, 768, 1440]) {
     await page1.setViewportSize({ width, height: 900 });
@@ -134,36 +157,54 @@ test("дошка завдань адаптивна: без горизонтал�
   await page1.setViewportSize({ width: 1280, height: 800 });
 });
 
-test("фінанси: прогноз, виставлено й отримано рахуються окремо; витрати й маржа; кошторис", async () => {
+test("фінанси: прогноз, виставлено й отримано рахуються окремо; витрати й маржа; повтори не подвоюють суми", async () => {
+  // Фінансове зведення глобальне, тому тест не припускає порожньої бази: усі перевірки — це дельти від власного baseline,
+  // знятого на початку саме цієї спроби. Повторна спроба (retry) або інший тест не змінюють очікувань.
+  const read = async (key: string): Promise<number> => {
+    const dd = page1.locator(`[data-metric="UAH:${key}"] dd`).first();
+    if ((await dd.count()) === 0) return 0; // рядка валюти ще немає — у базі немає жодних даних
+    const text = (await dd.textContent()) ?? "";
+    return Number(text.replace(/[^\d,.-]/g, "").replace(",", "."));
+  };
+  const snapshot = async () => {
+    await page1.goto("/admin/finance");
+    await settle(page1);
+    return { invoiced: await read("invoiced"), received: await read("received"), unpaid: await read("unpaid"), expenses: await read("expenses"), margin: await read("margin") };
+  };
+  const base = await snapshot();
+
   // Рахунок 1000 UAH виставлено, але ще не оплачено.
   const invoice = await rpc<string>(studioApi, "admin_create_invoice", { p_project: projectId, p_label: "Оплата", p_amount: 1000, p_currency: "UAH", p_due: null });
   await rpc(studioApi, "admin_issue_invoice", { p_invoice: invoice });
+  // Повторне виставлення того ж рахунку не створює другого й не змінює суму (або відхиляється, або нічого не робить).
+  await rpc(studioApi, "admin_issue_invoice", { p_invoice: invoice }).catch(() => undefined);
+  expect((await db.from("invoices").select("id").eq("project_id", projectId)).data).toHaveLength(1);
   const number = (await db.from("invoices").select("number").eq("id", invoice).single()).data!.number as string;
 
-  await page1.goto("/admin/finance");
-  await settle(page1);
-  const metric = (key: string) => page1.locator(`[data-metric="UAH:${key}"] dd`).first();
-  await expect(metric("invoiced")).toContainText(/1[\s ]?000/);
-  await expect(metric("received")).toContainText(/^0[,.]00|0[,.]00/);
-  await expect(metric("unpaid")).toContainText(/1[\s ]?000/);
+  let now = await snapshot();
+  expect(now.invoiced - base.invoiced).toBeCloseTo(1000, 2);
+  expect(now.received - base.received).toBeCloseTo(0, 2);
+  expect(now.unpaid - base.unpaid).toBeCloseTo(1000, 2);
 
-  // Підтверджене надходження (подія провайдера від імені service_role) збільшує «отримано».
-  await rpc(db as never, "payments_apply_provider_event", { p_provider: "liqpay", p_event_id: `e-ops-${Date.now()}`, p_invoice_number: number, p_amount: 1000, p_currency: "UAH", p_status: "success", p_provider_payment_id: `pay-ops-${Date.now()}`, p_payload: {} });
-  await page1.reload();
-  await settle(page1);
-  await expect(metric("received")).toContainText(/1[\s ]?000/);
-  await expect(metric("unpaid")).toContainText(/^0|0[,.]00/);
+  // Підтверджене надходження (подія провайдера від імені service_role) збільшує «отримано» рівно один раз,
+  // навіть якщо провайдер надішле ту саму подію повторно.
+  const event = { p_provider: "liqpay", p_event_id: `e-ops-${Date.now()}`, p_invoice_number: number, p_amount: 1000, p_currency: "UAH", p_status: "success", p_provider_payment_id: `pay-ops-${Date.now()}`, p_payload: {} };
+  await rpc(db as never, "payments_apply_provider_event", event);
+  await rpc(db as never, "payments_apply_provider_event", event);
+  expect((await db.from("payments").select("id").eq("invoice_id", invoice).eq("status", "confirmed")).data).toHaveLength(1);
+  now = await snapshot();
+  expect(now.received - base.received).toBeCloseTo(1000, 2);
+  expect(now.unpaid - base.unpaid).toBeCloseTo(0, 2);
 
-  // Витрата 300 через інтерфейс → маржа 700.
+  // Витрата 300 через інтерфейс → витрати +300, маржа +700.
   await page1.locator("select[name=projectId]").first().selectOption(projectId);
   await page1.getByLabel("Категорія", { exact: true }).fill("Хостинг");
   await page1.getByLabel("Сума", { exact: true }).fill("300");
   await page1.getByRole("button", { name: "Записати витрату" }).click();
   await expect.poll(async () => (await db.from("project_expenses").select("amount").eq("project_id", projectId)).data?.length, { timeout: 20_000 }).toBe(1);
-  await page1.reload();
-  await settle(page1);
-  await expect(metric("expenses")).toContainText(/300/);
-  await expect(metric("margin")).toContainText(/700/);
+  now = await snapshot();
+  expect(now.expenses - base.expenses).toBeCloseTo(300, 2);
+  expect(now.margin - base.margin).toBeCloseTo(700, 2);
   await expectNoA11yViolations(page1, "/admin/finance");
 });
 

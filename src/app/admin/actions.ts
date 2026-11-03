@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assignInput, noteInput, statusInput } from "@/lib/admin/orders";
 import { getAuthState, requireAdmin } from "@/lib/admin/guard";
+import { once } from "@/lib/admin/once";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -201,7 +202,7 @@ export async function assignOrderAction(_prev: ActionState, formData: FormData):
   return confirmedOrder(admin, parsed.data.orderId);
 }
 
-export async function addNoteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const addNoteAction = once("addNoteAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = noteInput.safeParse({ orderId: formData.get("orderId"), body: formData.get("body") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Некоректна нотатка." };
@@ -212,4 +213,4 @@ export async function addNoteAction(_prev: ActionState, formData: FormData): Pro
   });
   if (error) return { error: rpcMessage(error.message) };
   return confirmedOrder(admin, parsed.data.orderId);
-}
+});

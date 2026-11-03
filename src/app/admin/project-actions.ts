@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
+import { once } from "@/lib/admin/once";
 import { buildSchedule, parseFeatures, proposalInput, validateSchedule } from "@/lib/admin/proposal-input";
 import { STAGES } from "@/lib/client/labels";
 import { queueProjectEmail, quarterHour } from "@/lib/email/events";
@@ -104,7 +105,7 @@ export async function setStageAction(_prev: ActionState, formData: FormData): Pr
   return { ok: true };
 }
 
-export async function sendAdminMessageAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const sendAdminMessageAction = once("sendAdminMessageAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ projectId: uuid, body: z.string().trim().min(1, "Напишіть повідомлення.").max(4000) })
@@ -116,7 +117,7 @@ export async function sendAdminMessageAction(_prev: ActionState, formData: FormD
   await queueProjectEmail({ projectId: parsed.data.projectId, template: "new_message", key: `new-message:${parsed.data.projectId}:${quarterHour()}` });
   refresh(parsed.data.projectId);
   return { ok: true };
-}
+});
 
 export async function markAdminReadAction(projectId: string) {
   const id = uuid.safeParse(projectId);
@@ -125,7 +126,7 @@ export async function markAdminReadAction(projectId: string) {
   await admin.supabase.rpc("admin_mark_read", { p_project: id.data });
 }
 
-export async function addInternalNoteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const addInternalNoteAction = once("addInternalNoteAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ projectId: uuid, body: z.string().trim().min(1, "Напишіть нотатку.").max(4000) })
@@ -135,9 +136,9 @@ export async function addInternalNoteAction(_prev: ActionState, formData: FormDa
   if (error) return { error: rpcMessage(error.message) };
   refresh(parsed.data.projectId);
   return { ok: true };
-}
+});
 
-export async function createProposalAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const createProposalAction = once("createProposalAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ projectId: uuid, copyFrom: z.union([uuid, z.literal("")]) })
@@ -150,7 +151,7 @@ export async function createProposalAction(_prev: ActionState, formData: FormDat
   if (error) return { error: rpcMessage(error.message) };
   refresh(parsed.data.projectId);
   return { ok: true };
-}
+});
 
 export async function saveProposalAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -181,7 +182,7 @@ export async function saveProposalAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Чернетку збережено." };
 }
 
-export async function sendProposalAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const sendProposalAction = once("sendProposalAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ proposalId: uuid, projectId: uuid }).safeParse({ proposalId: formData.get("proposalId"), projectId: formData.get("projectId") });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -191,7 +192,7 @@ export async function sendProposalAction(_prev: ActionState, formData: FormData)
   await queueProjectEmail({ projectId: parsed.data.projectId, template: "new_proposal", key: `new-proposal:${parsed.data.proposalId}`, payload: { version: proposal.data?.version ?? "" } });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Пропозицію надіслано клієнту." };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Етап 2: результати етапів, файли, рахунки й оплати
@@ -213,7 +214,7 @@ const deliverableFields = z.object({
   previewUrl: z.string().trim().max(500).refine((value) => value === "" || /^https?:\/\//i.test(value), "Прев’ю: лише http(s)-посилання."),
 });
 
-export async function createDeliverableAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const createDeliverableAction = once("createDeliverableAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const base = z.object({ projectId: uuid, stage: stageEnum }).safeParse({ projectId: formData.get("projectId"), stage: formData.get("stage") });
   const fields = deliverableFields.safeParse({ title: formData.get("title"), description: formData.get("description") ?? "", previewUrl: formData.get("previewUrl") ?? "" });
@@ -229,7 +230,7 @@ export async function createDeliverableAction(_prev: ActionState, formData: Form
   if (error) return { error: rpcMessage(error.message) };
   refresh(base.data.projectId);
   return { ok: true, notice: "Чернетку створено." };
-}
+});
 
 export async function saveDeliverableAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -248,7 +249,7 @@ export async function saveDeliverableAction(_prev: ActionState, formData: FormDa
   return { ok: true, notice: "Збережено." };
 }
 
-export async function submitDeliverableAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const submitDeliverableAction = once("submitDeliverableAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, projectId: uuid }).safeParse({ id: formData.get("id"), projectId: formData.get("projectId") });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -258,7 +259,7 @@ export async function submitDeliverableAction(_prev: ActionState, formData: Form
   await queueProjectEmail({ projectId: parsed.data.projectId, template: "stage_completed", key: `deliverable:${parsed.data.id}:${version.data?.version ?? 0}` });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Надіслано клієнту на погодження." };
-}
+});
 
 export async function deleteProjectFileAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -275,7 +276,7 @@ export async function deleteProjectFileAction(_prev: ActionState, formData: Form
   return { ok: true, notice: "Файл видалено." };
 }
 
-export async function createInvoicesFromProposalAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const createInvoicesFromProposalAction = once("createInvoicesFromProposalAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ proposalId: uuid, projectId: uuid }).safeParse({ proposalId: formData.get("proposalId"), projectId: formData.get("projectId") });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -283,9 +284,9 @@ export async function createInvoicesFromProposalAction(_prev: ActionState, formD
   if (error) return { error: rpcMessage(error.message) };
   refresh(parsed.data.projectId);
   return { ok: true, notice: data === 0 ? "Рахунки за цією пропозицією вже створені." : `Створено чернеток рахунків: ${String(data)}.` };
-}
+});
 
-export async function createInvoiceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const createInvoiceAction = once("createInvoiceAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({
@@ -307,9 +308,9 @@ export async function createInvoiceAction(_prev: ActionState, formData: FormData
   if (error) return { error: rpcMessage(error.message) };
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Чернетку рахунку створено." };
-}
+});
 
-export async function invoiceLifecycleAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const invoiceLifecycleAction = once("invoiceLifecycleAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ invoiceId: uuid, projectId: uuid, op: z.enum(["issue", "void"]), due: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]) })
@@ -333,9 +334,9 @@ export async function invoiceLifecycleAction(_prev: ActionState, formData: FormD
   }
   refresh(parsed.data.projectId);
   return { ok: true, notice: parsed.data.op === "issue" ? "Рахунок виставлено клієнту." : "Рахунок анульовано." };
-}
+});
 
-export async function paymentDecisionAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const paymentDecisionAction = once("paymentDecisionAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({
@@ -368,9 +369,9 @@ export async function paymentDecisionAction(_prev: ActionState, formData: FormDa
   refresh(parsed.data.projectId);
   revalidatePath(`/app/projects/${parsed.data.projectId}/payments`);
   return { ok: true, notice: parsed.data.op === "confirm" ? "Надходження підтверджено." : "Платіж відхилено." };
-}
+});
 
-export async function refundAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const refundAction = once("refundAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({ invoiceId: uuid, projectId: uuid, amount: z.coerce.number({ invalid_type_error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0."), note: z.string().trim().max(1000) })
@@ -380,7 +381,7 @@ export async function refundAction(_prev: ActionState, formData: FormData): Prom
   if (error) return { error: rpcMessage(error.message) };
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Повернення записано." };
-}
+});
 
 export async function updatePaymentSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();

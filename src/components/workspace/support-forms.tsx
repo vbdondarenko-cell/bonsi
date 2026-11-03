@@ -6,6 +6,7 @@ import { closeTicketAction, createTicketAction, decideHandoverAction, replyTicke
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { TICKET_CATEGORY_LABELS, TICKET_PRIORITY_LABELS } from "@/lib/client/labels";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 
 function Feedback({ state }: { state: FormState }) {
   if (state?.error)
@@ -25,12 +26,12 @@ function Feedback({ state }: { state: FormState }) {
 
 export function CreateTicketForm({ projects }: { projects: Array<{ id: string; title: string }> }) {
   const router = useRouter();
-  const [state, action, pending] = useActionState<FormState & { ticketId?: string }, FormData>(createTicketAction, null as never);
+  const { state, run, pending, formRef, ready } = useGuardedAction(createTicketAction);
   useEffect(() => {
     if (state?.ok && state.ticketId) router.push(`/app/support/${state.ticketId}`);
   }, [state, router]);
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form ref={formRef} action={run} className="flex flex-col gap-4">
       <label className="flex flex-col gap-2 text-sm font-medium">
         Проєкт
         <select name="projectId" required className={adminFieldClass} defaultValue={projects[0]?.id}>
@@ -72,7 +73,7 @@ export function CreateTicketForm({ projects }: { projects: Array<{ id: string; t
         <textarea name="description" required minLength={10} maxLength={4000} rows={5} className={adminFieldClass} placeholder="Що сталося, де саме і як це відтворити. Паролі та ключі в зверненні не надсилайте." />
       </label>
       <Feedback state={state} />
-      <Button type="submit" disabled={pending} className="self-start">
+      <Button type="submit" disabled={pending || !ready} className="self-start">
         {pending ? "Надсилаємо…" : "Створити звернення"}
       </Button>
     </form>
@@ -80,20 +81,16 @@ export function CreateTicketForm({ projects }: { projects: Array<{ id: string; t
 }
 
 export function TicketReplyForm({ ticketId }: { ticketId: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(replyTicketClientAction, null);
-  const router = useRouter();
-  useEffect(() => {
-    if (state?.ok) router.refresh();
-  }, [state, router]);
+  const { state, run, pending, formRef, ready } = useGuardedAction(replyTicketClientAction, { resetOnSuccess: true });
   return (
-    <form action={action} className="flex flex-col gap-3" key={state?.ok ? "sent" : "editing"}>
+    <form ref={formRef} action={run} className="flex flex-col gap-3">
       <input type="hidden" name="ticketId" value={ticketId} />
       <label className="flex flex-col gap-2 text-sm font-medium">
         Ваше повідомлення
         <textarea name="body" required maxLength={4000} rows={4} className={adminFieldClass} />
       </label>
       <Feedback state={state} />
-      <Button type="submit" disabled={pending} className="self-start">
+      <Button type="submit" disabled={pending || !ready} className="self-start">
         {pending ? "Надсилаємо…" : "Надіслати"}
       </Button>
     </form>

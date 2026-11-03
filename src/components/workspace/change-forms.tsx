@@ -1,14 +1,15 @@
 "use client";
 
 import { useActionState } from "react";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { submitChangeRequestAction, withdrawChangeRequestAction, type FormState } from "@/app/app/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 
 export function SubmitChangeForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(submitChangeRequestAction, null);
+  const { state, run, pending, formRef, ready } = useGuardedAction(submitChangeRequestAction, { resetOnSuccess: true });
   return (
-    <form action={action} className="flex flex-col gap-4" key={state?.ok ? "sent" : "editing"}>
+    <form ref={formRef} action={run} className="flex flex-col gap-4">
       <input type="hidden" name="projectId" value={projectId} />
       <label className="flex flex-col gap-2 text-sm font-medium">
         Що потрібно змінити чи додати?
@@ -28,7 +29,7 @@ export function SubmitChangeForm({ projectId }: { projectId: string }) {
           {state.notice}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending} className="self-start">
+      <Button type="submit" disabled={pending || !ready} className="self-start">
         {pending ? "Надсилаємо…" : "Надіслати запит на зміну"}
       </Button>
     </form>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
+import { once } from "@/lib/admin/once";
 import { queueProjectEmail } from "@/lib/email/events";
 import { DOCUMENT_KINDS, renderTemplate, type DocumentKind } from "@/lib/documents/templates";
 import { formatMoney } from "@/lib/client/labels";
@@ -36,7 +37,7 @@ function refresh(projectId: string) {
   revalidatePath(`/app/projects/${projectId}`, "layout");
 }
 
-export async function activateProjectAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const activateProjectAction = once("activateProjectAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const projectId = uuid.safeParse(formData.get("projectId"));
   if (!projectId.success) return { error: "Некоректні дані." };
@@ -45,9 +46,9 @@ export async function activateProjectAction(_prev: ActionState, formData: FormDa
   if (error) return { error: message(error) };
   refresh(projectId.data);
   return { ok: true, notice: "Проєкт активовано. Базовий обсяг робіт зафіксовано." };
-}
+});
 
-export async function rejectOrderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const rejectOrderAction = once("rejectOrderAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const orderId = uuid.safeParse(formData.get("orderId"));
   const reason = z.string().trim().min(10, "Вкажіть причину (від 10 символів).").max(1000).safeParse(formData.get("reason"));
@@ -60,9 +61,9 @@ export async function rejectOrderAction(_prev: ActionState, formData: FormData):
   if (project.data) await queueProjectEmail({ projectId: project.data.id as string, template: "order_rejected", key: `order-rejected:${orderId.data}` });
   revalidatePath(`/admin/orders/${orderId.data}`);
   return { ok: true, notice: "Заявку відхилено. Клієнт бачить причину в кабінеті." };
-}
+});
 
-export async function createDocumentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const createDocumentAction = once("createDocumentAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ projectId: uuid, kind: z.enum(DOCUMENT_KINDS as [DocumentKind, ...DocumentKind[]]) }).safeParse({ projectId: formData.get("projectId"), kind: formData.get("kind") });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -92,7 +93,7 @@ export async function createDocumentAction(_prev: ActionState, formData: FormDat
   if (error) return { error: message(error) };
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Чернетку створено за шаблоном. Перегляньте й відредагуйте перед відправкою." };
-}
+});
 
 export async function saveDocumentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -106,7 +107,7 @@ export async function saveDocumentAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Збережено." };
 }
 
-export async function sendDocumentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const sendDocumentAction = once("sendDocumentAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ projectId: uuid, id: uuid }).safeParse({ projectId: formData.get("projectId"), id: formData.get("id") });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -116,9 +117,9 @@ export async function sendDocumentAction(_prev: ActionState, formData: FormData)
   await queueProjectEmail({ projectId: parsed.data.projectId, template: "document_for_approval", key: `document-sent:${parsed.data.id}:${sent.data?.current_version ?? 0}` });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Документ відправлено клієнту на погодження. Текст цієї версії зафіксовано." };
-}
+});
 
-export async function voidDocumentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const voidDocumentAction = once("voidDocumentAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ projectId: uuid, id: uuid, reason: z.string().trim().max(500) }).safeParse({ projectId: formData.get("projectId"), id: formData.get("id"), reason: formData.get("reason") ?? "" });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -126,7 +127,7 @@ export async function voidDocumentAction(_prev: ActionState, formData: FormData)
   if (error) return { error: message(error) };
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Документ позначено недійсним." };
-}
+});
 
 export async function setInvoicePurposeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -138,7 +139,7 @@ export async function setInvoicePurposeAction(_prev: ActionState, formData: Form
   return { ok: true, notice: "Призначення рахунку збережено." };
 }
 
-export async function quoteChangeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const quoteChangeAction = once("quoteChangeAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z
     .object({
@@ -162,9 +163,9 @@ export async function quoteChangeAction(_prev: ActionState, formData: FormData):
   await queueProjectEmail({ projectId: parsed.data.projectId, template: "budget_change", key: `change-quoted:${parsed.data.id}` });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Оцінку надіслано клієнту як додаткову угоду." };
-}
+});
 
-export async function rejectChangeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const rejectChangeAction = once("rejectChangeAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ projectId: uuid, id: uuid, reason: z.string().trim().min(10, "Вкажіть причину (від 10 символів).").max(1000) }).safeParse({ projectId: formData.get("projectId"), id: formData.get("id"), reason: formData.get("reason") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Вкажіть причину." };
@@ -172,9 +173,9 @@ export async function rejectChangeAction(_prev: ActionState, formData: FormData)
   if (error) return { error: message(error) };
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Запит відхилено." };
-}
+});
 
-export async function changeProgressAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const changeProgressAction = once("changeProgressAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ projectId: uuid, id: uuid, op: z.enum(["in_progress", "done", "invoice"]) }).safeParse({ projectId: formData.get("projectId"), id: formData.get("id"), op: formData.get("op") });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -185,4 +186,4 @@ export async function changeProgressAction(_prev: ActionState, formData: FormDat
   if (error) return { error: message(error) };
   refresh(parsed.data.projectId);
   return { ok: true, notice: parsed.data.op === "invoice" ? "Чернетку рахунку створено. Виставте її в розділі «Оплата»." : "Статус оновлено." };
-}
+});

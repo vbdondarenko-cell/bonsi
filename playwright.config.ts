@@ -7,7 +7,7 @@ export default defineConfig({
   testIgnore: "**/admin/**",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  retries: 0, // повтори приховували б нестабільність: збій має бути видимим
   reporter: process.env.CI ? [["list"], ["json", { outputFile: ".ci/e2e.json" }]] : "list",
   use: { baseURL: `http://localhost:${port}`, trace: "retain-on-failure" },
   webServer: {

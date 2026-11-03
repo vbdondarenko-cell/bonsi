@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { useActionState, type ReactNode } from "react";
 import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
@@ -18,6 +18,7 @@ import {
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { DELIVERABLE_STAGES, STAGE_LABELS } from "@/lib/client/labels";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -60,17 +61,7 @@ export function ActionForm({
   resetOnSuccess?: boolean;
   className?: string;
 }) {
-  const [state, run, pending] = useActionState<ActionState, FormData>(action, null);
-  // Оновлення сторінки виконує сама серверна дія через revalidatePath; додатковий router.refresh() накладався б на нього
-  // й міг залишити перехід у стані pending.
-  // До гідрації клік по кнопці запустив би звичайну навігацію форми замість серверної дії: кнопка неактивна, доки форма не готова.
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
-  const ref = useRef<HTMLFormElement>(null);
-  // Скидання до малювання: інакше користувач (або тест), побачивши сповіщення, міг би вже почати вводити, і запізніле скидання стерло б введене.
-  useLayoutEffect(() => {
-    if (resetOnSuccess && state?.ok) ref.current?.reset();
-  }, [state, resetOnSuccess]);
+  const { state, run, pending, formRef: ref, ready } = useGuardedAction<ActionState>(action, { resetOnSuccess });
   return (
     <form ref={ref} action={run} className={cn("flex flex-col gap-3", className)}>
       {Object.entries(hidden).map(([name, value]) => (

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
+import { once } from "@/lib/admin/once";
 import type { ActionState } from "./actions";
 
 const uuid = z.string().uuid();
@@ -27,7 +28,7 @@ function fieldsOf(fd: FormData) {
   };
 }
 
-export async function savePortfolioAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const savePortfolioAction = once("savePortfolioAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const id = z.union([uuid, z.literal("")]).safeParse(formData.get("id") ?? "");
   const expected = z.coerce.number().int().min(0).safeParse(formData.get("version") ?? 0);
@@ -42,9 +43,9 @@ export async function savePortfolioAction(_prev: ActionState, formData: FormData
   revalidatePath("/portfolio");
   revalidatePath("/portfolio/[slug]", "page");
   return { ok: true, notice: "Збережено. Якщо запис був опублікований, його повернуто в чернетку — потрібне нове підтвердження згоди." };
-}
+});
 
-export async function confirmConsentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const confirmConsentAction = once("confirmConsentAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, note: z.string().trim().min(5, "Вкажіть, як отримано згоду (від 5 символів).").max(500) }).safeParse({ id: formData.get("id"), note: formData.get("note") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Некоректні дані." };
@@ -52,9 +53,9 @@ export async function confirmConsentAction(_prev: ActionState, formData: FormDat
   if (error) return { error: message(error) };
   revalidatePath(`/admin/portfolio/${parsed.data.id}`);
   return { ok: true, notice: "Згоду власника підтверджено." };
-}
+});
 
-export async function setPortfolioStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export const setPortfolioStatusAction = once("setPortfolioStatusAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, version: z.coerce.number().int().min(1), status: z.enum(["draft", "published", "archived"]) }).safeParse({ id: formData.get("id"), version: formData.get("version"), status: formData.get("status") });
   if (!parsed.success) return { error: "Некоректні дані." };
@@ -66,4 +67,4 @@ export async function setPortfolioStatusAction(_prev: ActionState, formData: For
   revalidatePath("/portfolio/[slug]", "page");
   revalidatePath("/sitemap.xml");
   return { ok: true, notice: parsed.data.status === "published" ? "Кейс опубліковано." : parsed.data.status === "archived" ? "Кейс заархівовано." : "Кейс знято з публікації." };
-}
+});

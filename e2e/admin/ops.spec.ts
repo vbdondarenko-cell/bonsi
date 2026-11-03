@@ -52,6 +52,8 @@ test("завдання: створення, чекліст і посилання
   taskTitle = `Верстка головної ${Date.now() % 100000}`;
   await page1.goto("/admin/tasks");
   await settle(page1);
+  // Кнопка форми неактивна, доки форма не гідрована: це надійний сигнал, що введені поля не буде скинуто гідрацією.
+  await expect(page1.getByRole("button", { name: "Створити завдання" })).toBeEnabled();
   await page1.getByLabel("Назва", { exact: true }).fill(taskTitle);
   await page1.locator("select[name=projectId]").first().selectOption(projectId);
   await page1.locator("select[name=priority]").first().selectOption("high");
@@ -140,7 +142,7 @@ test("фінанси: прогноз, виставлено й отримано �
 
   await page1.goto("/admin/finance");
   await settle(page1);
-  const metric = (key: string) => page1.locator(`[data-metric="UAH:${key}"] dd`);
+  const metric = (key: string) => page1.locator(`[data-metric="UAH:${key}"] dd`).first();
   await expect(metric("invoiced")).toContainText(/1[\s ]?000/);
   await expect(metric("received")).toContainText(/^0[,.]00|0[,.]00/);
   await expect(metric("unpaid")).toContainText(/1[\s ]?000/);

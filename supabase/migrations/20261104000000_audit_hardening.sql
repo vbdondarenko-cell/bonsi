@@ -119,6 +119,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Застарілі листи (понад 7 діб у черзі) не відправляємо: «заявку отримано» через тиждень лише шкодить.
+  update public.email_outbox e
+     set status = 'failed', locked_until = null, last_error = 'expired'
+   where e.status in ('pending', 'sending') and e.created_at < now() - interval '7 days';
+
   return query
   with due as (
     select e.id

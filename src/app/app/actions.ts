@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireClient } from "@/lib/client/auth";
+import { queueProjectEmail } from "@/lib/email/events";
 import { getMessages, getMessagesAfter } from "@/lib/client/data";
 import { toThreadMessages, type ThreadMessage } from "@/lib/client/thread";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -107,6 +108,7 @@ export async function decideProposalAction(_prev: FormState, formData: FormData)
       ),
     };
   }
+  await queueProjectEmail({ projectId: parsed.data.projectId, template: "proposal_decision", key: `proposal-decision:${parsed.data.proposalId}` });
   revalidatePath(`/app/projects/${parsed.data.projectId}`, "layout");
   return { ok: true, notice: parsed.data.decision === "approved" ? "Пропозицію погоджено. Студія побачить ваше рішення." : "Запит на зміни надіслано студії." };
 }
@@ -166,6 +168,7 @@ export async function decideDeliverableAction(_prev: FormState, formData: FormDa
       ),
     };
   }
+  await queueProjectEmail({ projectId: parsed.data.projectId, template: "deliverable_decision", key: `deliverable-decision:${parsed.data.deliverableId}` });
   revalidatePath(`/app/projects/${parsed.data.projectId}`, "layout");
   return { ok: true, notice: parsed.data.decision === "approved" ? "Результат погоджено." : "Запит на правки надіслано студії." };
 }

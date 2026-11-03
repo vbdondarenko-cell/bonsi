@@ -200,6 +200,37 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
     });
   });
 
+  describe("черга листів: експлуатація", () => {
+    it("backfill ставить у чергу заявки без листа, ідемпотентно; запит без прав відхиляється", async () => {
+      await pool.query("delete from public.email_outbox where template = 'order_received'");
+      const first = (await asServiceCommit(pool, (q) => q("select public.email_backfill_order_received() as n"))).rows[0].n;
+      expect(first).toBeGreaterThanOrEqual(2);
+      expect((await asServiceCommit(pool, (q) => q("select public.email_backfill_order_received() as n"))).rows[0].n).toBe(0);
+      const row = (await pool.query("select template, to_email, payload from public.email_outbox where template='order_received' limit 1")).rows[0];
+      expect(row.to_email).toBe(row.to_email.toLowerCase());
+      expect(Object.keys(row.payload)).toEqual(["ticket"]);
+      await expect(asUser(pool, a, (q) => q("select public.email_backfill_order_received()"))).rejects.toThrow(/permission denied/);
+    });
+
+    it("застарілі листи (понад 7 діб) не відправляються: claim переводить їх у failed/expired", async () => {
+      await pool.query("delete from public.email_outbox");
+      const id = (await asServiceCommit(pool, (q) => q("select public.email_enqueue('old-mail-0001','new_message','old@example.com',null,'uk','{}'::jsonb,null,null) as id"))).rows[0].id;
+      await pool.query("update public.email_outbox set created_at = now() - interval '8 days' where id=$1", [id]);
+      const claimed = await asServiceCommit(pool, (q) => q("select * from public.email_claim(10)"));
+      expect(claimed.rows).toHaveLength(0);
+      expect((await pool.query("select status, last_error from public.email_outbox where id=$1", [id])).rows[0]).toEqual({ status: "failed", last_error: "expired" });
+    });
+
+    it("зведення черги бачить лише адміністратор з MFA", async () => {
+      await asServiceCommit(pool, (q) => q("select public.email_enqueue('stat-mail-0001','new_message','s@example.com',null,'uk','{}'::jsonb,null,null)"));
+      const adminStats = await asUser(pool, admin, (q) => q("select status, total from public.email_queue_stats()"));
+      expect(adminStats.rows.some((r) => r.status === "pending")).toBe(true);
+      expect((await asUser(pool, a, (q) => q("select * from public.email_queue_stats()"))).rows).toHaveLength(0);
+      expect((await asUser(pool, adminNoMfa, (q) => q("select * from public.email_queue_stats()"))).rows).toHaveLength(0);
+      await expect(asUser(pool, null, (q) => q("select * from public.email_queue_stats()"))).rejects.toThrow(/permission denied/);
+    });
+  });
+
   describe("матриця прав на RPC", () => {
     type Role = "anon" | "clientA" | "clientB" | "adminNoMfa" | "admin" | "service";
     const sessions: Record<Exclude<Role, "service">, Session | null> = { anon: null, clientA: a, clientB: b, adminNoMfa, admin };
@@ -354,6 +385,7 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
           "client_unread_counts",
           "client_update_profile",
           "delete_project_file",
+          "email_queue_stats",
           "invoice_paid_amount",
           "invoice_payment_state",
           "is_admin",

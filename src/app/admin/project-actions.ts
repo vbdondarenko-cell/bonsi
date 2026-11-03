@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
 import { buildSchedule, parseFeatures, proposalInput, validateSchedule } from "@/lib/admin/proposal-input";
 import { STAGES } from "@/lib/client/labels";
+import { queueProjectEmail, quarterHour } from "@/lib/email/events";
 import { hashValue } from "@/lib/orders/service";
 import { site } from "@/lib/site";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -86,6 +87,9 @@ export async function updateProjectAction(_prev: ActionState, formData: FormData
     p_next_action: parsed.data.nextAction || null,
   });
   if (error) return { error: rpcMessage(error.message) };
+  if (parsed.data.status === "completed") {
+    await queueProjectEmail({ projectId: parsed.data.projectId, template: "project_completed", key: `project-completed:${parsed.data.projectId}` });
+  }
   refresh(parsed.data.projectId);
   return { ok: true };
 }
@@ -108,6 +112,8 @@ export async function sendAdminMessageAction(_prev: ActionState, formData: FormD
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте повідомлення." };
   const { error } = await admin.supabase.rpc("admin_send_message", { p_project: parsed.data.projectId, p_body: parsed.data.body });
   if (error) return { error: rpcMessage(error.message) };
+  // Текст повідомлення в лист не потрапляє: клієнт читає його в кабінеті. Не частіше одного листа на 15 хвилин.
+  await queueProjectEmail({ projectId: parsed.data.projectId, template: "new_message", key: `new-message:${parsed.data.projectId}:${quarterHour()}` });
   refresh(parsed.data.projectId);
   return { ok: true };
 }
@@ -181,6 +187,8 @@ export async function sendProposalAction(_prev: ActionState, formData: FormData)
   if (!parsed.success) return { error: "Некоректні дані." };
   const { error } = await admin.supabase.rpc("admin_send_proposal", { p_proposal: parsed.data.proposalId });
   if (error) return { error: rpcMessage(error.message) };
+  const proposal = await admin.supabase.from("proposals").select("version").eq("id", parsed.data.proposalId).maybeSingle();
+  await queueProjectEmail({ projectId: parsed.data.projectId, template: "new_proposal", key: `new-proposal:${parsed.data.proposalId}`, payload: { version: proposal.data?.version ?? "" } });
   refresh(parsed.data.projectId);
   return { ok: true, notice: "Пропозицію надіслано клієнту." };
 }
@@ -310,6 +318,17 @@ export async function invoiceLifecycleAction(_prev: ActionState, formData: FormD
       ? await admin.supabase.rpc("admin_issue_invoice", { p_invoice: parsed.data.invoiceId, p_due: parsed.data.due || null })
       : await admin.supabase.rpc("admin_void_invoice", { p_invoice: parsed.data.invoiceId });
   if (error) return { error: rpcMessage(error.message) };
+  if (parsed.data.op === "issue") {
+    const invoice = await admin.supabase.from("invoices").select("number, amount, currency").eq("id", parsed.data.invoiceId).maybeSingle();
+    if (invoice.data) {
+      await queueProjectEmail({
+        projectId: parsed.data.projectId,
+        template: "invoice_issued",
+        key: `invoice-issued:${parsed.data.invoiceId}`,
+        payload: { number: invoice.data.number, amount: invoice.data.amount, currency: invoice.data.currency },
+      });
+    }
+  }
   refresh(parsed.data.projectId);
   return { ok: true, notice: parsed.data.op === "issue" ? "Рахунок виставлено клієнту." : "Рахунок анульовано." };
 }
@@ -331,6 +350,19 @@ export async function paymentDecisionAction(_prev: ActionState, formData: FormDa
       ? await admin.supabase.rpc("admin_confirm_payment", { p_payment: parsed.data.paymentId, p_amount: parsed.data.amount === "" ? null : parsed.data.amount, p_note: parsed.data.note || null })
       : await admin.supabase.rpc("admin_reject_payment", { p_payment: parsed.data.paymentId, p_note: parsed.data.note || null });
   if (error) return { error: rpcMessage(error.message) };
+  if (parsed.data.op === "confirm") {
+    // Лист лише після підтвердження в журналі: беремо фактичну суму з підтвердженого платежу, а не з форми.
+    const payment = await admin.supabase.from("payments").select("amount, currency, status, invoice_id").eq("id", parsed.data.paymentId).maybeSingle();
+    if (payment.data?.status === "confirmed") {
+      const invoice = await admin.supabase.from("invoices").select("number").eq("id", payment.data.invoice_id as string).maybeSingle();
+      await queueProjectEmail({
+        projectId: parsed.data.projectId,
+        template: "payment_confirmed",
+        key: `payment-confirmed:${parsed.data.paymentId}`,
+        payload: { number: invoice.data?.number ?? "", amount: payment.data.amount, currency: payment.data.currency },
+      });
+    }
+  }
   refresh(parsed.data.projectId);
   revalidatePath(`/app/projects/${parsed.data.projectId}/payments`);
   return { ok: true, notice: parsed.data.op === "confirm" ? "Надходження підтверджено." : "Платіж відхилено." };

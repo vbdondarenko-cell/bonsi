@@ -17,12 +17,15 @@ async function handle(request: Request) {
   const headers = { "Cache-Control": "no-store" };
   if (!authorized(request)) return Response.json({ error: "unauthorized" }, { status: 401, headers });
   try {
-    const result = await dispatchEmails(createSupabaseServiceClient(), providerFromEnv(), {
+    const service = createSupabaseServiceClient();
+    // Донаповнення черги: заявки, чий лист не потрапив у чергу під час збою (ідемпотентно, лише за останні 3 доби).
+    const backfilled = await service.rpc("email_backfill_order_received");
+    const result = await dispatchEmails(service, providerFromEnv(), {
       from: process.env.EMAIL_FROM ?? "BONSI <no-reply@localhost>",
       replyTo: process.env.EMAIL_REPLY_TO,
       siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
     });
-    return Response.json(result, { headers });
+    return Response.json({ ...result, backfilled: backfilled.error ? 0 : backfilled.data }, { headers });
   } catch (error) {
     console.error("[emails] dispatch failed:", error instanceof Error ? error.message : "unknown");
     return Response.json({ error: "server_error" }, { status: 500, headers });

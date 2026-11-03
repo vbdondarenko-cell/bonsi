@@ -355,6 +355,85 @@ test("11. фінальні файли → вихід і повторний вх�
   await expect(page.locator(`a[href="/app/projects/${projectA}"]`)).toBeVisible();
 });
 
+test("12. передача: адмін готує і відправляє; секрет відхиляється; клієнт приймає; завершення лише після прийняття", async ({ page }) => {
+  await adminPage.goto(`/admin/projects/${projectA}/handover`);
+  await adminPage.waitForLoadState("networkidle");
+  // Порожню передачу відправити не можна.
+  await expect(rpc(studioApi, "admin_submit_handover", { p_project: projectA })).rejects.toThrow(/handover_incomplete|not_found/);
+  await adminPage.getByLabel("Production URL", { exact: true }).fill("https://example.com");
+  await adminPage.getByLabel("Документація (https)", { exact: true }).fill("not-a-url-password=hunter2");
+  await adminPage.getByRole("button", { name: "Зберегти чернетку" }).click();
+  await expect(adminPage.getByRole("alert").filter({ hasText: /https|паролі|недопустиме/i }).first()).toBeVisible({ timeout: 15_000 });
+
+  await adminPage.getByLabel("Документація (https)", { exact: true }).fill("https://example.com/docs");
+  await adminPage.getByRole("button", { name: "Зберегти чернетку" }).click();
+  await expect(adminPage.getByText("Чернетку передачі збережено.")).toBeVisible({ timeout: 15_000 });
+  // Чернетку клієнт не бачить.
+  await signIn(page, emailA);
+  await page.goto(`/app/projects/${projectA}/handover`);
+  await expect(page.getByText("Передачу ще не підготовлено")).toBeVisible();
+
+  await adminPage.reload();
+  await adminPage.getByRole("button", { name: "Відправити клієнту на приймання" }).click();
+  await expect(adminPage.getByText("Передачу відправлено клієнту на приймання.")).toBeVisible({ timeout: 15_000 });
+  await expect(rpc(studioApi, "admin_complete_project", { p_project: projectA, p_warranty_until: null })).rejects.toThrow(/handover_not_accepted/);
+
+  await page.goto(`/app/projects/${projectA}/handover`);
+  await expect(page.getByText("https://example.com/docs")).toBeVisible();
+  await page.getByRole("button", { name: "Потрібні правки" }).click();
+  await expect(page.getByRole("alert")).toContainText("Вкажіть, що саме потрібно виправити");
+  await page.getByRole("button", { name: "Прийняти передачу" }).click();
+  await expect.poll(async () => (await db.from("handover_records").select("status").eq("project_id", projectA).single()).data?.status, { timeout: 20_000 }).toBe("accepted");
+  await page.reload();
+  await expect(page.getByText("Прийнято", { exact: true }).first()).toBeVisible();
+
+  await adminPage.goto(`/admin/projects/${projectA}/handover`);
+  await adminPage.waitForLoadState("networkidle");
+  await adminPage.getByRole("button", { name: "Завершити проєкт" }).click();
+  await expect.poll(async () => (await db.from("projects").select("status").eq("id", projectA).single()).data?.status, { timeout: 20_000 }).toBe("completed");
+});
+
+test("13. підтримка: клієнт створює звернення; адмін відповідає, внутрішня нотатка прихована; результат → клієнт закриває; чужий не бачить", async ({ page, browser }) => {
+  await signIn(page, emailA);
+  await page.goto("/app/support");
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Тема").fill("Кнопка оплати не натискається");
+  await page.getByLabel("Опис").fill("Після оновлення кнопка на сторінці кошика не реагує на клік.");
+  await page.getByRole("button", { name: "Створити звернення" }).click();
+  await page.waitForURL(/\/app\/support\/[0-9a-f-]{36}/, { timeout: 20_000 });
+  const ticketId = page.url().match(/support\/([0-9a-f-]{36})/)![1]!;
+  await expect(page.getByText(/SUP-\d{4}-\d{5}/).first()).toBeVisible();
+
+  await adminPage.goto(`/admin/support/${ticketId}`);
+  await adminPage.waitForLoadState("networkidle");
+  await adminPage.getByLabel("Повідомлення").fill("СЕКРЕТНА-ВНУТРІШНЯ-НОТАТКА");
+  await adminPage.getByLabel("Внутрішня нотатка (клієнт не побачить)").check();
+  await adminPage.getByRole("button", { name: "Надіслати" }).click();
+  await expect(adminPage.getByText("Внутрішню нотатку додано.")).toBeVisible({ timeout: 15_000 });
+  await adminPage.getByLabel("Повідомлення").fill("Дякуємо, перевіряємо.");
+  await adminPage.getByRole("button", { name: "Надіслати" }).click();
+  await expect(adminPage.getByText("Відповідь надіслано клієнту.")).toBeVisible({ timeout: 15_000 });
+
+  await page.goto(`/app/support/${ticketId}`);
+  await expect(page.getByText("Дякуємо, перевіряємо.")).toBeVisible();
+  await expect(page.getByText("СЕКРЕТНА-ВНУТРІШНЯ-НОТАТКА")).toHaveCount(0);
+
+  // Вирішити без результату не можна; з результатом — можна.
+  await rpc(studioApi, "admin_update_ticket", { p_ticket: ticketId, p_status: "resolved", p_assignee: null, p_priority: "normal", p_result: "Виправлено в релізі 1.0.1" });
+  await page.reload();
+  await expect(page.getByText("Виправлено в релізі 1.0.1")).toBeVisible();
+  await page.getByRole("button", { name: "Підтвердити, що питання вирішено" }).click();
+  await expect.poll(async () => (await db.from("support_tickets").select("status").eq("id", ticketId).single()).data?.status, { timeout: 20_000 }).toBe("closed");
+
+  // Клієнт Б не бачить чужого звернення.
+  const ctx = await browser.newContext();
+  const other = await ctx.newPage();
+  await signIn(other, emailB);
+  const res = await other.goto(`/app/support/${ticketId}`);
+  expect(res?.status()).toBe(404);
+  await ctx.close();
+});
+
 test("вхід: повторний запит коду скидає стару помилку; використаний код відхиляється", async ({ page }) => {
   test.setTimeout(300_000);
   // Усі запити з одного хоста CI ділять один IP-кошик; лічильники очищаються, щоб тест перевіряв логіку коду, а не ліміт (його покривають модульні тести).

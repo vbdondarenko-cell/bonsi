@@ -1,13 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { decideDeliverableAction, type FormState } from "@/app/app/actions";
+import { useState } from "react";
+import { decideDeliverableAction } from "@/app/app/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { cn } from "@/lib/cn";
 
 export function DeliverableDecision({ deliverableId, projectId, version }: { deliverableId: string; projectId: string; version: number }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(decideDeliverableAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(decideDeliverableAction);
   const [mode, setMode] = useState<"idle" | "changes">("idle");
 
   if (state?.ok) {
@@ -18,7 +19,7 @@ export function DeliverableDecision({ deliverableId, projectId, version }: { del
     );
   }
   return (
-    <form action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
+    <form ref={formRef} action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
       <input type="hidden" name="deliverableId" value={deliverableId} />
       <input type="hidden" name="projectId" value={projectId} />
       {mode === "changes" ? (
@@ -37,7 +38,7 @@ export function DeliverableDecision({ deliverableId, projectId, version }: { del
       <div className="flex flex-col gap-3 sm:flex-row">
         {mode === "idle" ? (
           <>
-            <Button type="submit" name="decision" value="approved" disabled={pending}>
+            <Button type="submit" name="decision" value="approved" disabled={pending || !ready}>
               {pending ? "Зберігаємо…" : "Погодити результат"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("changes")}>
@@ -46,7 +47,7 @@ export function DeliverableDecision({ deliverableId, projectId, version }: { del
           </>
         ) : (
           <>
-            <Button type="submit" name="decision" value="changes_requested" disabled={pending}>
+            <Button type="submit" name="decision" value="changes_requested" disabled={pending || !ready}>
               {pending ? "Надсилаємо…" : "Надіслати правки"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("idle")}>

@@ -9,6 +9,10 @@ const items = [
   { href: "/admin/orders", label: "Заявки", exact: false },
   { href: "/admin/projects", label: "Проєкти", exact: false },
   { href: "/admin/clients", label: "Клієнти", exact: false },
+  { href: "/admin/tasks", label: "Завдання", exact: false },
+  { href: "/admin/support", label: "Підтримка", exact: false },
+  { href: "/admin/finance", label: "Фінанси", exact: false },
+  { href: "/admin/portfolio", label: "Портфоліо", exact: false },
   { href: "/admin/settings", label: "Налаштування", exact: false },
 ];
 

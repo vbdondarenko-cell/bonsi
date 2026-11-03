@@ -11,7 +11,7 @@ export default defineConfig({
   testDir: "./e2e/admin",
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  retries: 0, // повтори приховували б нестабільність: збій має бути видимим
   timeout: 120_000,
   expect: { timeout: 15_000 },
   forbidOnly: Boolean(process.env.CI),

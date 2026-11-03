@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, StageTimeline, formatWhen } from "@/components/workspace/ui";
 import { requireClient } from "@/lib/client/auth";
-import { getAssigneeName, getEvents, getProject, getStages } from "@/lib/client/data";
+import { getActivation, getAssigneeName, getEvents, getProject, getStages } from "@/lib/client/data";
 import { EVENT_LABELS, PROJECT_STATUS_LABELS, STAGE_LABELS, type Stage } from "@/lib/client/labels";
 
 export const metadata: Metadata = { title: "Проєкт" };
@@ -12,11 +12,24 @@ export default async function ProjectOverviewPage({ params }: { params: Promise<
   const { supabase } = await requireClient();
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [stages, events, assignee] = await Promise.all([getStages(supabase, id), getEvents(supabase, id), getAssigneeName(supabase, id)]);
+  const [stages, events, assignee, activation] = await Promise.all([getStages(supabase, id), getEvents(supabase, id), getAssigneeName(supabase, id), project.activated_at ? Promise.resolve(null) : getActivation(supabase, id)]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-6">
+        {!project.activated_at ? (
+          <Card title="Це заявка, а не активний проєкт">
+            <p className="text-sm text-muted">Робота (дизайн і розробка) починається після виконання умов. Чат, пропозиція й документи вже доступні.</p>
+            <ul className="mt-4 flex flex-col gap-2 text-sm" aria-label="Умови активації проєкту">
+              <Condition ok={activation?.proposal_approved} label="Комерційну пропозицію погоджено" />
+              <Condition ok={activation?.contract_approved} label="Договір погоджено" />
+              <Condition
+                ok={activation ? !activation.prepayment_required || activation.prepayment_paid : undefined}
+                label={activation?.prepayment_required ? "Передоплату отримано (підтверджено студією)" : "Передоплата: не передбачена"}
+              />
+            </ul>
+          </Card>
+        ) : null}
         <Card title="Наступна дія">
           {project.next_action ? (
             <p className="text-lg">
@@ -85,5 +98,15 @@ export default async function ProjectOverviewPage({ params }: { params: Promise<
         </Card>
       </div>
     </div>
+  );
+}
+
+function Condition({ ok, label }: { ok: boolean | undefined; label: string }) {
+  return (
+    <li className="flex items-center gap-2">
+      <span aria-hidden="true" className={ok ? "text-ok" : "text-muted"}>{ok ? "✓" : "○"}</span>
+      <span className={ok ? "" : "text-muted"}>{label}</span>
+      <span className="sr-only">{ok ? "виконано" : "не виконано"}</span>
+    </li>
   );
 }

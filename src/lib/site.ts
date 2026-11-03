@@ -14,3 +14,9 @@ export const nav = [
   { href: "/about", label: "Про нас" },
   { href: "/contact", label: "Контакти" },
 ] as const;
+
+/** Додаткові сторінки: лише у футері, щоб не перевантажувати шапку на планшетах. */
+export const footerNav = [
+  { href: "/process", label: "Як ми працюємо" },
+  { href: "/faq", label: "FAQ" },
+] as const;

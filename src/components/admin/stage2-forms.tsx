@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, type ReactNode } from "react";
+import { useActionState, type ReactNode } from "react";
 import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
@@ -18,11 +18,12 @@ import {
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { DELIVERABLE_STAGES, STAGE_LABELS } from "@/lib/client/labels";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
-function Feedback({ state }: { state: ActionState }) {
+export function Feedback({ state }: { state: ActionState }) {
   if (state?.error || state?.fieldError) {
     return (
       <p role="alert" className="text-sm text-danger">
@@ -41,7 +42,7 @@ function Feedback({ state }: { state: ActionState }) {
 }
 
 /** Типова форма адмінки: прихані поля, контент, кнопка, відгук. Очищається після успіху, якщо resetOnSuccess. */
-function ActionForm({
+export function ActionForm({
   action,
   hidden,
   children,
@@ -49,6 +50,7 @@ function ActionForm({
   pendingLabel = "…",
   variant = "primary",
   resetOnSuccess = false,
+  disabled = false,
   className,
 }: {
   action: Action;
@@ -58,14 +60,11 @@ function ActionForm({
   pendingLabel?: string;
   variant?: "primary" | "ghost";
   resetOnSuccess?: boolean;
+  /** Кнопку вимкнено (наприклад, запис зафіксовано); сервер у будь-якому разі перевіряє стан повторно. */
+  disabled?: boolean;
   className?: string;
 }) {
-  const [state, run, pending] = useActionState<ActionState, FormData>(action, null);
-  useRefreshOnSuccess(state);
-  const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (resetOnSuccess && state?.ok) ref.current?.reset();
-  }, [state, resetOnSuccess]);
+  const { state, run, pending, formRef: ref, ready } = useGuardedAction<ActionState>(action, { resetOnSuccess });
   return (
     <form ref={ref} action={run} className={cn("flex flex-col gap-3", className)}>
       {Object.entries(hidden).map(([name, value]) => (
@@ -73,14 +72,14 @@ function ActionForm({
       ))}
       {children}
       <Feedback state={state} />
-      <Button type="submit" variant={variant} disabled={pending} className="min-h-11 self-start px-5">
+      <Button type="submit" variant={variant} disabled={pending || !ready || disabled} className="min-h-11 self-start px-5">
         {pending ? pendingLabel : submit}
       </Button>
     </form>
   );
 }
 
-const Field = ({ label, children }: { label: string; children: ReactNode }) => (
+export const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="flex flex-col gap-2 text-sm font-medium">
     {label}
     {children}

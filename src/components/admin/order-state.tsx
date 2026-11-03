@@ -40,7 +40,8 @@ export function OrderHistory() {
       const description = event.type === "created" ? "Заявку створено з форми на сайті"
         : event.type === "status_changed" ? `Статус: ${label(event.data.from)} → ${label(event.data.to)}`
         : event.type === "assigned" ? event.data.to ? `Призначено: ${who(event.data.to)}` : "Виконавця знято"
-        : event.type === "note_added" ? "Додано нотатку" : event.type;
+        : event.type === "note_added" ? "Додано нотатку"
+        : event.type === "rejected" ? `Заявку відхилено${event.data.reason ? `: ${event.data.reason}` : ""}` : event.type;
       return <li key={event.id} data-event-id={event.id} className="relative">
         <span aria-hidden="true" className="absolute -left-[1.45rem] top-1.5 size-2 rounded-full bg-accent-soft" />
         <p className="text-sm">{description}</p>

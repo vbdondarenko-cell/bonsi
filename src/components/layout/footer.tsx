@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
-import { nav, site } from "@/lib/site";
+import { footerNav, nav, site } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -15,7 +15,7 @@ export function Footer() {
           </p>
         </div>
         <nav aria-label="Навігація у футері" className="flex flex-wrap gap-x-8 gap-y-3">
-          {nav.map((item) => (
+          {[...nav, ...footerNav].map((item) => (
             <Link key={item.href} href={item.href} className="text-muted transition-colors hover:text-fg">
               {item.label}
             </Link>
@@ -30,9 +30,17 @@ export function Footer() {
           <p>
             © {new Date().getFullYear()} {site.name}. Усі права захищено.
           </p>
-          <Link href="/privacy" className="transition-colors hover:text-fg">
-            Політика конфіденційності
-          </Link>
+          <nav aria-label="Правові документи" className="flex flex-wrap gap-x-6 gap-y-2">
+            <Link href="/privacy" className="transition-colors hover:text-fg">
+              Політика конфіденційності
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-fg">
+              Умови користування
+            </Link>
+            <Link href="/cooperation" className="transition-colors hover:text-fg">
+              Умови співпраці
+            </Link>
+          </nav>
         </div>
       </Container>
     </footer>

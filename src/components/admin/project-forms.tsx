@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/app/admin/project-actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { PROJECT_STATUS_LABELS, STAGES, STAGE_LABELS, scheduleTotal, type ProposalSchedule } from "@/lib/client/labels";
 import { cn } from "@/lib/cn";
 
@@ -146,13 +147,8 @@ const time = new Intl.DateTimeFormat("uk-UA", { dateStyle: "short", timeStyle: "
 
 export function AdminChat({ projectId, messages, lastClientId }: { projectId: string; messages: AdminThreadMessage[]; lastClientId: number }) {
   const router = useRouter();
-  const [state, action, pending] = useActionState<ActionState, FormData>(sendAdminMessageAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(sendAdminMessageAction, { resetOnSuccess: true });
   useRefreshOnSuccess(state);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    if (state?.ok) formRef.current?.reset();
-  }, [state]);
   useEffect(() => {
     if (lastClientId > 0) void markAdminReadAction(projectId);
   }, [projectId, lastClientId]);
@@ -189,7 +185,7 @@ export function AdminChat({ projectId, messages, lastClientId }: { projectId: st
         </label>
         <textarea id="admin-message" name="body" rows={3} maxLength={4000} required className={cn(adminFieldClass, "resize-y")} />
         <Feedback state={state} />
-        <Button type="submit" disabled={pending} className="self-start">
+        <Button type="submit" disabled={pending || !ready} className="self-start">
           {pending ? "Надсилаємо…" : "Надіслати клієнту"}
         </Button>
       </form>
@@ -198,12 +194,8 @@ export function AdminChat({ projectId, messages, lastClientId }: { projectId: st
 }
 
 export function InternalNoteForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(addInternalNoteAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(addInternalNoteAction, { resetOnSuccess: true });
   useRefreshOnSuccess(state);
-  const formRef = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (state?.ok) formRef.current?.reset();
-  }, [state]);
   return (
     <form ref={formRef} action={action} className="flex flex-col gap-3">
       <input type="hidden" name="projectId" value={projectId} />
@@ -212,7 +204,7 @@ export function InternalNoteForm({ projectId }: { projectId: string }) {
       </label>
       <textarea id="internal-note" name="body" rows={3} maxLength={4000} required className={cn(adminFieldClass, "resize-y")} />
       <Feedback state={state} />
-      <Button type="submit" variant="ghost" disabled={pending} className="self-start">
+      <Button type="submit" variant="ghost" disabled={pending || !ready} className="self-start">
         {pending ? "Зберігаємо…" : "Додати нотатку"}
       </Button>
     </form>
@@ -220,13 +212,13 @@ export function InternalNoteForm({ projectId }: { projectId: string }) {
 }
 
 export function CreateProposalForm({ projectId, copyFrom }: { projectId: string; copyFrom: string | null }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(createProposalAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(createProposalAction);
   useRefreshOnSuccess(state);
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form ref={formRef} action={action} className="flex flex-col gap-3">
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="copyFrom" value={copyFrom ?? ""} />
-      <Button type="submit" disabled={pending} className="self-start">
+      <Button type="submit" disabled={pending || !ready} className="self-start">
         {pending ? "Створюємо…" : copyFrom ? "Нова версія на основі останньої" : "Створити пропозицію"}
       </Button>
       <Feedback state={state} />
@@ -255,7 +247,7 @@ function presetOf(schedule: ProposalSchedule): string {
 
 export function ProposalEditor({ projectId, proposal }: { projectId: string; proposal: DraftProposal }) {
   const [saveState, saveAction, saving] = useActionState<ActionState, FormData>(saveProposalAction, null);
-  const [sendState, sendAction, sending] = useActionState<ActionState, FormData>(sendProposalAction, null);
+  const { state: sendState, run: sendAction, pending: sending, formRef: sendRef, ready: sendReady } = useGuardedAction(sendProposalAction);
   const [preset, setPreset] = useState(presetOf(proposal.payment_schedule));
   const customText = proposal.payment_schedule.map((item) => `${item.label} | ${item.percent}`).join("\n");
 
@@ -329,12 +321,12 @@ export function ProposalEditor({ projectId, proposal }: { projectId: string; pro
         </div>
       </form>
 
-      <form action={sendAction} className="flex flex-col gap-3 border-t border-line pt-5">
+      <form ref={sendRef} action={sendAction} className="flex flex-col gap-3 border-t border-line pt-5">
         <input type="hidden" name="proposalId" value={proposal.id} />
         <input type="hidden" name="projectId" value={projectId} />
         <p className="text-sm text-muted">Спершу збережіть чернетку. Після відправки зміст зафіксується; правки робляться новою версією.</p>
         <Feedback state={sendState} />
-        <Button type="submit" disabled={sending} className="self-start">
+        <Button type="submit" disabled={sending || !sendReady} className="self-start">
           {sending ? "Надсилаємо…" : "Надіслати клієнту"}
         </Button>
       </form>

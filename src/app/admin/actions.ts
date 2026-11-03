@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assignInput, noteInput, statusInput } from "@/lib/admin/orders";
 import { getAuthState, requireAdmin } from "@/lib/admin/guard";
+import { operationErrorText, rpcOnce } from "@/lib/operations";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -160,6 +161,8 @@ const RPC_ERRORS: Record<string, string> = {
 };
 
 function rpcMessage(message: string): string {
+  const guard = operationErrorText({ message });
+  if (guard) return guard;
   const key = Object.keys(RPC_ERRORS).find((code) => message.includes(code));
   return key ? RPC_ERRORS[key]! : "Не вдалося зберегти зміни. Спробуйте ще раз.";
 }
@@ -206,7 +209,7 @@ export async function addNoteAction(_prev: ActionState, formData: FormData): Pro
   const parsed = noteInput.safeParse({ orderId: formData.get("orderId"), body: formData.get("body") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Некоректна нотатка." };
 
-  const { error } = await admin.supabase.rpc("admin_add_note", {
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_add_note", {
     p_order: parsed.data.orderId,
     p_body: parsed.data.body,
   });

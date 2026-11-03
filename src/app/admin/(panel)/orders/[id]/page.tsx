@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AssignForm, NoteForm, StatusForm } from "@/components/admin/order-forms";
+import { RejectOrderForm } from "@/components/admin/workflow-forms";
 import { PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
 import { uuidSchema } from "@/lib/admin/orders";
 import { requireAdmin } from "@/lib/admin/guard";
@@ -115,6 +116,12 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
               <AssignForm orderId={id} admins={adminList} />
             </div>
           </Panel>
+
+          {o.status !== "rejected" ? (
+            <Panel title="Відхилити заявку">
+              <RejectOrderForm orderId={id} />
+            </Panel>
+          ) : null}
 
           <Panel title="Кабінет клієнта">
             {project.data ? (

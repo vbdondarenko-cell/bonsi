@@ -10,7 +10,8 @@ import pg from "pg";
 export const dbUrl = process.env.DATABASE_URL;
 export const dbEnabled = Boolean(dbUrl) && process.env.ALLOW_DESTRUCTIVE_DB_TEST === "1";
 
-export async function resetDatabase(pool: pg.Pool) {
+/** `before` — застосувати лише міграції з іменем меншим за вказане (для перевірки переходу зі старої схеми). */
+export async function resetDatabase(pool: pg.Pool, options: { before?: string } = {}) {
   await pool.query(`
     do $$
     begin
@@ -32,7 +33,7 @@ export async function resetDatabase(pool: pg.Pool) {
   await pool.query("drop schema public cascade; create schema public;");
   await pool.query("grant usage on schema public to anon, authenticated, service_role;");
   const dir = join(process.cwd(), "supabase", "migrations");
-  for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) {
+  for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql") && (!options.before || name < options.before)).sort()) {
     await pool.query(readFileSync(join(dir, file), "utf8"));
   }
 }

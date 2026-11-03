@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 
 const items = [
   { href: "/app", label: "Дашборд", exact: true },
+  { href: "/app/requests", label: "Мої заявки", exact: false },
   { href: "/app/projects", label: "Мої проєкти", exact: false },
   { href: "/app/support", label: "Підтримка", exact: true },
   { href: "/app/profile", label: "Профіль і безпека", exact: true },
@@ -46,8 +47,10 @@ export function ProjectTabs({ projectId, unread }: { projectId: string; unread: 
     { href: `${base}/proposal`, label: "Пропозиція", exact: false },
     { href: `${base}/milestones`, label: "Етапи й погодження", exact: false },
     { href: `${base}/files`, label: "Файли", exact: false },
-    { href: `${base}/documents`, label: "Документи", exact: false },
+    { href: `${base}/documents`, label: "Договори й документи", exact: false },
+    { href: `${base}/changes`, label: "Зміни", exact: false },
     { href: `${base}/payments`, label: "Оплата", exact: false },
+    { href: `${base}/handover`, label: "Передача", exact: false },
   ];
   return (
     <div className="flex flex-col gap-3">

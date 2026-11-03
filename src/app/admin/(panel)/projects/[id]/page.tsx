@@ -93,6 +93,12 @@ export default async function AdminProjectPage({ params }: { params: Promise<{ i
       </Link>
       <PageHeader eyebrow={p.title} title={order?.name ?? "Проєкт"}>
         <ProjectStatusPill status={p.status} />
+        <Link prefetch={false} href={`/admin/projects/${id}/workflow`} className="text-sm text-accent-soft underline underline-offset-4">
+          Життєвий цикл, документи, зміни
+        </Link>
+        <Link prefetch={false} href={`/admin/projects/${id}/handover`} className="text-sm text-accent-soft underline underline-offset-4">
+          Передача й завершення
+        </Link>
       </PageHeader>
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">

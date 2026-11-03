@@ -54,11 +54,12 @@ export type ProjectRow = {
   stage: string;
   next_action_owner: "client" | "studio" | null;
   next_action: string | null;
+  activated_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
-const PROJECT_COLUMNS = "id,title,service,status,stage,next_action_owner,next_action,created_at,updated_at";
+const PROJECT_COLUMNS = "id,title,service,status,stage,next_action_owner,next_action,activated_at,created_at,updated_at";
 
 export async function listProjects(supabase: SupabaseClient): Promise<ProjectRow[]> {
   const data = await read("projects", () => supabase.from("projects").select(PROJECT_COLUMNS).order("created_at", { ascending: false }));
@@ -290,4 +291,156 @@ export async function getMessageAttachments(supabase: SupabaseClient, projectId:
 export async function getStudioReadCursor(supabase: SupabaseClient, projectId: string): Promise<number> {
   const data = await read("reads", () => supabase.from("project_message_reads").select("last_read_id").eq("project_id", projectId).eq("reader_role", "admin").maybeSingle());
   return Number((data as { last_read_id?: number | string } | null)?.last_read_id ?? 0);
+}
+
+// ---------------------------------------------------------------------------
+// V0.5: заявки, активація, документи, запити на зміни, Scope of Work
+// ---------------------------------------------------------------------------
+export type RequestRow = {
+  order_id: string;
+  ticket: string;
+  service: string;
+  order_status: string;
+  rejection_reason: string | null;
+  created_at: string;
+  project_id: string | null;
+  activated: boolean | null;
+  project_status: string | null;
+  stage: string | null;
+  next_action_owner: "client" | "studio" | null;
+  next_action: string | null;
+};
+
+export async function getRequests(supabase: SupabaseClient): Promise<RequestRow[]> {
+  const data = await read("requests", () => supabase.rpc("client_requests"));
+  return (data ?? []) as RequestRow[];
+}
+
+export type Activation = { activated: boolean; proposal_approved: boolean; contract_approved: boolean; prepayment_required: boolean; prepayment_paid: boolean; ready: boolean };
+
+export async function getActivation(supabase: SupabaseClient, projectId: string): Promise<Activation | null> {
+  const data = await read("activation", () => supabase.rpc("project_activation_status", { p_project: projectId }));
+  return (data as Activation | null) ?? null;
+}
+
+export type DocumentRow = {
+  id: string;
+  kind: string;
+  title: string;
+  status: string;
+  current_version: number;
+  change_request_id: string | null;
+  sent_at: string | null;
+  decided_at: string | null;
+  created_at: string;
+};
+
+export async function getDocuments(supabase: SupabaseClient, projectId: string): Promise<DocumentRow[]> {
+  const data = await read("documents", () =>
+    supabase.from("documents").select("id,kind,title,status,current_version,change_request_id,sent_at,decided_at,created_at").eq("project_id", projectId).order("created_at", { ascending: false }),
+  );
+  return (data ?? []) as DocumentRow[];
+}
+
+export type DocumentVersionRow = { version: number; body: string; content_hash: string; frozen_at: string | null; created_at: string };
+export type DocumentDecisionRow = { id: number; version: number; content_hash: string; decision: string; comment: string | null; created_at: string };
+
+export async function getDocument(supabase: SupabaseClient, documentId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(documentId)) return null;
+  const doc = await read("document", () =>
+    supabase.from("documents").select("id,project_id,kind,title,status,current_version,change_request_id,sent_at,decided_at,created_at").eq("id", documentId).maybeSingle(),
+  );
+  if (!doc) return null;
+  const [versions, decisions] = await Promise.all([
+    read("document_versions", () => supabase.from("document_versions").select("version,body,content_hash,frozen_at,created_at").eq("document_id", documentId).order("version", { ascending: false })),
+    read("document_decisions", () => supabase.from("document_decisions").select("id,version,content_hash,decision,comment,created_at").eq("document_id", documentId).order("id", { ascending: false })),
+  ]);
+  return {
+    document: doc as unknown as DocumentRow & { project_id: string },
+    versions: (versions ?? []) as DocumentVersionRow[],
+    decisions: (decisions ?? []) as DocumentDecisionRow[],
+  };
+}
+
+export type ChangeRequestRow = {
+  id: string;
+  number: string;
+  title: string;
+  description: string;
+  status: string;
+  quote_summary: string | null;
+  quote_price: string | null;
+  quote_currency: string | null;
+  quote_days: number | null;
+  quote_document_id: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+};
+
+export async function getChangeRequests(supabase: SupabaseClient, projectId: string): Promise<ChangeRequestRow[]> {
+  const data = await read("change_requests", () =>
+    supabase
+      .from("change_requests")
+      .select("id,number,title,description,status,quote_summary,quote_price,quote_currency,quote_days,quote_document_id,rejection_reason,created_at")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false }),
+  );
+  return (data ?? []) as ChangeRequestRow[];
+}
+
+export type ScopeRow = { id: number; kind: "baseline" | "amendment"; title: string; items: string[]; price_amount: string | null; currency: string | null; duration_days: number | null; created_at: string };
+
+export async function getScope(supabase: SupabaseClient, projectId: string): Promise<ScopeRow[]> {
+  const data = await read("scope", () =>
+    supabase.from("project_scope").select("id,kind,title,items,price_amount,currency,duration_days,created_at").eq("project_id", projectId).order("id"),
+  );
+  return (data ?? []) as ScopeRow[];
+}
+
+export type HandoverRow = {
+  product_kind: string; status: string; production_url: string | null; domain: string | null; domain_owner: string | null; hosting: string | null;
+  repository_url: string | null; docs_url: string | null; manual_url: string | null; backup_note: string | null; app_version: string | null;
+  store_state: string | null; backend_note: string | null; rights_note: string | null; artifacts: Array<{ kind: string; label: string; url: string }>;
+  submitted_at: string | null; accepted_at: string | null;
+};
+
+export async function getHandover(supabase: SupabaseClient, projectId: string): Promise<{ record: HandoverRow | null; decisions: Array<{ id: number; decision: string; comment: string | null; created_at: string }>; warrantyUntil: string | null }> {
+  const [record, decisions, project] = await Promise.all([
+    read("handover", () =>
+      supabase.from("handover_records").select("product_kind,status,production_url,domain,domain_owner,hosting,repository_url,docs_url,manual_url,backup_note,app_version,store_state,backend_note,rights_note,artifacts,submitted_at,accepted_at").eq("project_id", projectId).maybeSingle(),
+    ),
+    read("handover_decisions", () => supabase.from("handover_decisions").select("id,decision,comment,created_at").eq("project_id", projectId).order("id", { ascending: false })),
+    read("warranty", () => supabase.from("projects").select("warranty_until").eq("id", projectId).maybeSingle()),
+  ]);
+  return {
+    record: (record as HandoverRow | null) ?? null,
+    decisions: (decisions ?? []) as Array<{ id: number; decision: string; comment: string | null; created_at: string }>,
+    warrantyUntil: ((project as { warranty_until?: string | null } | null)?.warranty_until) ?? null,
+  };
+}
+
+export type TicketRow = { id: string; number: string; project_id: string; category: string; priority: string; subject: string; description: string; status: string; result: string | null; created_at: string; updated_at: string };
+
+export async function getTickets(supabase: SupabaseClient): Promise<TicketRow[]> {
+  const data = await read("tickets", () =>
+    supabase.from("support_tickets").select("id,number,project_id,category,priority,subject,description,status,result,created_at,updated_at").order("updated_at", { ascending: false }).limit(200),
+  );
+  return (data ?? []) as TicketRow[];
+}
+
+export async function getTicket(supabase: SupabaseClient, id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const ticket = await read("ticket", () =>
+    supabase.from("support_tickets").select("id,number,project_id,category,priority,subject,description,status,result,created_at,updated_at").eq("id", id).maybeSingle(),
+  );
+  if (!ticket) return null;
+  const [messages, files] = await Promise.all([
+    read("ticket_messages", () => supabase.from("support_messages").select("id,author_role,body,created_at").eq("ticket_id", id).order("id")),
+    read("ticket_files", () => supabase.from("project_files").select("id,display_name,size_bytes").eq("ticket_id", id).is("deleted_at", null)),
+  ]);
+  return {
+    ticket: ticket as unknown as TicketRow,
+    messages: (messages ?? []) as Array<{ id: number; author_role: "client" | "admin"; body: string; created_at: string }>,
+    files: (files ?? []) as Array<{ id: string; display_name: string; size_bytes: number }>,
+  };
 }

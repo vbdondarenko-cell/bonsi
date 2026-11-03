@@ -10,7 +10,10 @@ export const metadata: Metadata = { title: "Мої проєкти" };
 
 export default async function ProjectsPage() {
   const { supabase } = await requireClient();
-  const projects = await listProjects(supabase);
+  // «Мої проєкти» — лише активні контрактні проєкти; заявки й робочі простори до активації — у розділі «Мої заявки».
+  const all = await listProjects(supabase);
+  const projects = all.filter((p) => p.activated_at);
+  const pending = all.length - projects.length;
   const unread = await unreadByProject(supabase, projects.map((p) => p.id));
 
   return (
@@ -18,9 +21,9 @@ export default async function ProjectsPage() {
       <PageHeader eyebrow="Кабінет" title="Мої проєкти" />
       {projects.length === 0 ? (
         <EmptyState
-          title="Проєктів поки немає"
-          description="Надішліть заявку на сайті — проєкт зʼявиться тут автоматично."
-          action={<ButtonLink href="/contact">Надіслати заявку</ButtonLink>}
+          title="Активних проєктів поки немає"
+          description={pending > 0 ? "Проєкт стає активним після погодження пропозиції, договору та передоплати (якщо вона передбачена). Ваші заявки — у розділі «Мої заявки»." : "Надішліть заявку на сайті — після погодження умов тут зʼявиться активний проєкт."}
+          action={<ButtonLink href={pending > 0 ? "/app/requests" : "/contact"}>{pending > 0 ? "Мої заявки" : "Надіслати заявку"}</ButtonLink>}
         />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">

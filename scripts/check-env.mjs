@@ -52,6 +52,23 @@ if (!site || /^http:\/\/(localhost|127\.)/.test(site)) {
   errors.push("NEXT_PUBLIC_SITE_URL у production має бути https://");
 }
 
+// --- Пошта (BONSI Mail): без повної конфігурації листи лишаються в черзі, але production без пошти не готовий ---
+const provider = env.EMAIL_PROVIDER ?? "";
+if (provider && !/^(smtp|resend|mock)$/.test(provider)) errors.push(`EMAIL_PROVIDER має некоректне значення: ${provider}`);
+if (provider === "mock" && strict) errors.push("EMAIL_PROVIDER=mock заборонений у production");
+if (provider === "smtp") {
+  for (const name of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"]) if (!env[name]) errors.push(`${name} не задано (EMAIL_PROVIDER=smtp)`);
+  const port = Number(env.SMTP_PORT ?? 465);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) errors.push("SMTP_PORT некоректний");
+}
+if (provider === "resend" && !env.RESEND_API_KEY) errors.push("RESEND_API_KEY не задано (EMAIL_PROVIDER=resend)");
+if (!provider) risk("EMAIL_PROVIDER не задано: листи (заявки, пропозиції, рахунки, коди входу) не відправляються");
+if (provider && provider !== "mock") {
+  if (!/^.+<[^@\s]+@[^@\s]+\.[^@\s]+>$|^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(env.EMAIL_FROM ?? "")) errors.push("EMAIL_FROM має бути адресою або 'Ім'я <адреса>' на домені відправника");
+  if ((env.CRON_SECRET ?? "").length < 24) errors.push("CRON_SECRET (мінімум 24 символи) потрібен для /api/internal/emails");
+  if (!env.SEND_EMAIL_HOOK_SECRET) risk("SEND_EMAIL_HOOK_SECRET не задано: коди входу надсилатиме лише Supabase Auth (власний SMTP у Dashboard)");
+}
+
 for (const w of warnings) console.warn(`⚠ ${w}`);
 for (const e of errors) console.error(`✗ ${e}`);
 if (errors.length) process.exit(1);

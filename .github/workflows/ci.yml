@@ -152,6 +152,8 @@ jobs:
           }
           run build npm run build
           if grep -q "^build=0$" .ci/summary.txt; then run e2e-admin npx playwright test -c playwright.admin.config.ts; fi
+          # Стабільність без прихованих повторів: ті самі критичні сценарії ще тричі поспіль у вже «забрудненій» БД (retries = 0).
+          if grep -q "^e2e-admin=0$" .ci/summary.txt; then run e2e-admin-repeat npx playwright test -c playwright.admin.config.ts --project=chromium --repeat-each=3 --reporter=list e2e/admin/ops.spec.ts; fi
           exit $fail
 
       - name: Upload artifacts
@@ -189,7 +191,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - uses: supabase/setup-cli@v1
         with:
@@ -237,6 +239,7 @@ jobs:
           }
           run build npm run build
           if grep -q "^build=0$" .ci/summary.txt; then run e2e-client npx playwright test -c playwright.client.config.ts; fi
+          if grep -q "^e2e-client=0$" .ci/summary.txt; then run e2e-client-repeat npx playwright test -c playwright.client.config.ts --project=chromium --repeat-each=2 --reporter=list -g " \\d{1,2}\\. " e2e/client/client-flow.spec.ts; fi
           exit $fail
 
       - name: Upload artifacts
@@ -282,11 +285,11 @@ jobs:
             echo "#### $title"
             if [ -f "$dir/.ci/summary.txt" ]; then echo '```'; cat "$dir/.ci/summary.txt"; echo '```'; else echo "_нема результатів (крок не стартував)_"; fi
             if [ -f "$dir/.ci/test.log" ]; then echo '```'; strip "$dir/.ci/test.log" | grep -E "Test Files|Tests |skipped" | cut -c1-200; echo '```'; fi
-            for f in e2e e2e-admin e2e-client; do
+            for f in e2e e2e-admin e2e-client e2e-admin-repeat e2e-client-repeat; do
               if [ -f "$dir/.ci/$f.log" ]; then echo '```'; strip "$dir/.ci/$f.log" | tail -n 6 | cut -c1-200; echo '```'; fi
             done
             if [ -f "$dir/.ci/build.log" ]; then echo "<details><summary>build routes</summary>"; echo; echo '```'; strip "$dir/.ci/build.log" | grep -E "^(┌|├|└|○|ƒ|●| \+)" | head -40; echo '```'; echo "</details>"; fi
-            for f in lint typecheck test build e2e e2e-admin e2e-client; do
+            for f in lint typecheck test build e2e e2e-admin e2e-client e2e-admin-repeat e2e-client-repeat; do
               if [ -f "$dir/.ci/$f.log" ] && [ -f "$dir/.ci/summary.txt" ] && ! grep -q "^$f=0$" "$dir/.ci/summary.txt"; then
                 echo; echo "<details open><summary>$f — failed (last 110 lines)</summary>"; echo; echo '```'
                 if strip "$dir/.ci/$f.log" | grep -q "^  1) "; then strip "$dir/.ci/$f.log" | awk '/^  1\) /{p=1} p' | grep -v "^\s*$" | head -n 150 | cut -c1-260; else strip "$dir/.ci/$f.log" | tail -n 110 | cut -c1-300; fi

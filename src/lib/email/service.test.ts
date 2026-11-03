@@ -91,3 +91,25 @@ describe("адаптери", () => {
     expect(providerFromEnv({ EMAIL_PROVIDER: "resend", RESEND_API_KEY: "k" } as never)?.name).toBe("resend");
   });
 });
+
+describe("429 і класифікація помилок у диспетчері", () => {
+  it("429 від провайдера повторюється (не стає постійною помилкою)", async () => {
+    const provider = new MockProvider();
+    provider.failWith = new EmailError("resend_429", false);
+    const { db, completed } = fakeDb([row({ attempts: 1 })]);
+    expect(await dispatchEmails(db, provider, opts)).toMatchObject({ retried: 1, failed: 0 });
+    expect(completed[0]).toMatchObject({ p_error: "resend_429", p_max: 6 });
+  });
+  it("постійна помилка обмежує спроби поточною; тимчасова лишає 6", async () => {
+    const permanent = new MockProvider();
+    permanent.failWith = new EmailError("smtp_550", true);
+    const a = fakeDb([row({ attempts: 2 })]);
+    await dispatchEmails(a.db, permanent, opts);
+    expect(a.completed[0]).toMatchObject({ p_error: "smtp_550", p_max: 2 });
+    const temporary = new MockProvider();
+    temporary.failWith = new EmailError("smtp_421", false);
+    const b = fakeDb([row({ attempts: 2 })]);
+    await dispatchEmails(b.db, temporary, opts);
+    expect(b.completed[0]).toMatchObject({ p_error: "smtp_421", p_max: 6 });
+  });
+});

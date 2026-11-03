@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
-import { cases } from "@/lib/cases";
+import { listPublishedCases } from "@/lib/portfolio";
 import { site } from "@/lib/site";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const pages = ["", "/services", "/portfolio", "/about", "/contact", "/privacy"].map((path) => ({
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const cases = await listPublishedCases();
+  const pages = ["", "/services", "/portfolio", "/about", "/process", "/faq", "/contact", "/privacy", "/terms", "/cooperation"].map((path) => ({
     url: `${site.url}${path}`,
     changeFrequency: "monthly" as const,
     priority: path === "" ? 1 : 0.7,

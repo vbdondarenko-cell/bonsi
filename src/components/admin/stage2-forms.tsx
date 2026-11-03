@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, type ReactNode } from "react";
+import { useActionState, useRef, useEffect, useTransition, type FormEvent, type ReactNode } from "react";
 import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
@@ -60,14 +60,23 @@ export function ActionForm({
   resetOnSuccess?: boolean;
   className?: string;
 }) {
-  const [state, run, pending] = useActionState<ActionState, FormData>(action, null);
+  const [state, run, actionPending] = useActionState<ActionState, FormData>(action, null);
+  const [transitioning, startTransition] = useTransition();
+  const pending = actionPending || transitioning;
   useRefreshOnSuccess(state);
   const ref = useRef<HTMLFormElement>(null);
+  // Дію запускаємо вручну, а не через <form action>: React 19 після будь-якої дії скидає поля до початкових значень,
+  // і після помилки валідації адміністратор втрачав би введене. Явне скидання лишається лише для resetOnSuccess.
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
+    startTransition(() => run(data));
+  };
   useEffect(() => {
     if (resetOnSuccess && state?.ok) ref.current?.reset();
   }, [state, resetOnSuccess]);
   return (
-    <form ref={ref} action={run} className={cn("flex flex-col gap-3", className)}>
+    <form ref={ref} onSubmit={onSubmit} className={cn("flex flex-col gap-3", className)}>
       {Object.entries(hidden).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}

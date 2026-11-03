@@ -328,6 +328,48 @@ test.describe.serial("робота адміністратора", () => {
     }
   });
 
+  test("два адміністратори: чужа зміна не губиться, а власна дія не відкочує її (застарілий екран)", async ({ browser }) => {
+    const created = await db.rpc("create_order_v2", {
+      p_service: "landing", p_idea: "Конкурентна зміна статусу", p_budget: null, p_deadline: null, p_name: "Конкуренція", p_email: uniqueEmail("two-admins"), p_phone: null,
+      p_details: {}, p_links: [], p_ip_hash: `ip-two-${Date.now()}`, p_user_agent: "e2e", p_consent_policy_version: "2026-11-04", p_notify: false,
+    });
+    expect(created.error).toBeNull();
+    const id = (await db.from("orders").select("id").eq("ticket_number", created.data as string).single()).data!.id as string;
+
+    await page.goto(`/admin/orders/${id}`);
+    await hydrated(page);
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("select#status")).toHaveValue("new");
+
+    // Адміністратор B змінює статус у своєму браузері; екран A лишається застарілим («Нова», одна подія).
+    const contextB = await browser.newContext();
+    try {
+      const pageB = await contextB.newPage();
+      await login(pageB, otherAccount());
+      await pageB.goto(`/admin/orders/${id}`);
+      await hydrated(pageB);
+      await pageB.waitForLoadState("networkidle");
+      await pageB.locator("select#status").selectOption("in_review");
+      await pageB.getByRole("button", { name: "Змінити", exact: true }).click();
+      await expect(pageB.getByTestId("order-history")).toContainText("Статус: Нова → У розгляді");
+    } finally {
+      await contextB.close();
+    }
+    await expect(page.locator("select#status")).toHaveValue("new");
+
+    // Дія A спирається на застарілий екран, але відповідь — підтверджений стан з БД: обидві події видно, статус A, без перезавантаження.
+    await page.locator("select#status").selectOption("accepted");
+    await page.getByRole("button", { name: "Змінити", exact: true }).click();
+    const history = page.getByTestId("order-history");
+    await expect(history).toContainText("Статус: Нова → У розгляді");
+    await expect(history).toContainText("Статус: У розгляді → Прийнята");
+    await expect(page.locator("select#status")).toHaveValue("accepted");
+    await expect(page.getByTestId("order-status")).toHaveText("Прийнята");
+    expect((await db.from("orders").select("status").eq("id", id).single()).data?.status).toBe("accepted");
+    const events = await db.from("order_events").select("data").eq("order_id", id).eq("type", "status_changed").order("id");
+    expect(events.data?.map((e) => e.data)).toEqual([{ from: "new", to: "in_review" }, { from: "in_review", to: "accepted" }]);
+  });
+
   test("деталі: зміна статусу, призначення, нотатки та історія", async () => {
     await page.goto(`/admin/orders/${orderId}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(clientName);

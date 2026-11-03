@@ -26,16 +26,15 @@ function Feedback({ state }: { state: ActionState }) {
   return null;
 }
 
-// React 19 після <form action> скидає поля форми до початкових значень DOM. Керований <select>, чий проп value після дії не змінився
-// відносно останнього рендера (чернетка вже дорівнювала підтвердженому статусу), не отримує повторного запису в DOM і лишається зі старим
-// значенням. key за ревізією знімка перемонтовує список після кожної підтвердженої зміни, тож DOM завжди збігається зі станом.
+// React 19 скидає форму (form.reset) ПІСЛЯ коміту переходу дії. Для керованого <select> скидання повертає перший <option> («Нова»),
+// бо React виставляє selectedness властивістю, а не атрибутом, і не повторює запис, якщо проп value не змінився (відтворено локально
+// мінімальним стендом: знімок «accepted», а список показує «new»). Некерований <select> з defaultValue отримує defaultSelected, тож reset
+// повертає саме підтверджене значення; key за ревізією знімка перемонтовує список після кожної підтвердженої зміни.
 export function StatusForm({ orderId }: { orderId: string }) {
   const { snapshot, apply } = useOrderState();
-  const [draft, setDraft] = useState<{ base: string; value: string } | null>(null);
-  const selected = draft?.base === snapshot.status ? draft.value : snapshot.status;
   const [state, action, pending] = useActionState<ActionState, FormData>(async (_previous, formData) => {
     const result = await updateStatusAction(null, formData);
-    if (result?.order) { apply(result.order); setDraft(null); }
+    if (result?.order) apply(result.order);
     return result;
   }, null);
   return (
@@ -45,7 +44,7 @@ export function StatusForm({ orderId }: { orderId: string }) {
         Статус
       </label>
       <div className="flex gap-3">
-        <select key={orderRevision(snapshot)} id="status" name="status" value={selected} onChange={(event) => setDraft({ base: snapshot.status, value: event.target.value })} disabled={pending} className={adminFieldClass}>
+        <select key={orderRevision(snapshot)} id="status" name="status" defaultValue={snapshot.status} disabled={pending} className={adminFieldClass}>
           {ORDER_STATUSES.map((s) => (
             <option key={s} value={s}>
               {STATUS_LABELS[s]}
@@ -70,11 +69,9 @@ export function AssignForm({
 }) {
   const { snapshot, apply } = useOrderState();
   const assignee = snapshot.assigned_to ?? "";
-  const [draft, setDraft] = useState<{ base: string; value: string } | null>(null);
-  const selected = draft?.base === assignee ? draft.value : assignee;
   const [state, action, pending] = useActionState<ActionState, FormData>(async (_previous, formData) => {
     const result = await assignOrderAction(null, formData);
-    if (result?.order) { apply(result.order); setDraft(null); }
+    if (result?.order) apply(result.order);
     return result;
   }, null);
   return (
@@ -84,7 +81,7 @@ export function AssignForm({
         Виконавець
       </label>
       <div className="flex gap-3">
-        <select key={orderRevision(snapshot)} id="assignee" name="assignee" value={selected} onChange={(event) => setDraft({ base: assignee, value: event.target.value })} disabled={pending} className={adminFieldClass}>
+        <select key={orderRevision(snapshot)} id="assignee" name="assignee" defaultValue={assignee} disabled={pending} className={adminFieldClass}>
           <option value="">Не призначено</option>
           {admins.map((a) => (
             <option key={a.user_id} value={a.user_id}>

@@ -86,7 +86,7 @@ export default async function SettingsPage() {
                 <div><dt className="text-muted">Останні 200 записів</dt><dd className="tabular-nums">{mailRows.length}</dd></div>
               </dl>
               <div className="mt-4"><RetryFailedEmails failed={mailCounts.failed} /></div>
-              <div className="mt-4 overflow-x-auto">
+              <div className="mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Останні листи в черзі (прокручується)">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Останні листи в черзі</caption>
                   <thead className="text-xs uppercase tracking-wider text-muted">

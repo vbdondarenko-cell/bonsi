@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { closeTicketAction, createTicketAction, decideHandoverAction, replyTicketClientAction, type FormState } from "@/app/app/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
@@ -98,15 +98,15 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
 }
 
 export function CloseTicketButton({ ticketId }: { ticketId: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(closeTicketAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(closeTicketAction);
   const router = useRouter();
   useEffect(() => {
     if (state?.ok) router.refresh();
   }, [state, router]);
   return (
-    <form action={action} className="flex items-center gap-3">
+    <form ref={formRef} action={action} className="flex items-center gap-3">
       <input type="hidden" name="ticketId" value={ticketId} />
-      <Button type="submit" variant="ghost" disabled={pending}>
+      <Button type="submit" variant="ghost" disabled={pending || !ready}>
         {pending ? "…" : "Підтвердити, що питання вирішено"}
       </Button>
       <Feedback state={state} />
@@ -115,13 +115,13 @@ export function CloseTicketButton({ ticketId }: { ticketId: string }) {
 }
 
 export function HandoverDecisionForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(decideHandoverAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(decideHandoverAction);
   const router = useRouter();
   useEffect(() => {
     if (state?.ok) router.refresh();
   }, [state, router]);
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form ref={formRef} action={action} className="flex flex-col gap-3">
       <input type="hidden" name="projectId" value={projectId} />
       <label className="flex flex-col gap-2 text-sm font-medium">
         Коментар (обов&apos;язковий, якщо потрібні правки)
@@ -129,10 +129,10 @@ export function HandoverDecisionForm({ projectId }: { projectId: string }) {
       </label>
       <Feedback state={state} />
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" name="decision" value="approved" disabled={pending}>
+        <Button type="submit" name="decision" value="approved" disabled={pending || !ready}>
           Прийняти передачу
         </Button>
-        <Button type="submit" name="decision" value="changes_requested" variant="ghost" disabled={pending}>
+        <Button type="submit" name="decision" value="changes_requested" variant="ghost" disabled={pending || !ready}>
           Потрібні правки
         </Button>
       </div>

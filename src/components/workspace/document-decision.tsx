@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { decideDocumentAction, type FormState } from "@/app/app/actions";
+import { useState } from "react";
+import { decideDocumentAction } from "@/app/app/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { cn } from "@/lib/cn";
 
 /** Погодження документа в системі. Це не кваліфікований електронний підпис (КЕП); рішення фіксується з версією й хешем змісту. */
 export function DocumentDecision({ documentId, projectId, version }: { documentId: string; projectId: string; version: number }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(decideDocumentAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(decideDocumentAction);
   const [mode, setMode] = useState<"idle" | "changes" | "reject">("idle");
 
   if (state?.ok) {
@@ -19,7 +20,7 @@ export function DocumentDecision({ documentId, projectId, version }: { documentI
     );
   }
   return (
-    <form action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
+    <form ref={formRef} action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
       <input type="hidden" name="documentId" value={documentId} />
       <input type="hidden" name="projectId" value={projectId} />
       {mode !== "idle" ? (
@@ -38,7 +39,7 @@ export function DocumentDecision({ documentId, projectId, version }: { documentI
       <div className="flex flex-col gap-3 sm:flex-row">
         {mode === "idle" ? (
           <>
-            <Button type="submit" name="decision" value="approved" disabled={pending}>
+            <Button type="submit" name="decision" value="approved" disabled={pending || !ready}>
               {pending ? "Зберігаємо…" : "Погодити документ"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("changes")}>
@@ -50,7 +51,7 @@ export function DocumentDecision({ documentId, projectId, version }: { documentI
           </>
         ) : (
           <>
-            <Button type="submit" name="decision" value={mode === "changes" ? "changes_requested" : "rejected"} disabled={pending}>
+            <Button type="submit" name="decision" value={mode === "changes" ? "changes_requested" : "rejected"} disabled={pending || !ready}>
               {pending ? "Надсилаємо…" : mode === "changes" ? "Надіслати запит на зміни" : "Підтвердити відхилення"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("idle")}>

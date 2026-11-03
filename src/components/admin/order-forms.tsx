@@ -6,6 +6,7 @@ import { orderRevision } from "@/lib/admin/order-snapshot";
 import { addNoteAction, assignOrderAction, updateStatusAction, type ActionState } from "@/app/admin/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { ORDER_STATUSES, STATUS_LABELS } from "@/lib/admin/orders";
 
 function Feedback({ state }: { state: ActionState }) {
@@ -101,13 +102,13 @@ export function AssignForm({
 export function NoteForm({ orderId }: { orderId: string }) {
   const { apply } = useOrderState();
   const [body, setBody] = useState("");
-  const [state, action, pending] = useActionState<ActionState, FormData>(async (_previous, formData) => {
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(async (_previous: ActionState, formData: FormData) => {
     const result = await addNoteAction(null, formData);
     if (result?.order) { apply(result.order); setBody(""); }
     return result;
-  }, null);
+  });
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form ref={formRef} action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderId" value={orderId} />
       <label htmlFor="note" className="text-sm font-medium">
         Внутрішня нотатка
@@ -132,7 +133,7 @@ export function NoteForm({ orderId }: { orderId: string }) {
         </p>
       ) : null}
       <div className="flex items-center gap-4">
-        <Button type="submit" disabled={pending} className="min-h-11 px-5">
+        <Button type="submit" disabled={pending || !ready} className="min-h-11 px-5">
           {pending ? "Зберігаємо…" : "Додати нотатку"}
         </Button>
         <Feedback state={pending ? null : state} />

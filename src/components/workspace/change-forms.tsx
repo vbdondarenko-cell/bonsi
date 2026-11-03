@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
 import { useGuardedAction } from "@/lib/forms/use-guarded-action";
-import { submitChangeRequestAction, withdrawChangeRequestAction, type FormState } from "@/app/app/actions";
+import { submitChangeRequestAction, withdrawChangeRequestAction } from "@/app/app/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 
@@ -37,12 +36,12 @@ export function SubmitChangeForm({ projectId }: { projectId: string }) {
 }
 
 export function WithdrawChangeButton({ changeId, projectId }: { changeId: string; projectId: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(withdrawChangeRequestAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(withdrawChangeRequestAction);
   return (
-    <form action={action} className="flex items-center gap-3">
+    <form ref={formRef} action={action} className="flex items-center gap-3">
       <input type="hidden" name="changeId" value={changeId} />
       <input type="hidden" name="projectId" value={projectId} />
-      <Button type="submit" variant="ghost" disabled={pending}>
+      <Button type="submit" variant="ghost" disabled={pending || !ready}>
         {pending ? "…" : "Відкликати запит"}
       </Button>
       {state?.error ? (

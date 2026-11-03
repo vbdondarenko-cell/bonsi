@@ -432,7 +432,6 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
           "admin_add_internal_note",
           "admin_add_note",
           "admin_assign_order",
-          "admin_claim_operation",
           "admin_comment_task",
           "admin_complete_project",
           "admin_confirm_payment",
@@ -457,7 +456,6 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
           "admin_reject_change_request",
           "admin_reject_order",
           "admin_reject_payment",
-          "admin_release_operation",
           "admin_save_document",
           "admin_save_estimate",
           "admin_save_handover",
@@ -512,6 +510,7 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
           "project_activation_status",
           "project_assignee_name",
           "project_invoice_states",
+          "run_operation",
           "ticket_warranty_state",
         ]
       `);

@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { decideProposalAction, type FormState } from "@/app/app/actions";
+import { useState } from "react";
+import { decideProposalAction } from "@/app/app/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
+import { useGuardedAction } from "@/lib/forms/use-guarded-action";
 import { cn } from "@/lib/cn";
 
 /** Погодження або запит змін. Для змін коментар обовʼязковий; рішення фіксується в незмінному журналі. */
 export function ProposalDecision({ proposalId, projectId, version }: { proposalId: string; projectId: string; version: number }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(decideProposalAction, null);
+  const { state, run: action, pending, formRef, ready } = useGuardedAction(decideProposalAction);
   const [mode, setMode] = useState<"idle" | "changes">("idle");
 
   if (state?.ok) {
@@ -20,7 +21,7 @@ export function ProposalDecision({ proposalId, projectId, version }: { proposalI
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
+    <form ref={formRef} action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
       <input type="hidden" name="proposalId" value={proposalId} />
       <input type="hidden" name="projectId" value={projectId} />
       {mode === "changes" ? (
@@ -48,7 +49,7 @@ export function ProposalDecision({ proposalId, projectId, version }: { proposalI
       <div className="flex flex-col gap-3 sm:flex-row">
         {mode === "idle" ? (
           <>
-            <Button type="submit" name="decision" value="approved" disabled={pending}>
+            <Button type="submit" name="decision" value="approved" disabled={pending || !ready}>
               {pending ? "Зберігаємо…" : "Погодити пропозицію"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("changes")}>
@@ -57,7 +58,7 @@ export function ProposalDecision({ proposalId, projectId, version }: { proposalI
           </>
         ) : (
           <>
-            <Button type="submit" name="decision" value="changes_requested" disabled={pending}>
+            <Button type="submit" name="decision" value="changes_requested" disabled={pending || !ready}>
               {pending ? "Надсилаємо…" : "Надіслати запит на зміни"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("idle")}>

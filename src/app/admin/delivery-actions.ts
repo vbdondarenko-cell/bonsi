@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
-import { once } from "@/lib/admin/once";
+import { operationErrorText, rpcOnce } from "@/lib/operations";
 import { queueProjectEmail } from "@/lib/email/events";
 import type { ActionState } from "./actions";
 
@@ -20,7 +20,7 @@ const ERRORS: Record<string, string> = {
   result_required: "Для статусу «Вирішено» або «Закрито» вкажіть результат.",
   already_converted: "Звернення вже оформлено як запит на зміну.",
 };
-const message = (e: { message: string }) => ERRORS[Object.keys(ERRORS).find((k) => e.message.includes(k)) ?? ""] ?? "Не вдалося виконати дію. Спробуйте ще раз.";
+const message = (e: { message: string }) => operationErrorText(e) ?? ERRORS[Object.keys(ERRORS).find((k) => e.message.includes(k)) ?? ""] ?? "Не вдалося виконати дію. Спробуйте ще раз.";
 
 const text = (name: string, fd: FormData) => String(fd.get(name) ?? "").trim();
 
@@ -46,11 +46,11 @@ export async function saveHandoverAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Чернетку передачі збережено." };
 }
 
-export const submitHandoverAction = once("submitHandoverAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function submitHandoverAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const projectId = uuid.safeParse(formData.get("projectId"));
   if (!projectId.success) return { error: "Некоректні дані." };
-  const { error } = await admin.supabase.rpc("admin_submit_handover", { p_project: projectId.data });
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_submit_handover", { p_project: projectId.data });
   if (error) return { error: message(error) };
   // Ключ листа залежить від моменту відправки в БД, а не від годинника процесу: повтор тієї ж відправки не створює другого листа,
   // а повторна відправка після правок клієнта (новий submitted_at) — створює.
@@ -60,30 +60,30 @@ export const submitHandoverAction = once("submitHandoverAction", async (_prev: A
   revalidatePath(`/admin/projects/${projectId.data}/handover`);
   revalidatePath(`/app/projects/${projectId.data}`, "layout");
   return { ok: true, notice: "Передачу відправлено клієнту на приймання." };
-});
+}
 
-export const completeProjectAction = once("completeProjectAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function completeProjectAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z
     .object({ projectId: uuid, warranty: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).transform((v) => v || null) })
     .safeParse({ projectId: formData.get("projectId"), warranty: formData.get("warranty") ?? "" });
   if (!parsed.success) return { error: "Некоректні дані." };
-  const { error } = await admin.supabase.rpc("admin_complete_project", { p_project: parsed.data.projectId, p_warranty_until: parsed.data.warranty });
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_complete_project", { p_project: parsed.data.projectId, p_warranty_until: parsed.data.warranty });
   if (error) return { error: message(error) };
   await queueProjectEmail({ projectId: parsed.data.projectId, template: "project_completed", key: `project-completed:${parsed.data.projectId}` });
   revalidatePath(`/admin/projects/${parsed.data.projectId}`);
   revalidatePath(`/admin/projects/${parsed.data.projectId}/handover`);
   return { ok: true, notice: "Проєкт завершено. Підтримка лишається доступною клієнту." };
-});
+}
 
 // ---------------------------------------------------------------------------
 // Підтримка (адміністратор)
 // ---------------------------------------------------------------------------
-export const replyTicketAction = once("replyTicketAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function replyTicketAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, body: z.string().trim().min(1, "Напишіть відповідь.").max(4000), internal: z.boolean() }).safeParse({ id: formData.get("id"), body: formData.get("body"), internal: formData.get("internal") === "on" });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Напишіть відповідь." };
-  const { data, error } = await admin.supabase.rpc("admin_ticket_reply", { p_ticket: parsed.data.id, p_body: parsed.data.body, p_internal: parsed.data.internal });
+  const { data, error } = await rpcOnce(admin.supabase, formData, "admin_ticket_reply", { p_ticket: parsed.data.id, p_body: parsed.data.body, p_internal: parsed.data.internal });
   if (error) return { error: message(error) };
   if (!parsed.data.internal) {
     const ticket = await admin.supabase.from("support_tickets").select("project_id,number").eq("id", parsed.data.id).maybeSingle();
@@ -91,7 +91,7 @@ export const replyTicketAction = once("replyTicketAction", async (_prev: ActionS
   }
   revalidatePath(`/admin/support/${parsed.data.id}`);
   return { ok: true, notice: parsed.data.internal ? "Внутрішню нотатку додано." : "Відповідь надіслано клієнту." };
-});
+}
 
 export async function updateTicketAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -109,12 +109,12 @@ export async function updateTicketAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Збережено." };
 }
 
-export const ticketToChangeAction = once("ticketToChangeAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function ticketToChangeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const id = uuid.safeParse(formData.get("id"));
   if (!id.success) return { error: "Некоректні дані." };
-  const { error } = await admin.supabase.rpc("admin_ticket_to_change", { p_ticket: id.data });
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_ticket_to_change", { p_ticket: id.data });
   if (error) return { error: message(error) };
   revalidatePath(`/admin/support/${id.data}`);
   return { ok: true, notice: "Створено запит на платне доопрацювання. Оцінка й погодження — у розділі проєкту «Життєвий цикл»." };
-});
+}

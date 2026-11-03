@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/client/labels";
 import type { ThreadMessage } from "@/lib/client/thread";
+import { OPERATION_FIELD, OPERATION_RETRY_TEXT } from "@/lib/operations";
 import { ALLOWED_TYPES, MAX_FILES_PER_REQUEST, MAX_FILE_BYTES } from "@/lib/files/policy";
 
 export type { ThreadMessage };
@@ -37,6 +38,9 @@ export function MessageThread({ projectId, initialMessages, initialHasMore }: { 
   const endRef = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const stickToEnd = useRef(true);
+  // Один ідентифікатор на спробу відправки: повтор після збою/таймауту не створить друге повідомлення. Міняється після остаточної відповіді.
+  const operationId = useRef<string>("");
+  const nextOperation = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : "");
   const [attached, setAttached] = useState<Array<{ id: string; name: string }>>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -78,7 +82,9 @@ export function MessageThread({ projectId, initialMessages, initialHasMore }: { 
     const body = draft.trim();
     if (!body && attached.length === 0) return setSendError("Напишіть повідомлення або додайте файл.");
     if (typeof navigator !== "undefined" && navigator.onLine === false) return setSendError("Немає зʼєднання. Текст збережено в полі — надішліть, коли звʼязок відновиться.");
+    if (!operationId.current) operationId.current = nextOperation();
     const form = new FormData();
+    form.set(OPERATION_FIELD, operationId.current);
     form.set("projectId", projectId);
     form.set("body", body);
     for (const file of attached) form.append("fileId", file.id);
@@ -86,6 +92,7 @@ export function MessageThread({ projectId, initialMessages, initialHasMore }: { 
     startSending(async () => {
       try {
         const result = await sendClientMessageAction(null, form);
+        if (result?.error !== OPERATION_RETRY_TEXT) operationId.current = nextOperation(); // остаточна відповідь закриває спробу
         if (result?.ok) {
           setDraft("");
           setAttached([]);

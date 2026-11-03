@@ -1,12 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { OPERATION_FIELD, OPERATION_RETRY_TEXT } from "@/lib/operations";
+
+export { OPERATION_FIELD };
 
 /** Результат серверної дії, який розуміє хук: помилка (error / fieldError) або успіх (ok). */
 type Result = { ok?: boolean; error?: string; fieldError?: string } | null | undefined;
-
-/** Ім'я прихованого поля з ідентифікатором операції; сервер (`runOnce`) використовує його для захисту від повторного виконання. */
-export const OPERATION_FIELD = "_op";
 
 /**
  * Повертає у форму значення, які користувач надіслав. React 19 скидає форму після будь-якої дії, навіть невдалої,
@@ -50,10 +50,16 @@ export function useGuardedAction<S extends Result>(action: (prev: S, data: FormD
     if (!data.get(OPERATION_FIELD)) data.set(OPERATION_FIELD, operationId.current || newOperationId());
     lastData.current = data;
     try {
-      return await action(prev, data);
+      const result = await action(prev, data);
+      // Остаточна відповідь сервера (успіх або помилка) закриває спробу: наступна відправка — нова операція.
+      // Якщо виконання не підтверджено, ідентифікатор лишається тим самим, і повтор не виконає дію вдруге.
+      if (result?.error !== OPERATION_RETRY_TEXT) operationId.current = newOperationId();
+      return result;
+    } catch {
+      // Мережевий збій або таймаут: дія могла виконатися. Ідентифікатор не змінюємо.
+      return { error: OPERATION_RETRY_TEXT } as unknown as S;
     } finally {
       inFlight.current = false;
-      operationId.current = newOperationId(); // наступна спроба — нова операція
     }
   };
 

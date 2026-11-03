@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assignInput, noteInput, statusInput } from "@/lib/admin/orders";
 import { getAuthState, requireAdmin } from "@/lib/admin/guard";
-import { once } from "@/lib/admin/once";
+import { operationErrorText, rpcOnce } from "@/lib/operations";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -161,6 +161,8 @@ const RPC_ERRORS: Record<string, string> = {
 };
 
 function rpcMessage(message: string): string {
+  const guard = operationErrorText({ message });
+  if (guard) return guard;
   const key = Object.keys(RPC_ERRORS).find((code) => message.includes(code));
   return key ? RPC_ERRORS[key]! : "Не вдалося зберегти зміни. Спробуйте ще раз.";
 }
@@ -202,15 +204,15 @@ export async function assignOrderAction(_prev: ActionState, formData: FormData):
   return confirmedOrder(admin, parsed.data.orderId);
 }
 
-export const addNoteAction = once("addNoteAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function addNoteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = noteInput.safeParse({ orderId: formData.get("orderId"), body: formData.get("body") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Некоректна нотатка." };
 
-  const { error } = await admin.supabase.rpc("admin_add_note", {
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_add_note", {
     p_order: parsed.data.orderId,
     p_body: parsed.data.body,
   });
   if (error) return { error: rpcMessage(error.message) };
   return confirmedOrder(admin, parsed.data.orderId);
-});
+}

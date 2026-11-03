@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/guard";
-import { once } from "@/lib/admin/once";
+import { operationErrorText, rpcOnce } from "@/lib/operations";
 import { TASK_PRIORITIES, TASK_STATUSES, parseChecklist, parseLinks } from "@/lib/admin/tasks";
 import type { ActionState } from "./actions";
 
@@ -19,7 +19,7 @@ const ERRORS: Record<string, string> = {
   estimate_final: "Кошторис уже зафіксований і не редагується.",
   not_pending: "Дія вже виконана.",
 };
-const message = (e: { message: string }) => ERRORS[Object.keys(ERRORS).find((k) => e.message.includes(k)) ?? ""] ?? "Не вдалося виконати дію. Спробуйте ще раз.";
+const message = (e: { message: string }) => operationErrorText(e) ?? ERRORS[Object.keys(ERRORS).find((k) => e.message.includes(k)) ?? ""] ?? "Не вдалося виконати дію. Спробуйте ще раз.";
 
 function refreshTasks(id?: string) {
   revalidatePath("/admin/tasks");
@@ -36,21 +36,21 @@ const createInput = z.object({
   status: z.enum(["backlog", "todo", "in_progress", "in_review", "done"]),
 });
 
-export const createTaskAction = once("createTaskAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function createTaskAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = createInput.safeParse({
     title: formData.get("title"), description: formData.get("description") ?? "", projectId: formData.get("projectId") ?? "", assigneeId: formData.get("assigneeId") ?? "",
     priority: formData.get("priority") ?? "normal", deadline: formData.get("deadline") ?? "", status: formData.get("status") ?? "backlog",
   });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте поля." };
-  const { error } = await admin.supabase.rpc("admin_create_task", {
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_create_task", {
     p_title: parsed.data.title, p_description: parsed.data.description, p_project: parsed.data.projectId, p_assignee: parsed.data.assigneeId,
     p_priority: parsed.data.priority, p_deadline: parsed.data.deadline, p_status: parsed.data.status,
   });
   if (error) return { error: message(error) };
   refreshTasks();
   return { ok: true, notice: "Завдання створено." };
-});
+}
 
 export async function moveTaskAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -90,32 +90,32 @@ export async function updateTaskAction(_prev: ActionState, formData: FormData): 
   return { ok: true, notice: "Завдання збережено." };
 }
 
-export const commentTaskAction = once("commentTaskAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function commentTaskAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, body: z.string().trim().min(1, "Напишіть коментар.").max(4000) }).safeParse({ id: formData.get("id"), body: formData.get("body") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Напишіть коментар." };
-  const { error } = await admin.supabase.rpc("admin_comment_task", { p_id: parsed.data.id, p_body: parsed.data.body });
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_comment_task", { p_id: parsed.data.id, p_body: parsed.data.body });
   if (error) return { error: message(error) };
   refreshTasks(parsed.data.id);
   return { ok: true, notice: "Коментар додано." };
-});
+}
 
 // ---------------------------------------------------------------------------
 // Кошториси й витрати
 // ---------------------------------------------------------------------------
 const CATEGORIES = ["design", "frontend", "backend", "database", "android", "ios", "integrations", "qa", "deployment", "support"] as const;
 
-export const createEstimateAction = once("createEstimateAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function createEstimateAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z
     .object({ title: z.string().trim().min(1, "Вкажіть назву.").max(160), projectId: uuid, currency: z.enum(["UAH", "USD", "EUR"]) })
     .safeParse({ title: formData.get("title"), projectId: formData.get("projectId"), currency: formData.get("currency") ?? "UAH" });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте поля." };
-  const { error } = await admin.supabase.rpc("admin_create_estimate", { p_title: parsed.data.title, p_project: parsed.data.projectId, p_order: null, p_currency: parsed.data.currency });
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_create_estimate", { p_title: parsed.data.title, p_project: parsed.data.projectId, p_order: null, p_currency: parsed.data.currency });
   if (error) return { error: message(error) };
   revalidatePath("/admin/finance");
   return { ok: true, notice: "Кошторис створено." };
-});
+}
 
 export async function saveEstimateAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
@@ -143,24 +143,24 @@ export async function saveEstimateAction(_prev: ActionState, formData: FormData)
   return { ok: true, notice: "Кошторис збережено. Це внутрішній розрахунок, а не пропозиція ціни клієнту." };
 }
 
-export const finalizeEstimateAction = once("finalizeEstimateAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function finalizeEstimateAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const id = uuid.safeParse(formData.get("id"));
   if (!id.success) return { error: "Некоректні дані." };
-  const { error } = await admin.supabase.rpc("admin_finalize_estimate", { p_id: id.data });
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_finalize_estimate", { p_id: id.data });
   if (error) return { error: message(error) };
   revalidatePath(`/admin/finance/estimates/${id.data}`);
   return { ok: true, notice: "Кошторис зафіксовано." };
-});
+}
 
-export const addExpenseAction = once("addExpenseAction", async (_prev: ActionState, formData: FormData): Promise<ActionState> => {
+export async function addExpenseAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z
     .object({ projectId: uuid, category: z.string().trim().min(1, "Вкажіть категорію.").max(60), amount: z.coerce.number({ invalid_type_error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0.").max(1_000_000_000), currency: z.enum(["UAH", "USD", "EUR"]), on: optionalDate, note: z.string().trim().max(500) })
     .safeParse({ projectId: formData.get("projectId"), category: formData.get("category"), amount: formData.get("amount"), currency: formData.get("currency") ?? "UAH", on: formData.get("on") ?? "", note: formData.get("note") ?? "" });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте поля." };
-  const { error } = await admin.supabase.rpc("admin_add_expense", { p_project: parsed.data.projectId, p_category: parsed.data.category, p_amount: parsed.data.amount, p_currency: parsed.data.currency, p_on: parsed.data.on, p_note: parsed.data.note || null });
+  const { error } = await rpcOnce(admin.supabase, formData, "admin_add_expense", { p_project: parsed.data.projectId, p_category: parsed.data.category, p_amount: parsed.data.amount, p_currency: parsed.data.currency, p_on: parsed.data.on, p_note: parsed.data.note || null });
   if (error) return { error: message(error) };
   revalidatePath("/admin/finance");
   return { ok: true, notice: "Витрату записано." };
-});
+}

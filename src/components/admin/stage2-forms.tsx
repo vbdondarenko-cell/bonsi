@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, type ReactNode } from "react";
+import { useActionState, useRef, useEffect, useState, type ReactNode } from "react";
 import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
@@ -62,6 +62,9 @@ export function ActionForm({
 }) {
   const [state, run, pending] = useActionState<ActionState, FormData>(action, null);
   useRefreshOnSuccess(state);
+  // До гідрації клік по кнопці запустив би звичайну навігацію форми замість серверної дії: кнопка неактивна, доки форма не готова.
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (resetOnSuccess && state?.ok) ref.current?.reset();
@@ -73,7 +76,7 @@ export function ActionForm({
       ))}
       {children}
       <Feedback state={state} />
-      <Button type="submit" variant={variant} disabled={pending} className="min-h-11 self-start px-5">
+      <Button type="submit" variant={variant} disabled={pending || !ready} className="min-h-11 self-start px-5">
         {pending ? pendingLabel : submit}
       </Button>
     </form>

@@ -289,7 +289,15 @@ test.describe.serial("робота адміністратора", () => {
       if (value === previous) continue;
       await page.locator("select#status").selectOption(value);
       await page.getByRole("button", { name: "Змінити" }).click();
-      await expect(page.getByText(`Статус: ${STATUS_OPTION[previous]} → ${label}`).first(), `крок ${index + 1}`).toBeVisible();
+      try {
+        await expect(page.getByText(`Статус: ${STATUS_OPTION[previous]} → ${label}`).first()).toBeVisible();
+      } catch (error) {
+        // Розрізняємо «дію втрачено» (в БД старий статус) і «екран не оновився» (в БД новий статус).
+        const inDb = (await db.from("orders").select("status").eq("id", liveId).single()).data?.status;
+        throw new Error(`крок ${index + 1}: очікували ${value}, у БД ${inDb}; кнопка: ${await page.getByRole("button", { name: /Змінити|…/ }).first().innerText()}; ${String(error).slice(0, 80)}`);
+      }
+      // Наступну зміну робимо, коли форма спокійна: підтвердження показано, кнопка не в стані очікування.
+      await expect(page.getByRole("button", { name: "Змінити" })).toBeEnabled();
       previous = value;
     }
   });

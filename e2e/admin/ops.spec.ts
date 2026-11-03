@@ -57,6 +57,10 @@ test("завдання: створення, чекліст і посилання
   await page1.locator("select[name=priority]").first().selectOption("high");
   await page1.getByRole("button", { name: "Створити завдання" }).click();
   const card = page1.locator("li[data-task-id]", { hasText: taskTitle });
+  // Розрізняємо «дія повернула помилку» і «картка не з'явилась»: інакше збій читається однаково.
+  const formError = page1.locator("form [role=alert]").first();
+  await expect(card.or(formError)).toBeVisible();
+  await expect(formError, "Створення завдання повернуло помилку").toHaveCount(0);
   await expect(card).toBeVisible();
   taskId = (await card.getAttribute("data-task-id"))!;
   await expect(page1.locator("section", { has: page1.getByRole("heading", { name: "Backlog" }) })).toContainText(taskTitle);
@@ -67,7 +71,8 @@ test("завдання: створення, чекліст і посилання
   await expect(card.getByRole("alert")).toContainText("вкажіть причину");
   expect((await db.from("studio_tasks").select("status").eq("id", taskId).single()).data?.status).toBe("backlog");
 
-  // Після відхиленої дії React скидає поля форми: обираємо колонку й вводимо причину знову.
+  // Після відхиленої дії React скидає поля форми (колонка повертається до Backlog): чекаємо на скидання й вводимо дані знову.
+  await expect(card.getByLabel("Нова колонка")).toHaveValue("backlog");
   await card.getByLabel("Нова колонка").selectOption("blocked");
   await card.getByLabel("Причина блокування").fill("Чекаємо макети від клієнта");
   await card.getByRole("button", { name: "Перемістити" }).click();

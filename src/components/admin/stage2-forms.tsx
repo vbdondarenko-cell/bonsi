@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useState, type ReactNode } from "react";
+import { useActionState, useRef, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
@@ -66,7 +66,8 @@ export function ActionForm({
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => {
+  // Скидання до малювання: інакше користувач (або тест), побачивши сповіщення, міг би вже почати вводити, і запізніле скидання стерло б введене.
+  useLayoutEffect(() => {
     if (resetOnSuccess && state?.ok) ref.current?.reset();
   }, [state, resetOnSuccess]);
   return (

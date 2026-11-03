@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useOrderState } from "@/components/admin/order-state";
+import { orderRevision } from "@/lib/admin/order-snapshot";
 import { addNoteAction, assignOrderAction, updateStatusAction, type ActionState } from "@/app/admin/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,9 @@ function Feedback({ state }: { state: ActionState }) {
   return null;
 }
 
+// React 19 після <form action> скидає поля форми до початкових значень DOM. Керований <select>, чий проп value після дії не змінився
+// відносно останнього рендера (чернетка вже дорівнювала підтвердженому статусу), не отримує повторного запису в DOM і лишається зі старим
+// значенням. key за ревізією знімка перемонтовує список після кожної підтвердженої зміни, тож DOM завжди збігається зі станом.
 export function StatusForm({ orderId }: { orderId: string }) {
   const { snapshot, apply } = useOrderState();
   const [draft, setDraft] = useState<{ base: string; value: string } | null>(null);
@@ -41,7 +45,7 @@ export function StatusForm({ orderId }: { orderId: string }) {
         Статус
       </label>
       <div className="flex gap-3">
-        <select id="status" name="status" value={selected} onChange={(event) => setDraft({ base: snapshot.status, value: event.target.value })} disabled={pending} className={adminFieldClass}>
+        <select key={orderRevision(snapshot)} id="status" name="status" value={selected} onChange={(event) => setDraft({ base: snapshot.status, value: event.target.value })} disabled={pending} className={adminFieldClass}>
           {ORDER_STATUSES.map((s) => (
             <option key={s} value={s}>
               {STATUS_LABELS[s]}
@@ -80,7 +84,7 @@ export function AssignForm({
         Виконавець
       </label>
       <div className="flex gap-3">
-        <select id="assignee" name="assignee" value={selected} onChange={(event) => setDraft({ base: assignee, value: event.target.value })} disabled={pending} className={adminFieldClass}>
+        <select key={orderRevision(snapshot)} id="assignee" name="assignee" value={selected} onChange={(event) => setDraft({ base: assignee, value: event.target.value })} disabled={pending} className={adminFieldClass}>
           <option value="">Не призначено</option>
           {admins.map((a) => (
             <option key={a.user_id} value={a.user_id}>

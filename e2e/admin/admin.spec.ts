@@ -298,7 +298,7 @@ test.describe.serial("робота адміністратора", () => {
           const request = page.waitForRequest((req) => req.method() === "POST" && new URL(req.url()).pathname === `/admin/orders/${liveId}`);
           await submit.click();
           const submitted = (await request).postData() ?? "";
-          expect(submitted).toMatch(new RegExp(`name="(?:[0-9]+_)?status"\\r?\\n\\r?\\n${value}\\r?\\n`));
+          expect(submitted).toMatch(new RegExp(`name="(?:_?[0-9]+_)?status"\\r?\\n\\r?\\n${value}\\r?\\n`));
           await expect(submit).toBeEnabled();
           await expect(select).toHaveValue(value);
           const saved = await db.from("orders").select("status").eq("id", liveId).single();

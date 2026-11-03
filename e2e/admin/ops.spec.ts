@@ -73,9 +73,8 @@ test("завдання: створення, чекліст і посилання
   await expect(card.getByRole("alert")).toContainText("вкажіть причину");
   expect((await db.from("studio_tasks").select("status").eq("id", taskId).single()).data?.status).toBe("backlog");
 
-  // Після відхиленої дії React скидає поля форми (колонка повертається до Backlog): чекаємо на скидання й вводимо дані знову.
-  await expect(card.getByLabel("Нова колонка")).toHaveValue("backlog");
-  await card.getByLabel("Нова колонка").selectOption("blocked");
+  // Після відхиленої дії введене лишається у формі: вибрана колонка не скидається, тож досить доповнити причину.
+  await expect(card.getByLabel("Нова колонка")).toHaveValue("blocked");
   await card.getByLabel("Причина блокування").fill("Чекаємо макети від клієнта");
   await card.getByRole("button", { name: "Перемістити" }).click();
   await expect(page1.locator("section", { has: page1.getByRole("heading", { name: "Blocked" }) })).toContainText("Блокер: Чекаємо макети від клієнта");

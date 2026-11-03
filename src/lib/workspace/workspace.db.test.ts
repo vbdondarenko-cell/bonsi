@@ -452,6 +452,8 @@ describe.skipIf(!dbEnabled)("client workspace (PostgreSQL)", () => {
 
   describe("етапи й прогрес", () => {
     it("прогрес рахується за реально завершеними етапами", async () => {
+      // Етапи роботи доступні лише активному проєкту (V0.5); сам процес активації перевіряє business.db.test.ts.
+      await pool.query("update public.projects set activated_at = now() where id = $1 and activated_at is null", [projectA]);
       await asUserCommit(pool, admin, (q) => q("select public.admin_set_project_stage($1, 'design')", [projectA]));
       const stages = await asUser(pool, a, (q) =>
         q("select stage, state from public.project_stages where project_id = $1 order by position", [projectA]),

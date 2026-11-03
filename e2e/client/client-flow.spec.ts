@@ -381,7 +381,7 @@ test("12. передача: адмін готує і відправляє; се�
   await page.goto(`/app/projects/${projectA}/handover`);
   await expect(page.getByText("https://example.com/docs")).toBeVisible();
   await page.getByRole("button", { name: "Потрібні правки" }).click();
-  await expect(page.getByRole("alert")).toContainText("Вкажіть, що саме потрібно виправити");
+  await expect(page.locator("p[role=alert]")).toContainText("Вкажіть, що саме потрібно виправити");
   await page.getByRole("button", { name: "Прийняти передачу" }).click();
   await expect.poll(async () => (await db.from("handover_records").select("status").eq("project_id", projectA).single()).data?.status, { timeout: 20_000 }).toBe("accepted");
   await page.reload();

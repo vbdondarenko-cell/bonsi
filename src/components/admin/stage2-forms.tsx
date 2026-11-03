@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useTransition, type FormEvent, type ReactNode } from "react";
+import { useActionState, useRef, useEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
@@ -63,6 +63,9 @@ export function ActionForm({
   const [state, run, actionPending] = useActionState<ActionState, FormData>(action, null);
   const [transitioning, startTransition] = useTransition();
   const pending = actionPending || transitioning;
+  // До гідрації обробника onSubmit ще немає: клік перейшов би на звичайну навігацію. Тож кнопка неактивна, доки форма не готова.
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   useRefreshOnSuccess(state);
   const ref = useRef<HTMLFormElement>(null);
   // Дію запускаємо вручну, а не через <form action>: React 19 після будь-якої дії скидає поля до початкових значень,
@@ -82,7 +85,7 @@ export function ActionForm({
       ))}
       {children}
       <Feedback state={state} />
-      <Button type="submit" variant={variant} disabled={pending} className="min-h-11 self-start px-5">
+      <Button type="submit" variant={variant} disabled={pending || !ready} className="min-h-11 self-start px-5">
         {pending ? pendingLabel : submit}
       </Button>
     </form>

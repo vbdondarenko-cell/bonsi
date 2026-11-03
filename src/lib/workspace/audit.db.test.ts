@@ -231,6 +231,82 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
     });
   });
 
+  describe("оплата: конкурентність, залишок і повернення", () => {
+    const mkInvoice = async (label: string, amount: number) => {
+      let id = "";
+      await asUserCommit(pool, admin, async (q) => {
+        id = (await q("select public.admin_create_invoice($1,$2,$3,'UAH',null) as id", [projectA, label, amount])).rows[0].id;
+        await q("select public.admin_issue_invoice($1)", [id]);
+      });
+      return id;
+    };
+    const paid = async (id: string) => (await pool.query("select public.invoice_paid_raw($1)::text as p", [id])).rows[0].p as string;
+    const state = async (id: string) => (await asUser(pool, a, (q) => q("select public.invoice_payment_state($1) as s", [id]))).rows[0].s as string;
+
+    it("два адміністратори одночасно підтверджують один платіж: підтвердження одне", async () => {
+      const inv = await mkInvoice("Гонка адмінів", 1000);
+      await asUserCommit(pool, a, (q) => q("select public.client_report_payment($1,'гонка')", [inv]));
+      const pid = (await pool.query("select id from public.payments where invoice_id=$1 and status='pending'", [inv])).rows[0].id;
+      const results = await Promise.allSettled([
+        asUserCommit(pool, admin, (q) => q("select public.admin_confirm_payment($1,null,'A')", [pid])),
+        asUserCommit(pool, admin, (q) => q("select public.admin_confirm_payment($1,null,'B')", [pid])),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(String((results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/not_pending/);
+      expect(await paid(inv)).toBe("1000.00");
+      expect(await state(inv)).toBe("paid");
+    });
+
+    it("вебхук провайдера й ручне підтвердження одночасно на повну суму: оплачено рівно один раз", async () => {
+      const inv = await mkInvoice("Гонка вебхук/адмін", 1000);
+      const number = (await pool.query("select number from public.invoices where id=$1", [inv])).rows[0].number;
+      await asUserCommit(pool, a, (q) => q("select public.client_report_payment($1,'вручну')", [inv]));
+      const pid = (await pool.query("select id from public.payments where invoice_id=$1 and status='pending'", [inv])).rows[0].id;
+      const results = await Promise.allSettled([
+        asUserCommit(pool, admin, (q) => q("select public.admin_confirm_payment($1,null,'ручне')", [pid])),
+        asServiceCommit(pool, (q) => q("select public.payments_apply_provider_event('liqpay','e-race-1',$1,1000,'UAH','success','pay-race-1','{}'::jsonb) as r", [number])),
+      ]);
+      expect(results.some((r) => r.status === "fulfilled")).toBe(true);
+      // Що б не виграло, сума оплат не перевищує рахунок і не менша за нього.
+      expect(await paid(inv)).toBe("1000.00");
+      expect(await state(inv)).toBe("paid");
+    });
+
+    it("залишок до копійки: часткові оплати 333.33 + 333.33 лишають 333.34, повернення зменшує оплачене", async () => {
+      const inv = await mkInvoice("Копійки", 1000);
+      for (const amount of [333.33, 333.33]) {
+        await asUserCommit(pool, a, (q) => q("select public.client_report_payment($1,'частина')", [inv]));
+        const pid = (await pool.query("select id from public.payments where invoice_id=$1 and status='pending'", [inv])).rows[0].id;
+        await asUserCommit(pool, admin, (q) => q("select public.admin_confirm_payment($1,$2,null)", [pid, amount]));
+      }
+      expect(await paid(inv)).toBe("666.66");
+      expect(await state(inv)).toBe("partial");
+      await expect(asUser(pool, admin, (q) => q("select public.admin_record_refund($1, 666.67, 'x')", [inv]))).rejects.toThrow(/refund_exceeds_paid/);
+      await asUserCommit(pool, admin, (q) => q("select public.admin_record_refund($1, 100.01, 'повернення')", [inv]));
+      expect(await paid(inv)).toBe("566.65");
+      // Залишок до оплати = сума рахунку − оплачене = 433.35; перевищення відхиляється, точний залишок проходить.
+      await asUserCommit(pool, a, (q) => q("select public.client_report_payment($1,'залишок')", [inv]));
+      const pid = (await pool.query("select id from public.payments where invoice_id=$1 and status='pending'", [inv])).rows[0].id;
+      await expect(asUser(pool, admin, (q) => q("select public.admin_confirm_payment($1, 433.36, null)", [pid]))).rejects.toThrow(/overpayment/);
+      await asUserCommit(pool, admin, (q) => q("select public.admin_confirm_payment($1, 433.35, null)", [pid]));
+      expect(await paid(inv)).toBe("1000.00");
+      expect(await state(inv)).toBe("paid");
+    });
+
+    it("повтор вебхука з іншим event id для того самого платежу провайдера не подвоює суму; оплачений рахунок не приймає другу оплату", async () => {
+      const inv = await mkInvoice("Повтор вебхука", 700);
+      const number = (await pool.query("select number from public.invoices where id=$1", [inv])).rows[0].number;
+      const call = (event: string, pay: string) =>
+        pool.query("select public.payments_apply_provider_event('liqpay',$1,$2,700,'UAH','success',$3,'{}'::jsonb) as r", [event, number, pay]);
+      expect((await call("e-dup-1", "pay-dup")).rows[0].r).toBe("confirmed");
+      expect((await call("e-dup-2", "pay-dup")).rows[0].r).not.toBe("confirmed");
+      expect(await paid(inv)).toBe("700.00");
+      const second = await call("e-dup-3", "pay-other").then((r) => r.rows[0].r as string, (e: Error) => e.message);
+      expect(second).not.toBe("confirmed");
+      expect(await paid(inv)).toBe("700.00");
+    });
+  });
+
   describe("матриця прав на RPC", () => {
     type Role = "anon" | "clientA" | "clientB" | "adminNoMfa" | "admin" | "service";
     const sessions: Record<Exclude<Role, "service">, Session | null> = { anon: null, clientA: a, clientB: b, adminNoMfa, admin };

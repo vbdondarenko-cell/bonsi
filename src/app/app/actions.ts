@@ -208,3 +208,74 @@ export async function deleteFileAction(_prev: FormState, formData: FormData): Pr
   revalidatePath(`/app/projects/${parsed.data.projectId}/files`);
   return { ok: true, notice: "Файл видалено." };
 }
+
+// ---------------------------------------------------------------------------
+// V0.5: документи й запити на зміни
+// ---------------------------------------------------------------------------
+const documentDecision = z.object({
+  documentId: z.string().uuid(),
+  projectId: z.string().uuid(),
+  decision: z.enum(["approved", "changes_requested", "rejected"]),
+  comment: z.string().trim().max(2000, "Максимум 2000 символів.").optional(),
+});
+
+export async function decideDocumentAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const parsed = documentDecision.safeParse({
+    documentId: formData.get("documentId"),
+    projectId: formData.get("projectId"),
+    decision: formData.get("decision"),
+    comment: formData.get("comment") || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Перевірте дані." };
+  if (parsed.data.decision !== "approved" && !parsed.data.comment) return { error: "Вкажіть причину або що саме потрібно змінити." };
+
+  const { supabase } = await requireClient();
+  const { error } = await supabase.rpc("client_decide_document", {
+    p_doc: parsed.data.documentId,
+    p_decision: parsed.data.decision,
+    p_comment: parsed.data.comment ?? null,
+  });
+  if (error) {
+    return {
+      error: rpcError(
+        error.message,
+        { not_pending: "Цей документ уже не очікує рішення. Оновіть сторінку.", forbidden: "Немає доступу до цього документа.", comment_required: "Вкажіть причину або що саме потрібно змінити." },
+        "Не вдалося зберегти рішення. Спробуйте ще раз.",
+      ),
+    };
+  }
+  revalidatePath(`/app/projects/${parsed.data.projectId}`, "layout");
+  return {
+    ok: true,
+    notice: parsed.data.decision === "approved" ? "Документ погоджено. Рішення збережено в журналі." : parsed.data.decision === "rejected" ? "Документ відхилено." : "Запит на зміни надіслано студії.",
+  };
+}
+
+const changeInput = z.object({
+  projectId: z.string().uuid(),
+  title: z.string().trim().min(3, "Коротко назвіть зміну (від 3 символів).").max(160, "Назва: максимум 160 символів."),
+  description: z.string().trim().min(10, "Опишіть зміну детальніше (від 10 символів).").max(4000, "Опис: максимум 4000 символів."),
+});
+
+export async function submitChangeRequestAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const parsed = changeInput.safeParse({ projectId: formData.get("projectId"), title: formData.get("title"), description: formData.get("description") });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Перевірте дані." };
+  const { supabase } = await requireClient();
+  const { error } = await supabase.rpc("client_submit_change_request", { p_project: parsed.data.projectId, p_title: parsed.data.title, p_description: parsed.data.description });
+  if (error) {
+    return { error: rpcError(error.message, { project_not_active: "Запити на зміни доступні лише для активного проєкту.", forbidden: "Немає доступу до цього проєкту." }, "Не вдалося надіслати запит. Спробуйте ще раз.") };
+  }
+  revalidatePath(`/app/projects/${parsed.data.projectId}`, "layout");
+  return { ok: true, notice: "Запит надіслано. Студія оцінить вартість і терміни та надішле додаткову угоду. До вашого погодження зміна в роботу не йде." };
+}
+
+export async function withdrawChangeRequestAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = uuid.safeParse(formData.get("changeId"));
+  const projectId = uuid.safeParse(formData.get("projectId"));
+  if (!id.success || !projectId.success) return { error: "Некоректні дані." };
+  const { supabase } = await requireClient();
+  const { error } = await supabase.rpc("client_withdraw_change_request", { p_cr: id.data });
+  if (error) return { error: rpcError(error.message, { not_pending: "Запит уже не можна відкликати.", forbidden: "Немає доступу." }, "Не вдалося відкликати запит.") };
+  revalidatePath(`/app/projects/${projectId.data}`, "layout");
+  return { ok: true, notice: "Запит відкликано." };
+}

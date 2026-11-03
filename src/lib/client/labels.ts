@@ -130,3 +130,47 @@ export function formatBytes(bytes: number): string {
 }
 
 export const DELIVERABLE_STAGES = ["design", "development", "qa", "delivery"] as const;
+
+export const DOCUMENT_KIND_LABELS: Record<string, string> = {
+  tech_spec: "Технічне завдання",
+  contract: "Договір на розробку",
+  amendment: "Додаткова угода",
+  stage_act: "Акт завершення етапу",
+  handover_act: "Акт приймання-передачі",
+  access_handover: "Передача доступів",
+  warranty_terms: "Умови гарантійної підтримки",
+  other: "Інший документ",
+};
+
+export const DOCUMENT_STATUS_LABELS: Record<string, string> = {
+  draft: "Чернетка",
+  sent: "Очікує вашого рішення",
+  approved: "Погоджено",
+  changes_requested: "Запитано зміни",
+  void: "Недійсний",
+};
+
+export const CHANGE_STATUS_LABELS: Record<string, string> = {
+  submitted: "Студія оцінює",
+  quoted: "Оцінено — потрібне ваше рішення",
+  approved: "Погоджено",
+  rejected: "Відхилено",
+  withdrawn: "Відкликано",
+  in_progress: "У роботі",
+  done: "Виконано",
+};
+
+export const ORDER_STATUS_LABELS: Record<string, string> = {
+  new: "Нова — студія ще не відповіла",
+  in_review: "Студія розглядає",
+  accepted: "Прийнята в роботу",
+  in_progress: "У роботі",
+  done: "Завершена",
+  rejected: "Відхилена",
+};
+
+export const DECISION_LABELS: Record<string, string> = {
+  approved: "Погоджено",
+  changes_requested: "Запитано зміни",
+  rejected: "Відхилено",
+};

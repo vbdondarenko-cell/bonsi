@@ -35,9 +35,14 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
             {DOCUMENT_STATUS_LABELS[document.status] ?? document.status}
           </Pill>
           <span className="text-xs text-muted">версія {document.current_version}</span>
-          <Link prefetch={false} href={`/app/projects/${id}/documents/${docId}/print`} className="ml-auto text-sm text-accent-soft underline underline-offset-4" target="_blank">
-            Друк / зберегти як PDF
-          </Link>
+          <span className="ml-auto flex flex-wrap items-center gap-4">
+            <a href={`/app/projects/${id}/documents/${docId}/pdf`} download className="text-sm text-accent-soft underline underline-offset-4">
+              Завантажити PDF
+            </a>
+            <Link prefetch={false} href={`/app/projects/${id}/documents/${docId}/print`} className="text-sm text-muted underline underline-offset-4" target="_blank">
+              Друк
+            </Link>
+          </span>
         </div>
         <h2 className="mt-3 text-2xl font-semibold">{document.title}</h2>
         {current ? (

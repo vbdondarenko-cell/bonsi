@@ -12,6 +12,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // pdfkit читає власні файли даних з диска; бандлінг їх ламає.
+  serverExternalPackages: ["pdfkit"],
+  // Шрифти для PDF читаються з диска під час виконання; на серверлес-хостингу їх треба явно додати до пакета.
+  outputFileTracingIncludes: { "/**/pdf": ["./assets/fonts/**/*"] },
   reactStrictMode: true,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

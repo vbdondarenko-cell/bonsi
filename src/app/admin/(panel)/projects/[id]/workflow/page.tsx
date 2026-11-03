@@ -108,6 +108,9 @@ export default async function ProjectWorkflowPage({ params }: { params: Promise<
                     <strong>{doc.title}</strong>
                     <Pill tone={doc.status === "approved" ? "ok" : doc.status === "sent" ? "warn" : doc.status === "void" ? "danger" : "muted"}>{DOCUMENT_STATUS_LABELS[doc.status] ?? doc.status}</Pill>
                     <span className="text-xs text-muted">версія {doc.current_version}</span>
+                    <a href={`/admin/projects/${id}/documents/${doc.id}/pdf`} download className="ml-auto text-xs text-accent-soft underline underline-offset-4">
+                      PDF
+                    </a>
                   </p>
                   {current ? <p className="mt-1 break-all font-mono text-xs text-muted">SHA-256: {current.content_hash}</p> : null}
                   {log.length > 0 ? (

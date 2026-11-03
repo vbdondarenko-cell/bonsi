@@ -42,6 +42,11 @@ export default async function PaymentsPage({ params }: { params: Promise<{ id: s
                 <span className="text-2xl font-semibold">{formatMoney(invoice.amount, invoice.currency)}</span>
                 <Pill tone={invoice.state === "paid" ? "ok" : invoice.state === "void" ? "muted" : invoice.state === "unpaid" ? "warn" : "accent"}>{PAYMENT_STATE_LABELS[invoice.state] ?? invoice.state}</Pill>
                 {invoice.due_date ? <span className="text-sm text-muted">Сплатити до {dateOnly.format(new Date(invoice.due_date))}</span> : null}
+                {invoice.status === "issued" ? (
+                  <a href={`/app/projects/${id}/payments/${invoice.id}/pdf`} download className="ml-auto text-sm text-accent-soft underline underline-offset-4">
+                    Рахунок у PDF
+                  </a>
+                ) : null}
               </div>
               {history.length > 0 ? (
                 <ul className="flex flex-col gap-2 text-sm">

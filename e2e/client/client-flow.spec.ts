@@ -243,6 +243,16 @@ test("7. договір: адміністратор створює за шабл
   expect(log.data).toHaveLength(1);
   expect(log.data![0]).toMatchObject({ version: 1, decision: "approved" });
   expect(log.data![0]!.content_hash).toHaveLength(64);
+
+  // Серверний PDF погодженої версії: справжній PDF, а не друк із браузера.
+  const pdf = await page.request.get(`/app/projects/${projectA}/documents/${contractId}/pdf`);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+  expect(pdf.headers()["cache-control"]).toContain("no-store");
+  expect(pdf.headers()["content-disposition"]).toMatch(/attachment; filename="DOC-\d{4}-[0-9A-F]{8}-v1\.pdf"/);
+  expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+  // Неіснуюча версія не віддається.
+  expect((await page.request.get(`/app/projects/${projectA}/documents/${contractId}/pdf?v=99`)).status()).toBe(404);
 });
 
 test("8. рахунок-передоплата: «Я сплатив(ла)» ≠ оплачено; після підтвердження студією адміністратор активує проєкт", async ({ page }) => {
@@ -258,6 +268,10 @@ test("8. рахунок-передоплата: «Я сплатив(ла)» ≠ 
   await expect(page.getByText("UA213223130000026007233566001")).toBeVisible();
   await page.getByRole("button", { name: "Я сплатив(ла)" }).click();
   await expect(page.getByText(/Очікує підтвердження студією/).first()).toBeVisible();
+  const invoicePdf = await page.request.get(`/app/projects/${projectA}/payments/${first}/pdf`);
+  expect(invoicePdf.status()).toBe(200);
+  expect(invoicePdf.headers()["content-type"]).toBe("application/pdf");
+  expect((await invoicePdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
   await expect(page.getByText("Сплачено", { exact: true })).toHaveCount(0);
 
   // Заява клієнта оплатою не є: активація все ще заблокована.
@@ -437,7 +451,16 @@ test("13. підтримка: клієнт створює звернення; а
   await signIn(other, emailB);
   const res = await other.goto(`/app/support/${ticketId}`);
   expect(res?.status()).toBe(404);
+  // Чужий клієнт не отримує ні PDF договору, ні PDF рахунку (перевірка власності, а не лише авторизації).
+  expect((await other.request.get(`/app/projects/${projectA}/documents/${contractId}/pdf`)).status()).toBe(404);
+  const anyInvoice = (await db.from("invoices").select("id").eq("project_id", projectA).limit(1)).data![0]!.id as string;
+  expect((await other.request.get(`/app/projects/${projectA}/payments/${anyInvoice}/pdf`)).status()).toBe(404);
   await ctx.close();
+  // Без входу PDF недоступний.
+  const anon = await browser.newContext();
+  const noAuth = await anon.request.get(`/app/projects/${projectA}/documents/${contractId}/pdf`, { maxRedirects: 0 });
+  expect([301, 302, 303, 307, 308, 401, 404]).toContain(noAuth.status());
+  await anon.close();
 });
 
 test("вхід: повторний запит коду скидає стару помилку; використаний код відхиляється", async ({ page }) => {

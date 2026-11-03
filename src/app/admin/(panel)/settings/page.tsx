@@ -31,7 +31,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader eyebrow="Налаштування" title="Обліковий запис і сповіщення" />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Panel title="Обліковий запис">
           <p className="font-medium">{admin.displayName}</p>
           <p className="break-all text-sm text-muted">{admin.email}</p>

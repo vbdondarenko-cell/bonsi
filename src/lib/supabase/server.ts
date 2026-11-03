@@ -12,6 +12,7 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(env.url, env.anonKey, {
+    global: { fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, cache: "no-store" }) },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (items: CookieItem[]) => {

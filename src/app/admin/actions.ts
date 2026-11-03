@@ -1,5 +1,6 @@
 "use server";
 
+import type { OrderSnapshot } from "@/lib/admin/order-snapshot";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assignInput, noteInput, statusInput } from "@/lib/admin/orders";
@@ -7,7 +8,7 @@ import { getAuthState, requireAdmin } from "@/lib/admin/guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
-export type ActionState = { ok?: boolean; error?: string; fieldError?: string; notice?: string } | null;
+export type ActionState = { ok?: boolean; error?: string; fieldError?: string; notice?: string; order?: OrderSnapshot } | null;
 
 const GENERIC_LOGIN_ERROR = "Невірний email або пароль.";
 
@@ -163,9 +164,17 @@ function rpcMessage(message: string): string {
   return key ? RPC_ERRORS[key]! : "Не вдалося зберегти зміни. Спробуйте ще раз.";
 }
 
-// Серверні дії над заявкою НЕ викликають revalidatePath: відповідь дії тоді містить повне перемальоване дерево, і в CI (Chromium/Firefox)
-// клієнт інколи не застосовував його — кнопка лишалась у стані «…», а історія застарілою, хоча база вже оновлена (трейс: відповідь 200, 23 КБ).
-// Екран оновлює окремий запит router.refresh() зі useRefreshOnSuccess — звичайне перечитання маршруту без побічних ефектів.
+// Read the committed order and its relations in one uncached PostgREST statement,
+// through the authenticated admin client (RLS). Success includes display data;
+// a failed readback must not report a confirmed, synchronized UI.
+async function confirmedOrder(admin: Awaited<ReturnType<typeof requireAdmin>>, id: string): Promise<ActionState> {
+  const { data, error } = await admin.supabase.from("orders")
+    .select("id, status, assigned_to, order_events(id, actor_id, type, data, created_at), order_notes(id, author_id, body, created_at)")
+    .eq("id", id).single();
+  if (error || !data) return { error: "Зміни записано, але не вдалося отримати актуальний стан. Оновіть сторінку, щоб перевірити результат." };
+  return { ok: true, order: data as OrderSnapshot };
+}
+
 export async function updateStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = statusInput.safeParse({ orderId: formData.get("orderId"), status: formData.get("status") });
@@ -176,7 +185,7 @@ export async function updateStatusAction(_prev: ActionState, formData: FormData)
     p_status: parsed.data.status,
   });
   if (error) return { error: rpcMessage(error.message) };
-  return { ok: true };
+  return confirmedOrder(admin, parsed.data.orderId);
 }
 
 export async function assignOrderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -189,7 +198,7 @@ export async function assignOrderAction(_prev: ActionState, formData: FormData):
     p_assignee: parsed.data.assignee,
   });
   if (error) return { error: rpcMessage(error.message) };
-  return { ok: true };
+  return confirmedOrder(admin, parsed.data.orderId);
 }
 
 export async function addNoteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -202,5 +211,5 @@ export async function addNoteAction(_prev: ActionState, formData: FormData): Pro
     p_body: parsed.data.body,
   });
   if (error) return { error: rpcMessage(error.message) };
-  return { ok: true };
+  return confirmedOrder(admin, parsed.data.orderId);
 }

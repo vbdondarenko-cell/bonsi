@@ -1,9 +1,11 @@
+import type { OrderSnapshot } from "@/lib/admin/order-snapshot";
+import { OrderStateProvider, OrderStatusBadge, OrderHistory, OrderNotes } from "@/components/admin/order-state";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AssignForm, NoteForm, StatusForm } from "@/components/admin/order-forms";
-import { PageHeader, Panel, StatusBadge, formatDateTime } from "@/components/admin/ui";
-import { STATUS_LABELS, uuidSchema, type OrderStatus } from "@/lib/admin/orders";
+import { PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
+import { uuidSchema } from "@/lib/admin/orders";
 import { requireAdmin } from "@/lib/admin/guard";
 import { BUDGET_LABELS, DEADLINE_LABELS, SERVICE_QUESTIONS, isServiceId, type BudgetId, type DeadlineId } from "@/lib/orders/options";
 import { InviteClientForm } from "@/components/admin/project-forms";
@@ -11,26 +13,24 @@ import { services } from "@/lib/services";
 
 export const metadata: Metadata = { title: "Заявка" };
 
-type EventRow = { id: number; actor_id: string | null; type: string; data: Record<string, string | null>; created_at: string };
+export const dynamic = "force-dynamic";
 
 export default async function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) notFound();
 
   const { supabase } = await requireAdmin();
-  const [order, notes, events, admins, project] = await Promise.all([
+  const [order, admins, project] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, ticket_number, service, idea, budget, deadline, details, links, client_id, name, email, phone, status, assigned_to, consent_at, consent_policy_version, created_at, updated_at")
+      .select("id, ticket_number, service, idea, budget, deadline, details, links, client_id, name, email, phone, status, assigned_to, consent_at, consent_policy_version, created_at, updated_at, order_events(id, actor_id, type, data, created_at), order_notes(id, author_id, body, created_at)")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("order_notes").select("id, author_id, body, created_at").eq("order_id", id).order("created_at", { ascending: false }),
-    supabase.from("order_events").select("id, actor_id, type, data, created_at").eq("order_id", id).order("created_at", { ascending: false }).order("id", { ascending: false }),
     supabase.from("admin_users").select("user_id, display_name").eq("active", true),
     supabase.from("projects").select("id").eq("order_id", id).maybeSingle(),
   ]);
 
-  if (order.error) {
+  if (order.error || admins.error) {
     return (
       <div role="alert" className="rounded-2xl border border-danger/40 bg-danger/10 p-6">
         <p className="font-medium">Не вдалося завантажити заявку.</p>
@@ -42,12 +42,7 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
 
   const o = order.data;
   const adminList = (admins.data ?? []) as Array<{ user_id: string; display_name: string }>;
-  const names = new Map(adminList.map((a) => [a.user_id, a.display_name]));
-  const who = (userId: string | null) => (userId ? names.get(userId) ?? "Адміністратор" : "Система");
   const serviceTitle = services.find((s) => s.id === o.service)?.title ?? o.service;
-  const label = (value: unknown) =>
-    typeof value === "string" ? STATUS_LABELS[value as OrderStatus] ?? value : "—";
-
   const details = (o.details ?? {}) as Record<string, string>;
   const links = ((o.links ?? []) as string[]).filter((link) => /^https?:\/\//i.test(link));
   const questions = isServiceId(o.service as string) ? SERVICE_QUESTIONS[o.service as keyof typeof SERVICE_QUESTIONS] : [];
@@ -56,28 +51,14 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
     return option ? [{ label: question.label, value: option.label }] : [];
   });
 
-  const describe = (event: EventRow) => {
-    switch (event.type) {
-      case "created":
-        return "Заявку створено з форми на сайті";
-      case "status_changed":
-        return `Статус: ${label(event.data.from)} → ${label(event.data.to)}`;
-      case "assigned":
-        return event.data.to ? `Призначено: ${who(event.data.to)}` : "Виконавця знято";
-      case "note_added":
-        return "Додано нотатку";
-      default:
-        return event.type;
-    }
-  };
-
   return (
+    <OrderStateProvider key={id} initial={{ id, status: o.status, assigned_to: o.assigned_to, order_events: o.order_events, order_notes: o.order_notes } as OrderSnapshot} admins={adminList}>
     <div className="flex flex-col gap-8">
       <Link prefetch={false} href="/admin/orders" className="text-sm text-muted hover:text-fg">
         ← Усі заявки
       </Link>
       <PageHeader eyebrow={o.ticket_number as string} title={o.name as string}>
-        <StatusBadge status={o.status as string} />
+        <OrderStatusBadge />
       </PageHeader>
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
@@ -123,28 +104,15 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
 
           <Panel title="Нотатки">
             <NoteForm orderId={id} />
-            <ul className="mt-6 flex flex-col gap-4">
-              {(notes.data ?? []).length === 0 ? (
-                <li className="text-sm text-muted">Нотаток ще немає.</li>
-              ) : (
-                (notes.data ?? []).map((note) => (
-                  <li key={note.id as string} className="rounded-xl border border-line bg-surface-2/60 p-4">
-                    <p className="whitespace-pre-wrap break-words">{note.body as string}</p>
-                    <p className="mt-2 text-xs text-muted">
-                      {who(note.author_id as string | null)} · {formatDateTime(note.created_at as string)}
-                    </p>
-                  </li>
-                ))
-              )}
-            </ul>
+            <OrderNotes />
           </Panel>
         </div>
 
         <div className="flex flex-col gap-6">
           <Panel title="Керування">
             <div className="flex flex-col gap-6">
-              <StatusForm orderId={id} status={o.status as string} />
-              <AssignForm orderId={id} assignee={o.assigned_to as string | null} admins={adminList} />
+              <StatusForm orderId={id} />
+              <AssignForm orderId={id} admins={adminList} />
             </div>
           </Panel>
 
@@ -159,21 +127,12 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
           </Panel>
 
           <Panel title="Історія змін">
-            <ol className="flex flex-col gap-4 border-l border-line pl-5">
-              {((events.data ?? []) as EventRow[]).map((event) => (
-                <li key={event.id} className="relative">
-                  <span aria-hidden="true" className="absolute -left-[1.45rem] top-1.5 size-2 rounded-full bg-accent-soft" />
-                  <p className="text-sm">{describe(event)}</p>
-                  <p className="text-xs text-muted">
-                    {who(event.actor_id)} · {formatDateTime(event.created_at)}
-                  </p>
-                </li>
-              ))}
-            </ol>
+            <OrderHistory />
           </Panel>
         </div>
       </div>
     </div>
+    </OrderStateProvider>
   );
 }
 

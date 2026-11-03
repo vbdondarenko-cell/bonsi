@@ -3,10 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/**
- * Після успішної server action примусово перечитує поточний маршрут.
- * Відповідь дії вже містить оновлене дерево (revalidatePath), але у Firefox/WebKit його застосування інколи губиться
- * (база змінена, а історія на сторінці стара). router.refresh() ідемпотентний і гарантує, що екран відображає стан БД.
+/** Best-effort route refresh for forms without a returned view model.
+ * This is not an acknowledgement that the UI has applied the committed data.
+ * Order forms instead apply their server-confirmed snapshot inside the action.
  */
 export function useRefreshOnSuccess(state: { ok?: boolean } | null | undefined) {
   const router = useRouter();

@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
+import { useActionState, useState } from "react";
+import { useOrderState } from "@/components/admin/order-state";
 import { addNoteAction, assignOrderAction, updateStatusAction, type ActionState } from "@/app/admin/actions";
 import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,15 @@ function Feedback({ state }: { state: ActionState }) {
   return null;
 }
 
-export function StatusForm({ orderId, status }: { orderId: string; status: string }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(updateStatusAction, null);
-  useRefreshOnSuccess(state);
+export function StatusForm({ orderId }: { orderId: string }) {
+  const { snapshot, apply } = useOrderState();
+  const [draft, setDraft] = useState<{ base: string; value: string } | null>(null);
+  const selected = draft?.base === snapshot.status ? draft.value : snapshot.status;
+  const [state, action, pending] = useActionState<ActionState, FormData>(async (_previous, formData) => {
+    const result = await updateStatusAction(null, formData);
+    if (result?.order) { apply(result.order); setDraft(null); }
+    return result;
+  }, null);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderId" value={orderId} />
@@ -35,7 +41,7 @@ export function StatusForm({ orderId, status }: { orderId: string; status: strin
         Статус
       </label>
       <div className="flex gap-3">
-        <select id="status" name="status" defaultValue={status} className={adminFieldClass}>
+        <select id="status" name="status" value={selected} onChange={(event) => setDraft({ base: snapshot.status, value: event.target.value })} disabled={pending} className={adminFieldClass}>
           {ORDER_STATUSES.map((s) => (
             <option key={s} value={s}>
               {STATUS_LABELS[s]}
@@ -46,22 +52,27 @@ export function StatusForm({ orderId, status }: { orderId: string; status: strin
           {pending ? "…" : "Змінити"}
         </Button>
       </div>
-      <Feedback state={state} />
+      <Feedback state={pending ? null : state} />
     </form>
   );
 }
 
 export function AssignForm({
   orderId,
-  assignee,
   admins,
 }: {
   orderId: string;
-  assignee: string | null;
   admins: Array<{ user_id: string; display_name: string }>;
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(assignOrderAction, null);
-  useRefreshOnSuccess(state);
+  const { snapshot, apply } = useOrderState();
+  const assignee = snapshot.assigned_to ?? "";
+  const [draft, setDraft] = useState<{ base: string; value: string } | null>(null);
+  const selected = draft?.base === assignee ? draft.value : assignee;
+  const [state, action, pending] = useActionState<ActionState, FormData>(async (_previous, formData) => {
+    const result = await assignOrderAction(null, formData);
+    if (result?.order) { apply(result.order); setDraft(null); }
+    return result;
+  }, null);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderId" value={orderId} />
@@ -69,7 +80,7 @@ export function AssignForm({
         Виконавець
       </label>
       <div className="flex gap-3">
-        <select id="assignee" name="assignee" defaultValue={assignee ?? ""} className={adminFieldClass}>
+        <select id="assignee" name="assignee" value={selected} onChange={(event) => setDraft({ base: assignee, value: event.target.value })} disabled={pending} className={adminFieldClass}>
           <option value="">Не призначено</option>
           {admins.map((a) => (
             <option key={a.user_id} value={a.user_id}>
@@ -81,21 +92,29 @@ export function AssignForm({
           {pending ? "…" : "Призначити"}
         </Button>
       </div>
-      <Feedback state={state} />
+      <Feedback state={pending ? null : state} />
     </form>
   );
 }
 
 export function NoteForm({ orderId }: { orderId: string }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(addNoteAction, null);
-  useRefreshOnSuccess(state);
+  const { apply } = useOrderState();
+  const [body, setBody] = useState("");
+  const [state, action, pending] = useActionState<ActionState, FormData>(async (_previous, formData) => {
+    const result = await addNoteAction(null, formData);
+    if (result?.order) { apply(result.order); setBody(""); }
+    return result;
+  }, null);
   return (
-    <form action={action} className="flex flex-col gap-3" key={state?.ok ? "saved" : "editing"}>
+    <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderId" value={orderId} />
       <label htmlFor="note" className="text-sm font-medium">
         Внутрішня нотатка
       </label>
       <textarea
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        disabled={pending}
         id="note"
         name="body"
         rows={3}
@@ -115,7 +134,7 @@ export function NoteForm({ orderId }: { orderId: string }) {
         <Button type="submit" disabled={pending} className="min-h-11 px-5">
           {pending ? "Зберігаємо…" : "Додати нотатку"}
         </Button>
-        <Feedback state={state} />
+        <Feedback state={pending ? null : state} />
       </div>
     </form>
   );

@@ -54,12 +54,6 @@ async function orderIdByTicket(ticket: string): Promise<string> {
   return data.id as string;
 }
 
-/** Дає клієнтському роутеру Next застосувати оновлене дерево після server action, перш ніж робити наступну дію. */
-async function settled(page: Page) {
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(1_000);
-}
-
 /** Чекає, поки React прив'язався до DOM (інакше клік/сабміт до гідратації дає нестабільні перевірки). */
 async function hydrated(page: Page) {
   await page.waitForFunction(() => {
@@ -270,7 +264,7 @@ test.describe.serial("робота адміністратора", () => {
     await expect(page.getByText("Такої сторінки немає")).toBeVisible();
   });
 
-  test("живий стан: п'ять змін статусу поспіль, історія оновлюється без перезавантаження", async () => {
+  test("живий стан: 20 змін статусу поспіль, історія оновлюється без перезавантаження", async ({}, testInfo) => {
     // Окрема заявка, щоб не зачіпати стан, на який спираються інші тести.
     const email = uniqueEmail("live-state");
     const created = await db.rpc("create_order_v2", {
@@ -282,23 +276,55 @@ test.describe.serial("робота адміністратора", () => {
     await page.goto(`/admin/orders/${liveId}`);
     await hydrated(page);
     await page.waitForLoadState("networkidle");
-    const labels = ["Прийнята", "У роботі", "Завершена", "У розгляді", "Прийнята"];
+    const values = ["accepted", "in_progress", "done", "in_review", "rejected", "new"];
+    const select = page.locator("select#status");
+    const submit = page.getByRole("button", { name: "Змінити", exact: true });
+    const history = page.getByTestId("order-history");
+    const diagnostics: unknown[] = [];
+    const transitions: Array<{ from: string; to: string }> = [];
+    let documentNavigations = 0;
+    const navigation = () => { documentNavigations++; };
+    page.on("load", navigation);
     let previous = "new";
-    for (const [index, label] of labels.entries()) {
-      const value = Object.entries(STATUS_OPTION).find(([, text]) => text === label)![0];
-      if (value === previous) continue;
-      await page.locator("select#status").selectOption(value);
-      await page.getByRole("button", { name: "Змінити" }).click();
-      try {
-        await expect(page.getByText(`Статус: ${STATUS_OPTION[previous]} → ${label}`).first()).toBeVisible();
-      } catch (error) {
-        // Розрізняємо «дію втрачено» (в БД старий статус) і «екран не оновився» (в БД новий статус).
-        const inDb = (await db.from("orders").select("status").eq("id", liveId).single()).data?.status;
-        throw new Error(`крок ${index + 1}: очікували ${value}, у БД ${inDb}; кнопка: ${await page.getByRole("button", { name: /Змінити|…/ }).first().innerText()}; ${String(error).slice(0, 80)}`);
+    try {
+      for (let index = 0; index < 20; index++) {
+        const value = values[index % values.length];
+        await test.step(`зміна ${index + 1}: ${previous} → ${value}`, async () => {
+          await expect(select).toBeEnabled();
+          await expect(select).toHaveValue(previous);
+          const before = await select.inputValue();
+          await select.selectOption(value);
+          await expect(select).toHaveValue(value);
+          const request = page.waitForRequest((req) => req.method() === "POST" && new URL(req.url()).pathname === `/admin/orders/${liveId}`);
+          await submit.click();
+          const submitted = (await request).postData() ?? "";
+          expect(submitted).toMatch(new RegExp(`name="(?:[0-9]+_)?status"\\r?\\n\\r?\\n${value}\\r?\\n`));
+          await expect(submit).toBeEnabled();
+          await expect(select).toHaveValue(value);
+          const saved = await db.from("orders").select("status").eq("id", liveId).single();
+          const events = await db.from("order_events").select("id, data").eq("order_id", liveId).eq("type", "status_changed").order("id");
+          diagnostics.push({ step: index + 1, before, submitted: value, after: await select.inputValue(), database: saved.data?.status, events: events.data });
+          expect(saved.error).toBeNull();
+          expect(events.error).toBeNull();
+          expect(saved.data?.status).toBe(value);
+          transitions.push({ from: previous, to: value });
+          expect(events.data?.map((event) => event.data)).toEqual(transitions);
+          const latest = events.data![index];
+          await expect(history.locator(`[data-event-id="${latest.id}"]`)).toContainText(`Статус: ${STATUS_OPTION[previous]} → ${STATUS_OPTION[value]}`);
+          await expect(history.locator("li")).toHaveCount(index + 2); // includes created
+          await expect(page.getByTestId("order-status")).toHaveText(STATUS_OPTION[value]);
+          await expect(select.locator("xpath=ancestor::form").getByRole("status")).toHaveText("Збережено");
+          expect(documentNavigations).toBe(0);
+          previous = value;
+        });
       }
-      // Наступну зміну робимо, коли форма спокійна: підтвердження показано, кнопка не в стані очікування.
-      await expect(page.getByRole("button", { name: "Змінити" })).toBeEnabled();
-      previous = value;
+    } finally {
+      // Keep diagnostics even when the action never settles (PR's previous regression).
+      const finalDb = await db.from("orders").select("status").eq("id", liveId).single();
+      diagnostics.push({ final: true, select: await select.inputValue(), database: finalDb.data?.status,
+        button: await select.locator("xpath=ancestor::form").locator('button[type="submit"]').innerText() });
+      page.off("load", navigation);
+      await testInfo.attach("status-sequence.json", { body: JSON.stringify(diagnostics, null, 2), contentType: "application/json" });
     }
   });
 
@@ -315,21 +341,11 @@ test.describe.serial("робота адміністратора", () => {
     await expect(page.getByRole("status").filter({ hasText: "Збережено" })).toBeVisible();
     await expect(page.getByText("Статус: Нова → У розгляді")).toBeVisible();
     expect((await db.from("orders").select("status").eq("id", orderId).single()).data?.status).toBe("in_review");
-    // Подальші дії перевіряємо за станом БД і серверним рендером після перезавантаження:
-    // миттєве клієнтське оновлення UI між послідовними server actions у CI (особливо WebKit) нестабільне.
-    const reopen = async () => {
-      await page.goto(`/admin/orders/${orderId}`);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText(clientName);
-      await hydrated(page);
-    };
-    await reopen();
-
     await page.locator("select#assignee").selectOption({ label: otherAccount().name });
     await page.getByRole("button", { name: "Призначити" }).click();
     await expect
       .poll(async () => (await db.from("orders").select("assigned_to").eq("id", orderId).single()).data?.assigned_to ?? null)
       .not.toBeNull();
-    await reopen();
     await expect(page.getByText(`Призначено: ${otherAccount().name}`)).toBeVisible();
 
     await page.locator("#note").fill("Передзвонити клієнту завтра до 12:00");
@@ -337,7 +353,6 @@ test.describe.serial("робота адміністратора", () => {
     await expect
       .poll(async () => (await db.from("order_notes").select("id").eq("order_id", orderId)).data?.length ?? 0)
       .toBe(1);
-    await reopen();
     await expect(page.getByText("Передзвонити клієнту завтра до 12:00")).toBeVisible();
     await expect(page.getByText("Додано нотатку")).toBeVisible();
 

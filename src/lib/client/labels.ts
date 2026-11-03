@@ -92,6 +92,12 @@ export function scheduleTotal(schedule: ProposalSchedule): number {
 const money = new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const CURRENCY_SYMBOL: Record<string, string> = { UAH: "₴", USD: "$", EUR: "€" };
 
+const moneyFixed = new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Для фінансових зведень: завжди дві цифри після коми, щоб копійки не зникали. */
+export function formatMoneyFixed(amount: number | string, currency: string): string {
+  return `${moneyFixed.format(Number(amount))} ${CURRENCY_SYMBOL[currency] ?? currency}`;
+}
+
 export function formatMoney(amount: number | string, currency: string): string {
   return `${money.format(Number(amount))} ${CURRENCY_SYMBOL[currency] ?? currency}`;
 }

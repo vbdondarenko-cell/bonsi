@@ -4,7 +4,7 @@ import { ExpenseForm, NewEstimateForm } from "@/components/admin/ops-forms";
 import { PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
 import { Pill } from "@/components/workspace/ui";
 import { requireAdmin } from "@/lib/admin/guard";
-import { formatMoney } from "@/lib/client/labels";
+import { formatMoneyFixed as formatMoney } from "@/lib/client/labels";
 
 export const metadata: Metadata = { title: "Фінанси" };
 export const dynamic = "force-dynamic";

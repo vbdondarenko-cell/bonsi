@@ -5,7 +5,7 @@ import { EstimateEditor } from "@/components/admin/ops-forms";
 import { PageHeader, Panel } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin/guard";
 import { uuidSchema } from "@/lib/admin/orders";
-import { formatMoney } from "@/lib/client/labels";
+import { formatMoneyFixed as formatMoney } from "@/lib/client/labels";
 
 export const metadata: Metadata = { title: "Кошторис" };
 export const dynamic = "force-dynamic";

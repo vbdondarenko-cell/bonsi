@@ -12,7 +12,8 @@ export const metadata: Metadata = { title: "Підтримка" };
 export default async function SupportPage() {
   const { supabase } = await requireClient();
   const [projects, tickets] = await Promise.all([listProjects(supabase), getTickets(supabase)]);
-  const eligible = projects.filter((p) => p.status === "active" || p.status === "completed");
+  // Звернення доступні лише для активованих проєктів (заявка без активації — ще не проєкт); сервер перевіряє це повторно.
+  const eligible = projects.filter((p) => p.activated_at && (p.status === "active" || p.status === "completed"));
   return (
     <div className="flex flex-col gap-8">
       <PageHeader eyebrow="Кабінет" title="Підтримка" />

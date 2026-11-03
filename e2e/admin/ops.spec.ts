@@ -81,6 +81,8 @@ test("завдання: створення, чекліст і посилання
   await expect.poll(async () => (await db.from("studio_tasks").select("checklist").eq("id", taskId).single()).data?.checklist, { timeout: 20_000 }).toEqual([{ text: "Макет", done: true }, { text: "Адаптив", done: false }]);
   const links = (await db.from("studio_tasks").select("links").eq("id", taskId).single()).data?.links;
   expect(links).toEqual([{ kind: "github", url: "https://github.com/bonsi/site/pull/12" }, { kind: "figma", url: "https://www.figma.com/design/abc" }]);
+  await page1.reload();
+  await settle(page1);
   await page1.locator("textarea[name=links]").fill("http://insecure.example");
   await page1.getByRole("button", { name: "Зберегти завдання" }).click();
   await expect(page1.getByRole("alert").first()).toContainText("Некоректні посилання");

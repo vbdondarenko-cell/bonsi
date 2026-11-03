@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assignInput, noteInput, statusInput } from "@/lib/admin/orders";
@@ -164,6 +163,9 @@ function rpcMessage(message: string): string {
   return key ? RPC_ERRORS[key]! : "Не вдалося зберегти зміни. Спробуйте ще раз.";
 }
 
+// Серверні дії над заявкою НЕ викликають revalidatePath: відповідь дії тоді містить повне перемальоване дерево, і в CI (Chromium/Firefox)
+// клієнт інколи не застосовував його — кнопка лишалась у стані «…», а історія застарілою, хоча база вже оновлена (трейс: відповідь 200, 23 КБ).
+// Екран оновлює окремий запит router.refresh() зі useRefreshOnSuccess — звичайне перечитання маршруту без побічних ефектів.
 export async function updateStatusAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = statusInput.safeParse({ orderId: formData.get("orderId"), status: formData.get("status") });
@@ -174,9 +176,6 @@ export async function updateStatusAction(_prev: ActionState, formData: FormData)
     p_status: parsed.data.status,
   });
   if (error) return { error: rpcMessage(error.message) };
-  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
-  revalidatePath("/admin/orders");
-  revalidatePath("/admin");
   return { ok: true };
 }
 
@@ -190,8 +189,6 @@ export async function assignOrderAction(_prev: ActionState, formData: FormData):
     p_assignee: parsed.data.assignee,
   });
   if (error) return { error: rpcMessage(error.message) };
-  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
-  revalidatePath("/admin/orders");
   return { ok: true };
 }
 
@@ -205,6 +202,5 @@ export async function addNoteAction(_prev: ActionState, formData: FormData): Pro
     p_body: parsed.data.body,
   });
   if (error) return { error: rpcMessage(error.message) };
-  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
   return { ok: true };
 }

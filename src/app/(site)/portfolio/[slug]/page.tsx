@@ -4,17 +4,16 @@ import { notFound } from "next/navigation";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { cases, getCase } from "@/lib/cases";
+import { getPublishedCase } from "@/lib/portfolio";
 
 type Props = { params: Promise<{ slug: string }> };
 
-export function generateStaticParams() {
-  return cases.map((item) => ({ slug: item.slug }));
-}
+export const revalidate = 60;
+export const dynamicParams = true;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const item = getCase(slug);
+  const item = await getPublishedCase(slug);
   if (!item) return { title: "Кейс не знайдено" };
   return {
     title: item.title,
@@ -26,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CasePage({ params }: Props) {
   const { slug } = await params;
-  const item = getCase(slug);
+  const item = await getPublishedCase(slug);
   if (!item) notFound();
 
   return (
@@ -46,6 +45,10 @@ export default async function CasePage({ params }: Props) {
       </Container>
 
       <Section>
+        {item.remoteCover ? (
+          // eslint-disable-next-line @next/next/no-img-element -- зовнішнє https-зображення з адмінки; домени не фіксуються в next.config
+          <img src={item.remoteCover.src} alt={item.remoteCover.alt} loading="lazy" referrerPolicy="no-referrer" className="mb-14 h-auto w-full rounded-[var(--radius-card)] border border-line" />
+        ) : null}
         {item.cover ? (
           <Image
             src={item.cover.src}
@@ -72,6 +75,11 @@ export default async function CasePage({ params }: Props) {
         </div>
         <div className="mt-16 flex flex-col gap-3 sm:flex-row">
           <ButtonLink href="/contact">Обговорити схожий проєкт</ButtonLink>
+          {item.liveUrl ? (
+            <ButtonLink href={item.liveUrl} variant="ghost">
+              Відкрити проєкт
+            </ButtonLink>
+          ) : null}
           <ButtonLink href="/portfolio" variant="ghost">
             Усі кейси
           </ButtonLink>

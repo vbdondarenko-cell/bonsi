@@ -85,7 +85,7 @@ for (const viewport of viewports) {
     });
 
     test("головна, послуги, портфоліо, про нас", async ({ page }) => {
-      for (const path of ["/", "/services", "/portfolio", "/about", "/privacy"]) {
+      for (const path of ["/", "/services", "/portfolio", "/about", "/privacy", "/process", "/faq", "/terms", "/cooperation"]) {
         await page.goto(path);
         await expectNoA11yViolations(page, path);
       }

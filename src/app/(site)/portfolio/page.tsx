@@ -4,7 +4,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { cases } from "@/lib/cases";
+import { PRODUCT_TYPE_LABELS, listPublishedCases } from "@/lib/portfolio";
 
 export const metadata: Metadata = {
   title: "Портфоліо",
@@ -12,7 +12,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/portfolio" },
 };
 
-export default function PortfolioPage() {
+export const revalidate = 60;
+
+export default async function PortfolioPage() {
+  const cases = await listPublishedCases();
   return (
     <>
       <Container className="pt-20 sm:pt-28">
@@ -38,6 +41,7 @@ export default function PortfolioPage() {
                   href={`/portfolio/${item.slug}`}
                   className="block h-full rounded-[var(--radius-card)] border border-line bg-surface p-8 transition-colors hover:border-accent-soft/70"
                 >
+                  {item.productType ? <p className="mb-2 text-xs uppercase tracking-[0.14em] text-muted">{PRODUCT_TYPE_LABELS[item.productType] ?? item.productType}</p> : null}
                   <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
                   <p className="mt-3 leading-relaxed text-muted">{item.summary}</p>
                   <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-accent-soft">

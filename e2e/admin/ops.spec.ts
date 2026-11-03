@@ -174,3 +174,47 @@ test("кошторис: калькулятор рахує рекомендова
   await page1.getByRole("button", { name: "Зафіксувати кошторис" }).click();
   await expect(page1.getByRole("button", { name: "Кошторис зафіксовано" })).toBeDisabled();
 });
+
+test("портфоліо: без згоди власника публікація неможлива; після згоди й публікації кейс видно на сайті, після зняття — ні", async ({ browser }) => {
+  const slug = `e2e-case-${Date.now()}`;
+  const title = `Кейс ${slug}`;
+  await page1.goto("/admin/portfolio");
+  await settle(page1);
+  const form = page1.locator("form", { has: page1.getByRole("button", { name: "Створити чернетку" }) });
+  await form.getByLabel("Назва кейсу").fill(title);
+  await form.getByLabel("Адресне ім'я (slug)").fill(slug);
+  await form.getByLabel("Короткий опис (картка)").fill("Короткий опис перевіреного проєкту.");
+  await form.getByLabel("Завдання", { exact: true }).fill("Зробити сайт для невеликої компанії.");
+  await form.getByLabel("Результат (лише перевірені факти)").fill("Сайт запущено й передано замовнику.");
+  await form.getByLabel("Технології (через кому)").fill("Next.js, Supabase");
+  await form.getByRole("button", { name: "Створити чернетку" }).click();
+  await page1.waitForURL(/\/admin\/portfolio\/[0-9a-f-]{36}/, { timeout: 20_000 });
+  await settle(page1);
+
+  // Без згоди кнопки публікації немає, а сервер відхиляє спробу напряму.
+  await expect(page1.getByRole("button", { name: "Опублікувати на сайті" })).toHaveCount(0);
+  const itemId = page1.url().match(/portfolio\/([0-9a-f-]{36})/)![1]!;
+  const version = (await db.from("portfolio_items").select("version").eq("id", itemId).single()).data!.version as number;
+  await expect(rpc(studioApi, "admin_set_portfolio_status", { p_id: itemId, p_expected: version, p_status: "published" })).rejects.toThrow(/consent_required/);
+
+  const anon = await browser.newContext();
+  const pub = await anon.newPage();
+  expect((await pub.goto(`/portfolio/${slug}`))?.status()).toBe(404);
+
+  await page1.getByLabel("Як отримано згоду (лист, повідомлення, договір)").fill("Лист від власника проєкту");
+  await page1.getByRole("button", { name: "Підтвердити згоду власника" }).click();
+  await expect(page1.getByRole("button", { name: "Опублікувати на сайті" })).toBeVisible({ timeout: 20_000 });
+  await page1.getByRole("button", { name: "Опублікувати на сайті" }).click();
+  await expect.poll(async () => (await db.from("portfolio_items").select("status").eq("id", itemId).single()).data?.status, { timeout: 20_000 }).toBe("published");
+
+  // Публічна сторінка кешується на хвилину (ISR), але ревалідується діями адміністратора.
+  await expect.poll(async () => (await pub.goto(`/portfolio/${slug}`))?.status(), { timeout: 30_000 }).toBe(200);
+  await expect(pub.getByRole("heading", { name: title })).toBeVisible();
+
+  await page1.reload();
+  await settle(page1);
+  await page1.getByRole("button", { name: "Зняти з публікації" }).click();
+  await expect.poll(async () => (await db.from("portfolio_items").select("status").eq("id", itemId).single()).data?.status, { timeout: 20_000 }).toBe("draft");
+  await expect.poll(async () => (await pub.goto(`/portfolio/${slug}`))?.status(), { timeout: 30_000 }).toBe(404);
+  await anon.close();
+});

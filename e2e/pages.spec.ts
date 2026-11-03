@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { settleMotion } from "./support/a11y";
 
 const widths = [320, 375, 390, 768, 1024, 1440, 1920];
-const pages = ["/", "/services", "/portfolio", "/about", "/contact", "/privacy"];
+const pages = ["/", "/services", "/portfolio", "/about", "/contact", "/privacy", "/process", "/faq", "/terms", "/cooperation"];
 
 for (const width of widths) {
   for (const url of pages) {

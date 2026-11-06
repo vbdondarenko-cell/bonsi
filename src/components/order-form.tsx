@@ -184,6 +184,10 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
 
       if (response.status === 201 && body?.ticket) {
         setTicket(body.ticket);
+        (window as Window & { gtag?: (...args: unknown[]) => void }).gtag?.("event", "generate_lead", {
+          ticket: body.ticket,
+          service: parsed.data.service,
+        });
         return;
       }
 

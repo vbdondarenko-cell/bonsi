@@ -4,6 +4,7 @@ out
 .env
 .env.*
 !.env.example
+secrets.txt
 .vercel
 *.log
 .DS_Store

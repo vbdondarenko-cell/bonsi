@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useRef, useEffect, useState, type ReactNode } from "react";
-import { useRefreshOnSuccess } from "@/components/admin/use-refresh-on-success";
 import type { ActionState } from "@/app/admin/actions";
 import {
   createDeliverableAction,
@@ -61,7 +60,6 @@ export function ActionForm({
   className?: string;
 }) {
   const [state, run, pending] = useActionState<ActionState, FormData>(action, null);
-  useRefreshOnSuccess(state);
   // До гідрації клік по кнопці запустив би звичайну навігацію форми замість серверної дії: кнопка неактивна, доки форма не готова.
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
@@ -138,7 +136,6 @@ export function DeliverableDraftForm({ projectId, id, title, description, previe
 
 export function DeleteFileForm({ projectId, fileId }: { projectId: string; fileId: string }) {
   const [state, run, pending] = useActionState<ActionState, FormData>(deleteProjectFileAction, null);
-  useRefreshOnSuccess(state);
   return (
     <form action={run} className="flex items-center gap-2">
       <input type="hidden" name="projectId" value={projectId} />

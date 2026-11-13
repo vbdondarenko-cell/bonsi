@@ -39,17 +39,42 @@ export function Header() {
     const onBreakpointChange = (event: MediaQueryListEvent) => {
       if (event.matches) setOpen(false);
     };
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const root = document.documentElement;
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    const previousDocumentOverflow = root.style.overflow;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = `-${scrollX}px`;
+    body.style.right = "0";
+    body.style.width = "100%";
     document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
+    root.style.overflow = "hidden";
     window.addEventListener("keydown", onKeyDown);
     document.addEventListener("pointerdown", onPointerDown);
     desktop.addEventListener("change", onBreakpointChange);
     if (desktop.matches) setOpen(false);
     return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousDocumentOverflow;
+      body.style.position = previousBodyStyles.position;
+      body.style.top = previousBodyStyles.top;
+      body.style.left = previousBodyStyles.left;
+      body.style.right = previousBodyStyles.right;
+      body.style.width = previousBodyStyles.width;
+      body.style.overflow = previousBodyStyles.overflow;
+      root.style.overflow = previousDocumentOverflow;
+      root.style.scrollBehavior = "auto";
+      window.scrollTo(scrollX, scrollY);
+      root.style.scrollBehavior = previousScrollBehavior;
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown);
       desktop.removeEventListener("change", onBreakpointChange);

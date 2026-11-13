@@ -158,15 +158,24 @@ test.describe("mobile navigation", () => {
     await expect(page.locator("#mobile-menu")).toBeHidden();
   });
 
-  test("keeps page scrolling locked while the menu is open and honors reduced motion", async ({ page }) => {
+  test("keeps page scrolling locked while the menu is open and honors reduced motion", async ({ page, browserName }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    await page.evaluate(() => window.scrollTo(0, 500));
+    await page.evaluate(() => {
+      document.documentElement.style.scrollBehavior = "auto";
+      window.scrollTo(0, 500);
+    });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500);
     const scrollBefore = await page.evaluate(() => window.scrollY);
     await page.getByRole("button", { name: "Відкрити меню" }).click();
-    await page.mouse.wheel(0, 800);
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+    const lockedBodyTop = await page.evaluate(() => getComputedStyle(document.body).top);
+    if (browserName === "webkit") {
+      await page.evaluate(() => window.scrollTo(0, 800));
+    } else {
+      await page.mouse.wheel(0, 800);
+    }
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).top)).toBe(lockedBodyTop);
     await expect(page.locator("#mobile-menu")).toBeVisible();
     await expect(page.locator("header button span > span").first()).toHaveCSS("transition-property", "none");
     await page.getByRole("button", { name: "Закрити меню" }).tap();

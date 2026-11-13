@@ -135,7 +135,7 @@ test("фінанси: прогноз, виставлено й отримано �
 
   await page1.goto("/admin/finance");
   await settle(page1);
-  const metric = (key: string) => page1.locator(`[data-metric="UAH:${key}"] dd`);
+  const metric = (key: string) => page1.locator(`[data-metric="UAH:${key}"] dd:first-of-type`);
   await expect(metric("invoiced")).toContainText(/1[\s ]?000/);
   await expect(metric("received")).toContainText(/^0[,.]00|0[,.]00/);
   await expect(metric("unpaid")).toContainText(/1[\s ]?000/);

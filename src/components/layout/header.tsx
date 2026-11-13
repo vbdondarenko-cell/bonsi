@@ -14,6 +14,7 @@ export function Header() {
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const desktopNavRef = useRef<HTMLElement>(null);
 
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
@@ -21,6 +22,23 @@ export function Header() {
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const onBreakpointChange = (event: MediaQueryListEvent) => {
+      const active = document.activeElement;
+      if (event.matches) {
+        setOpen(false);
+        if (active === toggleRef.current || menuRef.current?.contains(active)) {
+          desktopNavRef.current?.querySelector<HTMLElement>("a")?.focus();
+        }
+      } else if (desktopNavRef.current?.contains(active)) {
+        toggleRef.current?.focus();
+      }
+    };
+    desktop.addEventListener("change", onBreakpointChange);
+    return () => desktop.removeEventListener("change", onBreakpointChange);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -37,9 +55,6 @@ export function Header() {
       setOpen(false);
     };
     const desktop = window.matchMedia("(min-width: 768px)");
-    const onBreakpointChange = (event: MediaQueryListEvent) => {
-      if (event.matches) setOpen(false);
-    };
     const scrollX = window.scrollX;
     const scrollY = window.scrollY;
     const body = document.body;
@@ -74,7 +89,6 @@ export function Header() {
     root.style.overflow = "hidden";
     window.addEventListener("keydown", onKeyDown);
     document.addEventListener("pointerdown", onPointerDown);
-    desktop.addEventListener("change", onBreakpointChange);
     if (desktop.matches) setOpen(false);
     return () => {
       body.style.position = previousBodyStyles.position;
@@ -96,7 +110,6 @@ export function Header() {
       root.style.scrollBehavior = previousScrollBehavior;
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown);
-      desktop.removeEventListener("change", onBreakpointChange);
     };
   }, [open]);
 
@@ -118,7 +131,7 @@ export function Header() {
           BONSI<span className="text-accent-soft">.</span>
         </Link>
 
-        <nav aria-label="Основна навігація" className="hidden items-center gap-1 md:flex">
+        <nav ref={desktopNavRef} aria-label="Основна навігація" className="hidden items-center gap-1 md:flex">
           {nav.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (

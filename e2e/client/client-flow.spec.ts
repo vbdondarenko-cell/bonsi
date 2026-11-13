@@ -372,7 +372,15 @@ test("12. передача: адмін готує і відправляє; се�
   await expect.poll(async () => {
     const notice = adminPage.getByRole("status").filter({ hasText: "Чернетку передачі збережено." });
     if (await notice.count()) return { notice: await notice.first().innerText(), alert: null };
-    return { notice: null, alert: (await adminPage.getByRole("alert").allInnerTexts()).join(" | ") };
+    const values = await adminPage.locator("form").filter({ has: adminPage.getByRole("button", { name: "Зберегти чернетку" }) }).evaluate((form) => {
+      const data = new FormData(form as HTMLFormElement);
+      return {
+        productionUrlMatches: data.get("production_url") === "https://example.com",
+        documentationUrlMatches: data.get("docs_url") === "https://example.com/docs",
+        secretTestValuePresent: String(data.get("docs_url") ?? "").includes("hunter2"),
+      };
+    });
+    return { notice: null, alert: (await adminPage.getByRole("alert").allInnerTexts()).join(" | "), values };
   }, { timeout: 15_000 }).toEqual({ notice: "Чернетку передачі збережено.", alert: null });
   // Чернетку клієнт не бачить.
   await signIn(page, emailA);

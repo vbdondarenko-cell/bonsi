@@ -4,9 +4,12 @@ import "@fontsource-variable/onest";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { JsonLd } from "@/components/seo/json-ld";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 import { site } from "@/lib/site";
 
 const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -16,7 +19,7 @@ export const metadata: Metadata = {
   },
   description: site.description,
   applicationName: site.name,
-  alternates: { canonical: "/" },
+  ...(googleVerification ? { verification: { google: googleVerification } } : {}),
   openGraph: {
     type: "website",
     siteName: site.name,
@@ -40,22 +43,11 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: site.name,
-  url: site.url,
-  description: site.description,
-};
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="uk">
       <body>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
-        />
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         {gaId ? (
           <>
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />

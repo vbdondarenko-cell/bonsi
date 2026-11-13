@@ -19,7 +19,26 @@ describe("конфігурація Telegram", () => {
       TELEGRAM_BOT_TOKEN: " 123:abc ",
       TELEGRAM_CHAT_IDS: "111, -100222 ,abc,,33a",
     } as unknown as NodeJS.ProcessEnv);
-    expect(config).toEqual({ token: "123:abc", chatIds: ["111", "-100222"] });
+    expect(config).toEqual({ token: "123:abc", targets: [{ chatId: "111" }, { chatId: "-100222" }] });
+  });
+
+  it("читає гілку форум-групи у форматі chatId:threadId", () => {
+    const config = getTelegramConfig({
+      TELEGRAM_BOT_TOKEN: "123:abc",
+      TELEGRAM_CHAT_IDS: "-1001234567890:45, -100999:12 ,77",
+    } as unknown as NodeJS.ProcessEnv);
+    expect(config).toEqual({
+      token: "123:abc",
+      targets: [{ chatId: "-1001234567890", threadId: 45 }, { chatId: "-100999", threadId: 12 }, { chatId: "77" }],
+    });
+  });
+
+  it("відкидає некоректний thread id, але лишає решту", () => {
+    const config = getTelegramConfig({
+      TELEGRAM_BOT_TOKEN: "123:abc",
+      TELEGRAM_CHAT_IDS: "-100:0,-100:abc,-100:-5,-100:45",
+    } as unknown as NodeJS.ProcessEnv);
+    expect(config?.targets).toEqual([{ chatId: "-100", threadId: 45 }]);
   });
 });
 
@@ -54,25 +73,36 @@ describe("повідомлення про заявку", () => {
 });
 
 describe("надсилання", () => {
-  const config = { token: "123456:SECRET-TOKEN", chatIds: ["1"] };
+  const config = { token: "123456:SECRET-TOKEN", targets: [{ chatId: "1" }] };
 
   it("викликає sendMessage з chat id й HTML-режимом", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
-    await sendTelegramMessage(config, "42", "hi", fetchImpl as unknown as typeof fetch);
+    await sendTelegramMessage(config, { chatId: "42" }, "hi", fetchImpl as unknown as typeof fetch);
     const [url, init] = fetchImpl.mock.calls[0]!;
     expect(url).toBe("https://api.telegram.org/bot123456:SECRET-TOKEN/sendMessage");
     expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({ chat_id: "42", text: "hi", parse_mode: "HTML" });
+    expect(JSON.parse((init as RequestInit).body as string)).not.toHaveProperty("message_thread_id");
+  });
+
+  it("передає message_thread_id для гілки форум-групи", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    await sendTelegramMessage(config, { chatId: "-1001234567890", threadId: 45 }, "hi", fetchImpl as unknown as typeof fetch);
+    const [, init] = fetchImpl.mock.calls[0]!;
+    expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({
+      chat_id: "-1001234567890",
+      message_thread_id: 45,
+    });
   });
 
   it("помилка не розкриває токен", async () => {
     const http = vi.fn().mockResolvedValue(new Response("{}", { status: 401 }));
-    await expect(sendTelegramMessage(config, "1", "x", http as unknown as typeof fetch)).rejects.toThrow(/HTTP 401/);
-    await sendTelegramMessage(config, "1", "x", http as unknown as typeof fetch).catch((e: Error) => {
+    await expect(sendTelegramMessage(config, { chatId: "1" }, "x", http as unknown as typeof fetch)).rejects.toThrow(/HTTP 401/);
+    await sendTelegramMessage(config, { chatId: "1" }, "x", http as unknown as typeof fetch).catch((e: Error) => {
       expect(e.message).not.toContain("SECRET-TOKEN");
     });
 
     const network = vi.fn().mockRejectedValue(new Error("connect to https://api.telegram.org/bot123456:SECRET-TOKEN failed"));
-    await sendTelegramMessage(config, "1", "x", network as unknown as typeof fetch).catch((e: Error) => {
+    await sendTelegramMessage(config, { chatId: "1" }, "x", network as unknown as typeof fetch).catch((e: Error) => {
       expect(e.message).not.toContain("SECRET-TOKEN");
     });
   });

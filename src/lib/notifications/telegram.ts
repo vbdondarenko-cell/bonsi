@@ -1,17 +1,34 @@
 import { services } from "@/lib/services";
 import { site } from "@/lib/site";
 
+/** Куди надсилати: чат і, для форум-груп, конкретна гілка (topic). */
+export type TelegramTarget = { chatId: string; threadId?: number };
+
 /** Усе, що потрібно для Telegram, лежить лише в серверних змінних середовища. */
-export type TelegramConfig = { token: string; chatIds: string[] };
+export type TelegramConfig = { token: string; targets: TelegramTarget[] };
+
+/**
+ * `TELEGRAM_CHAT_IDS` — chat id через кому. Для гілки форум-групи пишеться
+ * `chatId:threadId`, напр. `-1001234567890:45`. Для гілки General thread id
+ * не вказується. Некоректні записи ігноруються.
+ */
+export function parseTelegramTargets(raw: string): TelegramTarget[] {
+  const targets: TelegramTarget[] = [];
+  for (const entry of raw.split(",")) {
+    const match = entry.trim().match(/^(-?\d{1,20})(?::(\d{1,20}))?$/);
+    if (!match) continue;
+    const threadId = match[2] === undefined ? undefined : Number(match[2]);
+    if (threadId !== undefined && (!Number.isSafeInteger(threadId) || threadId <= 0)) continue;
+    targets.push(threadId === undefined ? { chatId: match[1]! } : { chatId: match[1]!, threadId });
+  }
+  return targets;
+}
 
 export function getTelegramConfig(env: NodeJS.ProcessEnv = process.env): TelegramConfig | null {
   const token = env.TELEGRAM_BOT_TOKEN?.trim();
-  const chatIds = (env.TELEGRAM_CHAT_IDS ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter((id) => /^-?\d{1,20}$/.test(id));
-  if (!token || chatIds.length === 0) return null;
-  return { token, chatIds };
+  const targets = parseTelegramTargets(env.TELEGRAM_CHAT_IDS ?? "");
+  if (!token || targets.length === 0) return null;
+  return { token, targets };
 }
 
 /** Інтеграція вимкнена, доки не задано токен і хоча б один chat id: сайт при цьому працює як завжди. */
@@ -65,7 +82,7 @@ function apiBase(): string {
 /** Надсилає повідомлення; у тексті помилки ніколи немає токена чи URL запиту. */
 export async function sendTelegramMessage(
   config: TelegramConfig,
-  chatId: string,
+  target: TelegramTarget,
   text: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
@@ -75,7 +92,8 @@ export async function sendTelegramMessage(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: chatId,
+        chat_id: target.chatId,
+        ...(target.threadId === undefined ? {} : { message_thread_id: target.threadId }),
         text,
         parse_mode: "HTML",
         disable_web_page_preview: true,

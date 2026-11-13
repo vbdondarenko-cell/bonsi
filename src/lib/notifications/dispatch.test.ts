@@ -39,6 +39,21 @@ describe("dispatchNotifications", () => {
     expect(db.rpc).toHaveBeenCalledWith("complete_notification", { p_id: 5, p_error: null });
   });
 
+  it("надсилає в конкретну гілку форум-групи", async () => {
+    const db = fakeDb([row]);
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    await dispatchNotifications({
+      db,
+      env: { TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_CHAT_IDS: "-1001234567890:45" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({
+      chat_id: "-1001234567890",
+      message_thread_id: 45,
+    });
+  });
+
   it("при помилці повертає запис у чергу з текстом помилки без токена", async () => {
     const db = fakeDb([row]);
     const fetchImpl = vi.fn().mockResolvedValue(new Response("{}", { status: 502 }));

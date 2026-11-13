@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/seo/json-ld";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getPublishedCase } from "@/lib/portfolio";
+import { breadcrumbJsonLd } from "@/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -28,9 +31,29 @@ export default async function CasePage({ params }: Props) {
   const item = await getPublishedCase(slug);
   if (!item) notFound();
 
+  const breadcrumbs = [
+    { name: "Головна", path: "/" },
+    { name: "Портфоліо", path: "/portfolio" },
+    { name: item.title, path: `/portfolio/${item.slug}` },
+  ];
+
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
       <Container className="pt-20 sm:pt-28">
+        <nav aria-label="Навігаційний ланцюжок" className="mb-8">
+          <ol className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">
+            <li>
+              <Link href="/" className="hover:text-fg">Головна</Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li>
+              <Link href="/portfolio" className="hover:text-fg">Портфоліо</Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li aria-current="page" className="text-fg">{item.title}</li>
+          </ol>
+        </nav>
         <SectionHeading as="h1" eyebrow="Кейс" title={item.title} description={item.summary} />
         <ul className="mt-8 flex flex-wrap gap-2" aria-label="Стек технологій">
           {item.stack.map((tech) => (

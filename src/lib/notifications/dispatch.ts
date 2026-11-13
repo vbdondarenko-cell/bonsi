@@ -65,8 +65,8 @@ export async function dispatchNotifications(
     let failure: string | null = null;
     try {
       const text = formatOrderMessage(notice);
-      for (const chatId of config.chatIds) {
-        await sendTelegramMessage(config, chatId, text, options.fetchImpl);
+      for (const target of config.targets) {
+        await sendTelegramMessage(config, target, text, options.fetchImpl);
       }
     } catch (err) {
       failure = err instanceof Error ? err.message : "unknown error";

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/seo/json-ld";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { servicesJsonLd } from "@/lib/seo";
 import { services } from "@/lib/services";
 
 export const metadata: Metadata = {
@@ -15,6 +17,7 @@ export const metadata: Metadata = {
 export default function ServicesPage() {
   return (
     <>
+      <JsonLd data={servicesJsonLd()} />
       <Container className="pt-20 sm:pt-28">
         <SectionHeading
           as="h1"

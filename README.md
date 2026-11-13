@@ -24,10 +24,16 @@ npm run dev
 
 | Змінна | Призначення |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Публічна адреса сайту (metadataBase, sitemap, Open Graph) |
+| `NEXT_PUBLIC_SITE_URL` | Публічна адреса сайту (metadataBase, sitemap, canonical, Open Graph) |
 | `SUPABASE_URL` | URL проєкту Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Ключ service_role — **лише на сервері**, ніколи не комітити |
+| `SUPABASE_ANON_KEY` | Публічний anon-ключ для входу в `/admin` і `/app` |
 | `ORDER_HASH_SALT` | Сіль для хешування IP (`openssl rand -hex 32`) |
+| `TELEGRAM_BOT_TOKEN` | Токен бота від @BotFather (сповіщення про нові заявки) |
+| `TELEGRAM_CHAT_IDS` | ID чатів через кому; для гілки форум-групи — `chatId:threadId` |
+| `CRON_SECRET` | Секрет для `POST /api/internal/notifications` (повтори доставки) |
+
+Покрокова інструкція для cPanel, Telegram-бота й SEO: [`docs/DEPLOY-CPANEL.md`](docs/DEPLOY-CPANEL.md).
 
 Без `SUPABASE_*` та `ORDER_HASH_SALT` форма чесно повертає помилку «приймання тимчасово недоступне» — успіх не імітується.
 

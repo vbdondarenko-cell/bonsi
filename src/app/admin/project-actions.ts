@@ -185,11 +185,13 @@ export async function sendProposalAction(_prev: ActionState, formData: FormData)
   const admin = await requireAdmin();
   const parsed = z.object({ proposalId: uuid, projectId: uuid }).safeParse({ proposalId: formData.get("proposalId"), projectId: formData.get("projectId") });
   if (!parsed.success) return { error: "Некоректні дані." };
+  const proposal = await admin.supabase.from("proposals").select("project_id,version").eq("id", parsed.data.proposalId).maybeSingle();
+  if (proposal.error || !proposal.data?.project_id) return { error: "Пропозицію не знайдено." };
+  const projectId = proposal.data.project_id as string;
   const { error } = await admin.supabase.rpc("admin_send_proposal", { p_proposal: parsed.data.proposalId });
   if (error) return { error: rpcMessage(error.message) };
-  const proposal = await admin.supabase.from("proposals").select("version").eq("id", parsed.data.proposalId).maybeSingle();
-  await queueProjectEmail({ projectId: parsed.data.projectId, template: "new_proposal", key: `new-proposal:${parsed.data.proposalId}`, payload: { version: proposal.data?.version ?? "" } });
-  refresh(parsed.data.projectId);
+  await queueProjectEmail({ projectId, template: "new_proposal", key: `new-proposal:${parsed.data.proposalId}`, payload: { version: proposal.data.version } });
+  refresh(projectId);
   return { ok: true, notice: "Пропозицію надіслано клієнту." };
 }
 
@@ -252,11 +254,13 @@ export async function submitDeliverableAction(_prev: ActionState, formData: Form
   const admin = await requireAdmin();
   const parsed = z.object({ id: uuid, projectId: uuid }).safeParse({ id: formData.get("id"), projectId: formData.get("projectId") });
   if (!parsed.success) return { error: "Некоректні дані." };
+  const deliverable = await admin.supabase.from("deliverables").select("project_id,version").eq("id", parsed.data.id).maybeSingle();
+  if (deliverable.error || !deliverable.data?.project_id) return { error: "Результат етапу не знайдено." };
+  const projectId = deliverable.data.project_id as string;
   const { error } = await admin.supabase.rpc("admin_submit_deliverable", { p_id: parsed.data.id });
   if (error) return { error: rpcMessage(error.message) };
-  const version = await admin.supabase.from("deliverables").select("version").eq("id", parsed.data.id).maybeSingle();
-  await queueProjectEmail({ projectId: parsed.data.projectId, template: "stage_completed", key: `deliverable:${parsed.data.id}:${version.data?.version ?? 0}` });
-  refresh(parsed.data.projectId);
+  await queueProjectEmail({ projectId, template: "stage_completed", key: `deliverable:${parsed.data.id}:${deliverable.data.version}` });
+  refresh(projectId);
   return { ok: true, notice: "Надіслано клієнту на погодження." };
 }
 
@@ -291,7 +295,7 @@ export async function createInvoiceAction(_prev: ActionState, formData: FormData
     .object({
       projectId: uuid,
       label: z.string().trim().min(1, "Вкажіть призначення.").max(120),
-      amount: z.coerce.number({ invalid_type_error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0.").max(1_000_000_000),
+      amount: z.coerce.number({ error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0.").max(1_000_000_000),
       currency: z.enum(["UAH", "USD", "EUR"]),
       due: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]),
     })
@@ -315,23 +319,23 @@ export async function invoiceLifecycleAction(_prev: ActionState, formData: FormD
     .object({ invoiceId: uuid, projectId: uuid, op: z.enum(["issue", "void"]), due: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]) })
     .safeParse({ invoiceId: formData.get("invoiceId"), projectId: formData.get("projectId"), op: formData.get("op"), due: formData.get("due") ?? "" });
   if (!parsed.success) return { error: "Некоректні дані." };
+  const invoice = await admin.supabase.from("invoices").select("project_id,number,amount,currency").eq("id", parsed.data.invoiceId).maybeSingle();
+  if (invoice.error || !invoice.data?.project_id) return { error: "Рахунок не знайдено." };
+  const projectId = invoice.data.project_id as string;
   const { error } =
     parsed.data.op === "issue"
       ? await admin.supabase.rpc("admin_issue_invoice", { p_invoice: parsed.data.invoiceId, p_due: parsed.data.due || null })
       : await admin.supabase.rpc("admin_void_invoice", { p_invoice: parsed.data.invoiceId });
   if (error) return { error: rpcMessage(error.message) };
   if (parsed.data.op === "issue") {
-    const invoice = await admin.supabase.from("invoices").select("number, amount, currency").eq("id", parsed.data.invoiceId).maybeSingle();
-    if (invoice.data) {
-      await queueProjectEmail({
-        projectId: parsed.data.projectId,
-        template: "invoice_issued",
-        key: `invoice-issued:${parsed.data.invoiceId}`,
-        payload: { number: invoice.data.number, amount: invoice.data.amount, currency: invoice.data.currency },
-      });
-    }
+    await queueProjectEmail({
+      projectId,
+      template: "invoice_issued",
+      key: `invoice-issued:${parsed.data.invoiceId}`,
+      payload: { number: invoice.data.number, amount: invoice.data.amount, currency: invoice.data.currency },
+    });
   }
-  refresh(parsed.data.projectId);
+  refresh(projectId);
   return { ok: true, notice: parsed.data.op === "issue" ? "Рахунок виставлено клієнту." : "Рахунок анульовано." };
 }
 
@@ -347,33 +351,48 @@ export async function paymentDecisionAction(_prev: ActionState, formData: FormDa
     })
     .safeParse({ paymentId: formData.get("paymentId"), projectId: formData.get("projectId"), op: formData.get("op"), amount: formData.get("amount") ?? "", note: formData.get("note") ?? "" });
   if (!parsed.success) return { fieldError: "Перевірте суму й коментар." };
-  const { error } =
+  const originalPayment = await admin.supabase.from("payments").select("project_id,invoice_id").eq("id", parsed.data.paymentId).maybeSingle();
+  if (originalPayment.error || !originalPayment.data?.project_id || !originalPayment.data.invoice_id) return { error: "Платіж не знайдено." };
+  const projectId = originalPayment.data.project_id as string;
+  const decision =
     parsed.data.op === "confirm"
-      ? await admin.supabase.rpc("admin_confirm_payment", { p_payment: parsed.data.paymentId, p_amount: parsed.data.amount === "" ? null : parsed.data.amount, p_note: parsed.data.note || null })
+      ? await admin.supabase.rpc("admin_confirm_payment_with_result", { p_payment: parsed.data.paymentId, p_amount: parsed.data.amount === "" ? null : parsed.data.amount, p_note: parsed.data.note || null })
       : await admin.supabase.rpc("admin_reject_payment", { p_payment: parsed.data.paymentId, p_note: parsed.data.note || null });
-  if (error) return { error: rpcMessage(error.message) };
+  if (decision.error) return { error: rpcMessage(decision.error.message) };
   if (parsed.data.op === "confirm") {
-    // Лист лише після підтвердження в журналі: беремо фактичну суму з підтвердженого платежу, а не з форми.
-    const payment = await admin.supabase.from("payments").select("amount, currency, status, invoice_id").eq("id", parsed.data.paymentId).maybeSingle();
-    if (payment.data?.status === "confirmed") {
+    // RPC повертає точний ID у тій самій транзакції, де payment підтверджено або створено.
+    // Це не дає паралельному підтвердженню іншого внеску підмінити суму чи ключ події.
+    const confirmedPaymentId = decision.data as string | null;
+    if (!confirmedPaymentId) return { error: "Не вдалося підтвердити платіж." };
+    const payment = await admin.supabase
+      .from("payments")
+      .select("id,amount,currency,status,invoice_id,project_id")
+      .eq("id", confirmedPaymentId)
+      .maybeSingle();
+    if (
+      !payment.error &&
+      payment.data?.status === "confirmed" &&
+      payment.data.invoice_id === originalPayment.data.invoice_id &&
+      payment.data.project_id === projectId
+    ) {
       const invoice = await admin.supabase.from("invoices").select("number").eq("id", payment.data.invoice_id as string).maybeSingle();
       await queueProjectEmail({
-        projectId: parsed.data.projectId,
+        projectId,
         template: "payment_confirmed",
-        key: `payment-confirmed:${parsed.data.paymentId}`,
+        key: `payment-confirmed:${confirmedPaymentId}`,
         payload: { number: invoice.data?.number ?? "", amount: payment.data.amount, currency: payment.data.currency },
       });
     }
   }
-  refresh(parsed.data.projectId);
-  revalidatePath(`/app/projects/${parsed.data.projectId}/payments`);
+  refresh(projectId);
+  revalidatePath(`/app/projects/${projectId}/payments`);
   return { ok: true, notice: parsed.data.op === "confirm" ? "Надходження підтверджено." : "Платіж відхилено." };
 }
 
 export async function refundAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z
-    .object({ invoiceId: uuid, projectId: uuid, amount: z.coerce.number({ invalid_type_error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0."), note: z.string().trim().max(1000) })
+    .object({ invoiceId: uuid, projectId: uuid, amount: z.coerce.number({ error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0."), note: z.string().trim().max(1000) })
     .safeParse({ invoiceId: formData.get("invoiceId"), projectId: formData.get("projectId"), amount: formData.get("amount"), note: formData.get("note") ?? "" });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте поля." };
   const { error } = await admin.supabase.rpc("admin_record_refund", { p_invoice: parsed.data.invoiceId, p_amount: parsed.data.amount, p_note: parsed.data.note || null });

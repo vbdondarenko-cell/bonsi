@@ -74,7 +74,7 @@ export default async function MilestonesPage({ params }: { params: Promise<{ id:
                 <FileList files={files.filter((file) => file.deliverable_id === latest!.id)} projectId={id} canDeleteOwn={false} />
                 {latest!.status === "submitted" ? (
                   <div className="border-t border-line pt-5">
-                    <DeliverableDecision deliverableId={latest!.id} projectId={id} version={latest!.version} />
+                    <DeliverableDecision deliverableId={latest!.id} version={latest!.version} />
                   </div>
                 ) : null}
                 {older.length > 0 ? (

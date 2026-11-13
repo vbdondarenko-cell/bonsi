@@ -23,7 +23,9 @@ function rpcError(message: string, map: Record<string, string>, fallback: string
 
 export async function sendClientMessageAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const projectId = uuid.safeParse(formData.get("projectId"));
-  const fileIds = z.array(uuid).max(5).safeParse(formData.getAll("fileId").map(String));
+  const rawFileIds = formData.getAll("fileId");
+  if (rawFileIds.length > 5) return { error: "Некоректні вкладення." };
+  const fileIds = z.array(uuid).max(5).safeParse(rawFileIds.map(String));
   const body = z.string().trim().max(4000, "Максимум 4000 символів.").safeParse(formData.get("body") ?? "");
   if (!projectId.success) return { error: "Проєкт не знайдено." };
   if (!body.success || !fileIds.success) return { error: body.success ? "Некоректні вкладення." : (body.error.issues[0]?.message ?? "Перевірте повідомлення.") };
@@ -72,7 +74,6 @@ export async function markReadAction(projectId: string) {
 
 const decisionSchema = z.object({
   proposalId: z.string().uuid(),
-  projectId: z.string().uuid(),
   decision: z.enum(["approved", "changes_requested"]),
   comment: z.string().trim().max(2000, "Максимум 2000 символів.").optional(),
 });
@@ -80,7 +81,6 @@ const decisionSchema = z.object({
 export async function decideProposalAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = decisionSchema.safeParse({
     proposalId: formData.get("proposalId"),
-    projectId: formData.get("projectId"),
     decision: formData.get("decision"),
     comment: formData.get("comment") || undefined,
   });
@@ -90,6 +90,17 @@ export async function decideProposalAction(_prev: FormState, formData: FormData)
   }
 
   const { supabase } = await requireClient();
+  // Read the project association under the client's session and RLS. Never use
+  // a project ID supplied alongside the proposal ID to queue privileged email.
+  const proposal = await supabase
+    .from("proposals")
+    .select("project_id")
+    .eq("id", parsed.data.proposalId)
+    .maybeSingle();
+  if (proposal.error || !proposal.data?.project_id) {
+    return { error: "Немає доступу до цієї пропозиції або її не знайдено." };
+  }
+  const projectId = proposal.data.project_id as string;
   const { error } = await supabase.rpc("client_decide_proposal", {
     p_proposal: parsed.data.proposalId,
     p_decision: parsed.data.decision,
@@ -108,8 +119,8 @@ export async function decideProposalAction(_prev: FormState, formData: FormData)
       ),
     };
   }
-  await queueProjectEmail({ projectId: parsed.data.projectId, template: "proposal_decision", key: `proposal-decision:${parsed.data.proposalId}` });
-  revalidatePath(`/app/projects/${parsed.data.projectId}`, "layout");
+  await queueProjectEmail({ projectId, template: "proposal_decision", key: `proposal-decision:${parsed.data.proposalId}` });
+  revalidatePath(`/app/projects/${projectId}`, "layout");
   return { ok: true, notice: parsed.data.decision === "approved" ? "Пропозицію погоджено. Студія побачить ваше рішення." : "Запит на зміни надіслано студії." };
 }
 
@@ -138,7 +149,6 @@ export async function signOutOtherSessionsAction(): Promise<FormState> {
 
 const deliverableDecision = z.object({
   deliverableId: z.string().uuid(),
-  projectId: z.string().uuid(),
   decision: z.enum(["approved", "changes_requested"]),
   comment: z.string().trim().max(2000, "Максимум 2000 символів.").optional(),
 });
@@ -146,7 +156,6 @@ const deliverableDecision = z.object({
 export async function decideDeliverableAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = deliverableDecision.safeParse({
     deliverableId: formData.get("deliverableId"),
-    projectId: formData.get("projectId"),
     decision: formData.get("decision"),
     comment: formData.get("comment") || undefined,
   });
@@ -154,6 +163,16 @@ export async function decideDeliverableAction(_prev: FormState, formData: FormDa
   if (parsed.data.decision === "changes_requested" && !parsed.data.comment) return { error: "Опишіть, що саме потрібно виправити." };
 
   const { supabase } = await requireClient();
+  // Resolve the deliverable's project through the authenticated RLS client.
+  const deliverable = await supabase
+    .from("deliverables")
+    .select("project_id")
+    .eq("id", parsed.data.deliverableId)
+    .maybeSingle();
+  if (deliverable.error || !deliverable.data?.project_id) {
+    return { error: "Немає доступу до цього результату або його не знайдено." };
+  }
+  const projectId = deliverable.data.project_id as string;
   const { error } = await supabase.rpc("client_decide_deliverable", {
     p_id: parsed.data.deliverableId,
     p_decision: parsed.data.decision,
@@ -168,8 +187,8 @@ export async function decideDeliverableAction(_prev: FormState, formData: FormDa
       ),
     };
   }
-  await queueProjectEmail({ projectId: parsed.data.projectId, template: "deliverable_decision", key: `deliverable-decision:${parsed.data.deliverableId}` });
-  revalidatePath(`/app/projects/${parsed.data.projectId}`, "layout");
+  await queueProjectEmail({ projectId, template: "deliverable_decision", key: `deliverable-decision:${parsed.data.deliverableId}` });
+  revalidatePath(`/app/projects/${projectId}`, "layout");
   return { ok: true, notice: parsed.data.decision === "approved" ? "Результат погоджено." : "Запит на правки надіслано студії." };
 }
 
@@ -322,7 +341,9 @@ export async function replyTicketClientAction(_prev: FormState, formData: FormDa
   const body = z.string().trim().min(1, "Напишіть повідомлення.").max(4000).safeParse(formData.get("body"));
   if (!id.success) return { error: "Некоректні дані." };
   if (!body.success) return { error: body.error.issues[0]?.message ?? "Напишіть повідомлення." };
-  const fileIds = z.array(uuid).max(5).safeParse(formData.getAll("fileId").map(String));
+  const rawFileIds = formData.getAll("fileId");
+  if (rawFileIds.length > 5) return { error: "Некоректні вкладення." };
+  const fileIds = z.array(uuid).max(5).safeParse(rawFileIds.map(String));
   const { supabase } = await requireClient();
   const { error } = await supabase.rpc("client_ticket_reply", { p_ticket: id.data, p_body: body.data });
   if (error) return { error: rpcError(error.message, { ticket_closed: "Звернення закрито. Створіть нове.", forbidden: "Немає доступу." }, "Не вдалося надіслати. Спробуйте ще раз.") };

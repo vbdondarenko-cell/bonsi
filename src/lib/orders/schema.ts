@@ -6,16 +6,14 @@ import { BUDGET_IDS, DEADLINE_IDS, MAX_LINKS, SERVICE_IDS, SERVICE_QUESTIONS } f
  * остаточна валідація завжди відбувається в route handler.
  */
 export const orderSchema = z.object({
-  service: z.enum(SERVICE_IDS, {
-    errorMap: () => ({ message: "Оберіть тип послуги" }),
-  }),
+  service: z.enum(SERVICE_IDS, { error: "Оберіть тип послуги" }),
   /** Короткий довільний опис: необов'язковий. */
   idea: z.string().trim().max(3000, "Максимум 3000 символів").optional(),
   budget: z
-    .enum(BUDGET_IDS, { errorMap: () => ({ message: "Оберіть значення зі списку" }) })
+    .enum(BUDGET_IDS, { error: "Оберіть значення зі списку" })
     .optional(),
   deadline: z
-    .enum(DEADLINE_IDS, { errorMap: () => ({ message: "Оберіть значення зі списку" }) })
+    .enum(DEADLINE_IDS, { error: "Оберіть значення зі списку" })
     .optional(),
   /** Відповіді на уточнення обраної послуги: { questionId: optionId }. Невідомі ключі й значення відхиляються. */
   details: z.record(z.string().max(40), z.string().max(40)).optional(),
@@ -32,12 +30,12 @@ export const orderSchema = z.object({
     .max(MAX_LINKS, `Не більше ${MAX_LINKS} посилань`)
     .optional(),
   name: z
-    .string({ required_error: "Вкажіть імʼя" })
+    .string({ error: "Вкажіть імʼя" })
     .trim()
     .min(2, "Вкажіть імʼя")
     .max(100, "Максимум 100 символів"),
   email: z
-    .string({ required_error: "Вкажіть email" })
+    .string({ error: "Вкажіть email" })
     .trim()
     .toLowerCase()
     .max(200, "Максимум 200 символів")
@@ -48,11 +46,7 @@ export const orderSchema = z.object({
     .max(30, "Максимум 30 символів")
     .regex(/^[+\d\s()-]*$/, "Лише цифри, пробіли та символи + ( ) -")
     .optional(),
-  consent: z.literal(true, {
-    errorMap: () => ({
-      message: "Потрібна згода на обробку контактних даних",
-    }),
-  }),
+  consent: z.literal(true, { error: "Потрібна згода на обробку контактних даних" }),
   /** Honeypot: люди це поле не бачать і не заповнюють. */
   website: z.string().max(200).optional(),
   /** Час (мс, epoch), коли користувач відкрив форму — для перевірки швидкості заповнення. */

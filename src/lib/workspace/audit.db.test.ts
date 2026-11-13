@@ -245,6 +245,42 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
     const paid = async (id: string) => (await pool.query("select public.invoice_paid_raw($1)::text as p", [id])).rows[0].p as string;
     const state = async (id: string) => (await asUser(pool, a, (q) => q("select public.invoice_payment_state($1) as s", [id]))).rows[0].s as string;
 
+    it("corrected confirmation returns the exact new confirmed payment ID", async () => {
+      const inv = await mkInvoice("Скоригована сума", 1000);
+      await asUserCommit(pool, a, (q) => q("select public.client_report_payment($1,'заявлена сума')", [inv]));
+      const pendingId = (await pool.query("select id from public.payments where invoice_id=$1 and status='pending'", [inv])).rows[0].id as string;
+      const result = await asUserCommit(pool, admin, (q) =>
+        q("select public.admin_confirm_payment_with_result($1,650,'фактично отримано') as id", [pendingId]),
+      );
+      const confirmedId = result.rows[0].id as string;
+      expect(confirmedId).not.toBe(pendingId);
+      const rows = await pool.query("select id,status,amount from public.payments where invoice_id=$1 order by created_at,id", [inv]);
+      expect(rows.rows).toEqual([
+        expect.objectContaining({ id: pendingId, status: "failed", amount: "1000.00" }),
+        expect.objectContaining({ id: confirmedId, status: "confirmed", amount: "650.00" }),
+      ]);
+    });
+
+    it("returned confirmation ID remains exact while provider payment races on the same invoice", async () => {
+      const inv = await mkInvoice("Гонка скоригованої оплати", 1000);
+      const number = (await pool.query("select number from public.invoices where id=$1", [inv])).rows[0].number as string;
+      await asUserCommit(pool, a, (q) => q("select public.client_report_payment($1,'заявлена сума')", [inv]));
+      const pendingId = (await pool.query("select id from public.payments where invoice_id=$1 and status='pending'", [inv])).rows[0].id as string;
+      const [manual, provider] = await Promise.all([
+        asUserCommit(pool, admin, (q) =>
+          q("select public.admin_confirm_payment_with_result($1,600,'часткова оплата') as id", [pendingId]),
+        ),
+        asServiceCommit(pool, (q) =>
+          q("select public.payments_apply_provider_event('liqpay','e-corrected-race',$1,400,'UAH','success','pay-corrected-race','{}'::jsonb) as result", [number]),
+        ),
+      ]);
+      const confirmedId = manual.rows[0].id as string;
+      expect(provider.rows[0].result).toBe("confirmed");
+      const confirmed = await pool.query("select status,amount from public.payments where id=$1", [confirmedId]);
+      expect(confirmed.rows[0]).toEqual({ status: "confirmed", amount: "600.00" });
+      expect(await paid(inv)).toBe("1000.00");
+    });
+
     it("два адміністратори одночасно підтверджують один платіж: підтвердження одне", async () => {
       const inv = await mkInvoice("Гонка адмінів", 1000);
       await asUserCommit(pool, a, (q) => q("select public.client_report_payment($1,'гонка')", [inv]));
@@ -358,6 +394,14 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
         expected: { anon: "denied", clientA: "forbidden", clientB: "forbidden", adminNoMfa: "forbidden", admin: "allowed", service: "denied" },
       },
       {
+        name: "admin_confirm_payment_with_result",
+        sql: () => [
+          "select public.admin_confirm_payment_with_result((select id from public.payments where invoice_id=$1 and status='pending' limit 1),null,'матриця')",
+          [invoiceA],
+        ],
+        expected: { anon: "denied", clientA: "forbidden", clientB: "forbidden", adminNoMfa: "forbidden", admin: "allowed", service: "denied" },
+      },
+      {
         name: "admin_update_payment_settings",
         sql: () => ["select public.admin_update_payment_settings('Х','','','','')", []],
         expected: { anon: "denied", clientA: "forbidden", clientB: "forbidden", adminNoMfa: "forbidden", admin: "allowed", service: "denied" },
@@ -435,6 +479,7 @@ describe.skipIf(!dbEnabled)("аудит БД (PostgreSQL)", () => {
           "admin_comment_task",
           "admin_complete_project",
           "admin_confirm_payment",
+          "admin_confirm_payment_with_result",
           "admin_confirm_portfolio_consent",
           "admin_create_change_invoice",
           "admin_create_deliverable",

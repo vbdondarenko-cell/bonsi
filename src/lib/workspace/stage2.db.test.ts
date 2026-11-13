@@ -227,8 +227,11 @@ describe.skipIf(!dbEnabled)("етап 2: етапи, файли, оплати (P
     it("клієнт не може підтвердити, відхилити платіж чи змінити журнал напряму", async () => {
       const pid = (await pool.query("select id from public.payments where invoice_id=$1", [invoices[0]])).rows[0].id;
       await expect(asUser(pool, a, (q) => q("select public.admin_confirm_payment($1,null,null)", [pid]))).rejects.toThrow(/forbidden/);
+      await expect(asUser(pool, a, (q) => q("select public.admin_confirm_payment_with_result($1,null,null)", [pid]))).rejects.toThrow(/forbidden/);
       await expect(asUser(pool, a, (q) => q("select public.admin_reject_payment($1,null)", [pid]))).rejects.toThrow(/forbidden/);
       await expect(asUser(pool, adminNoMfa, (q) => q("select public.admin_confirm_payment($1,null,null)", [pid]))).rejects.toThrow(/forbidden/);
+      await expect(asUser(pool, adminNoMfa, (q) => q("select public.admin_confirm_payment_with_result($1,null,null)", [pid]))).rejects.toThrow(/forbidden/);
+      await expect(asUser(pool, null, (q) => q("select public.admin_confirm_payment_with_result($1,null,null)", [pid]))).rejects.toThrow(/permission denied/);
       await expect(asUser(pool, a, (q) => q(`update public.payments set status='confirmed' where id='${pid}'`))).rejects.toThrow(/permission denied/);
       await expect(asUser(pool, a, (q) => q(`insert into public.payments (invoice_id, project_id, method, amount, currency, status) values ('${invoices[0]}','${projectA}','bank_transfer',1,'UAH','confirmed')`))).rejects.toThrow(/permission denied/);
     });

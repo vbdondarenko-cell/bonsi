@@ -15,7 +15,7 @@ concurrency:
 jobs:
   verify:
     name: Lint, typecheck, unit/DB tests, build, e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -65,6 +65,8 @@ jobs:
           run lint npm run lint
           run typecheck npm run typecheck
           run test npm test
+          run audit npm audit
+          run production-audit npm audit --omit=dev
           run build npm run build
           if grep -q "^build=0$" .ci/summary.txt; then run e2e npm run test:e2e; fi
           exit $fail
@@ -83,7 +85,7 @@ jobs:
 
   admin-e2e:
     name: Admin e2e (local Supabase)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -168,7 +170,7 @@ jobs:
 
   client-e2e:
     name: Client e2e (local Supabase, Mailpit, Storage)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -255,7 +257,7 @@ jobs:
     name: Report to PR
     needs: [verify, admin-e2e, client-e2e]
     if: ${{ always() && github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pull-requests: write

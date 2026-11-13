@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /** Погодження або запит змін. Для змін коментар обовʼязковий; рішення фіксується в незмінному журналі. */
-export function ProposalDecision({ proposalId, projectId, version }: { proposalId: string; projectId: string; version: number }) {
+export function ProposalDecision({ proposalId, version }: { proposalId: string; version: number }) {
   const [state, action, pending] = useActionState<FormState, FormData>(decideProposalAction, null);
   const [mode, setMode] = useState<"idle" | "changes">("idle");
 
@@ -22,7 +22,6 @@ export function ProposalDecision({ proposalId, projectId, version }: { proposalI
   return (
     <form action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
       <input type="hidden" name="proposalId" value={proposalId} />
-      <input type="hidden" name="projectId" value={projectId} />
       {mode === "changes" ? (
         <div className="flex flex-col gap-2">
           <label htmlFor="decision-comment" className="text-sm font-medium">

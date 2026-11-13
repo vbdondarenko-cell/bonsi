@@ -6,7 +6,7 @@ import { adminFieldClass } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
-export function DeliverableDecision({ deliverableId, projectId, version }: { deliverableId: string; projectId: string; version: number }) {
+export function DeliverableDecision({ deliverableId, version }: { deliverableId: string; version: number }) {
   const [state, action, pending] = useActionState<FormState, FormData>(decideDeliverableAction, null);
   const [mode, setMode] = useState<"idle" | "changes">("idle");
 
@@ -20,7 +20,6 @@ export function DeliverableDecision({ deliverableId, projectId, version }: { del
   return (
     <form action={action} className="flex flex-col gap-4" aria-label={`Рішення щодо версії ${version}`}>
       <input type="hidden" name="deliverableId" value={deliverableId} />
-      <input type="hidden" name="projectId" value={projectId} />
       {mode === "changes" ? (
         <div className="flex flex-col gap-2">
           <label htmlFor={`comment-${deliverableId}`} className="text-sm font-medium">

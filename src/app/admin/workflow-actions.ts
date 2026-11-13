@@ -110,11 +110,13 @@ export async function sendDocumentAction(_prev: ActionState, formData: FormData)
   const admin = await requireAdmin();
   const parsed = z.object({ projectId: uuid, id: uuid }).safeParse({ projectId: formData.get("projectId"), id: formData.get("id") });
   if (!parsed.success) return { error: "Некоректні дані." };
+  const document = await admin.supabase.from("documents").select("project_id,current_version").eq("id", parsed.data.id).maybeSingle();
+  if (document.error || !document.data?.project_id) return { error: "Документ не знайдено." };
+  const projectId = document.data.project_id as string;
   const { error } = await admin.supabase.rpc("admin_send_document", { p_doc: parsed.data.id });
   if (error) return { error: message(error) };
-  const sent = await admin.supabase.from("documents").select("current_version").eq("id", parsed.data.id).maybeSingle();
-  await queueProjectEmail({ projectId: parsed.data.projectId, template: "document_for_approval", key: `document-sent:${parsed.data.id}:${sent.data?.current_version ?? 0}` });
-  refresh(parsed.data.projectId);
+  await queueProjectEmail({ projectId, template: "document_for_approval", key: `document-sent:${parsed.data.id}:${document.data.current_version}` });
+  refresh(projectId);
   return { ok: true, notice: "Документ відправлено клієнту на погодження. Текст цієї версії зафіксовано." };
 }
 
@@ -145,12 +147,15 @@ export async function quoteChangeAction(_prev: ActionState, formData: FormData):
       projectId: uuid,
       id: uuid,
       summary: z.string().trim().min(10, "Опишіть оцінку (від 10 символів).").max(4000),
-      price: z.coerce.number({ invalid_type_error: "Вкажіть вартість числом." }).min(0).max(1_000_000_000),
+      price: z.coerce.number({ error: "Вкажіть вартість числом." }).min(0).max(1_000_000_000),
       currency: z.enum(["UAH", "USD", "EUR"]),
-      days: z.coerce.number({ invalid_type_error: "Вкажіть термін числом." }).int().min(0).max(1000),
+      days: z.coerce.number({ error: "Вкажіть термін числом." }).int().min(0).max(1000),
     })
     .safeParse({ projectId: formData.get("projectId"), id: formData.get("id"), summary: formData.get("summary"), price: formData.get("price"), currency: formData.get("currency"), days: formData.get("days") });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте поля." };
+  const change = await admin.supabase.from("change_requests").select("project_id").eq("id", parsed.data.id).maybeSingle();
+  if (change.error || !change.data?.project_id) return { error: "Запит на зміну не знайдено." };
+  const projectId = change.data.project_id as string;
   const { error } = await admin.supabase.rpc("admin_quote_change_request", {
     p_cr: parsed.data.id,
     p_summary: parsed.data.summary,
@@ -159,8 +164,8 @@ export async function quoteChangeAction(_prev: ActionState, formData: FormData):
     p_days: parsed.data.days,
   });
   if (error) return { error: message(error) };
-  await queueProjectEmail({ projectId: parsed.data.projectId, template: "budget_change", key: `change-quoted:${parsed.data.id}` });
-  refresh(parsed.data.projectId);
+  await queueProjectEmail({ projectId, template: "budget_change", key: `change-quoted:${parsed.data.id}` });
+  refresh(projectId);
   return { ok: true, notice: "Оцінку надіслано клієнту як додаткову угоду." };
 }
 

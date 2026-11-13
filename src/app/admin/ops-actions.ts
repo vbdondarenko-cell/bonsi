@@ -155,7 +155,7 @@ export async function finalizeEstimateAction(_prev: ActionState, formData: FormD
 export async function addExpenseAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const parsed = z
-    .object({ projectId: uuid, category: z.string().trim().min(1, "Вкажіть категорію.").max(60), amount: z.coerce.number({ invalid_type_error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0.").max(1_000_000_000), currency: z.enum(["UAH", "USD", "EUR"]), on: optionalDate, note: z.string().trim().max(500) })
+    .object({ projectId: uuid, category: z.string().trim().min(1, "Вкажіть категорію.").max(60), amount: z.coerce.number({ error: "Вкажіть суму числом." }).positive("Сума має бути більшою за 0.").max(1_000_000_000), currency: z.enum(["UAH", "USD", "EUR"]), on: optionalDate, note: z.string().trim().max(500) })
     .safeParse({ projectId: formData.get("projectId"), category: formData.get("category"), amount: formData.get("amount"), currency: formData.get("currency") ?? "UAH", on: formData.get("on") ?? "", note: formData.get("note") ?? "" });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "Перевірте поля." };
   const { error } = await admin.supabase.rpc("admin_add_expense", { p_project: parsed.data.projectId, p_category: parsed.data.category, p_amount: parsed.data.amount, p_currency: parsed.data.currency, p_on: parsed.data.on, p_note: parsed.data.note || null });

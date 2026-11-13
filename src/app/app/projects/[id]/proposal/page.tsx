@@ -94,7 +94,7 @@ export default async function ProposalPage({ params }: { params: Promise<{ id: s
         <ProposalBody proposal={latest!} />
         {latest!.status === "sent" ? (
           <div className="mt-8 border-t border-line pt-6">
-            <ProposalDecision proposalId={latest!.id} projectId={id} version={latest!.version} />
+            <ProposalDecision proposalId={latest!.id} version={latest!.version} />
           </div>
         ) : null}
       </Card>

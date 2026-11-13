@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
+  // The Next.js tsconfig preserves JSX for SWC; Vitest's OXC transform needs an explicit JSX runtime.
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": fromRoot("./src"),

@@ -40,7 +40,7 @@ export const proposalInput = z.object({
   title: z.string().trim().min(1, "Вкажіть назву.").max(160),
   summary: z.string().trim().max(4000),
   features: z.string().max(12000),
-  price: z.coerce.number({ invalid_type_error: "Вкажіть вартість числом." }).min(0).max(1_000_000_000),
+  price: z.coerce.number({ error: "Вкажіть вартість числом." }).min(0).max(1_000_000_000),
   currency: z.enum(["UAH", "USD", "EUR"]),
   durationDays: z.coerce.number().int().min(1, "Термін: від 1 дня.").max(1000),
   preset: z.string().max(20),

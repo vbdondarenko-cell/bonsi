@@ -12,6 +12,7 @@ export function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
@@ -28,19 +29,37 @@ export function Header() {
         toggleRef.current?.focus();
       }
     };
-    const previousOverflow = document.body.style.overflow;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (menuRef.current?.contains(target) || toggleRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const onBreakpointChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setOpen(false);
+    };
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    desktop.addEventListener("change", onBreakpointChange);
+    if (desktop.matches) setOpen(false);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
       window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+      desktop.removeEventListener("change", onBreakpointChange);
     };
   }, [open]);
 
   const orderHref = pathname === "/" ? "#order" : "/contact";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line/70 bg-bg/85 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-line/70 bg-bg/85 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md">
       <motion.div
         aria-hidden="true"
         style={{ scaleX: progress }}
@@ -98,12 +117,14 @@ export function Header() {
               className={cn(
                 "absolute left-0 h-px w-5 bg-fg transition-all duration-200",
                 open ? "top-1.5 rotate-45" : "top-0",
+                "motion-reduce:transition-none",
               )}
             />
             <span
               className={cn(
                 "absolute left-0 h-px w-5 bg-fg transition-all duration-200",
                 open ? "top-1.5 -rotate-45" : "top-3",
+                "motion-reduce:transition-none",
               )}
             />
           </span>
@@ -112,24 +133,27 @@ export function Header() {
 
       {open ? (
         <div
+          ref={menuRef}
           id="mobile-menu"
-          className="fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto bg-bg px-5 pb-10 pt-6 md:hidden"
+          className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top,0px)+1px)] z-40 overflow-y-auto overscroll-contain bg-bg px-5 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] pt-6 md:hidden"
         >
           <nav aria-label="Мобільна навігація" className="flex flex-col">
             {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "page" : undefined}
+                onClick={() => setOpen(false)}
                 className="border-b border-line py-5 text-3xl font-semibold tracking-tight"
               >
                 {item.label}
               </Link>
             ))}
-            <Link href="/login" className="border-b border-line py-5 text-3xl font-semibold tracking-tight text-accent-soft">
+            <Link href="/login" onClick={() => setOpen(false)} className="border-b border-line py-5 text-3xl font-semibold tracking-tight text-accent-soft">
               Кабінет клієнта
             </Link>
           </nav>
-          <Link href={orderHref} className={buttonStyles("primary", "mt-8 w-full")}>
+          <Link href={orderHref} onClick={() => setOpen(false)} className={buttonStyles("primary", "mt-8 w-full")}>
             Обговорити проєкт
           </Link>
         </div>

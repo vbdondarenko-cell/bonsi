@@ -48,7 +48,7 @@ export default async function FinancePage() {
                 <div key={key} data-metric={`${row.currency}:${key}`}>
                   <dt className="text-xs uppercase tracking-wider text-muted">{label}</dt>
                   <dd className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(row[key], row.currency)}</dd>
-                  <p className="mt-1 text-xs text-muted">{hint}</p>
+                  <dd className="mt-1 text-xs text-muted">{hint}</dd>
                 </div>
               ))}
             </dl>

@@ -369,7 +369,11 @@ test("12. передача: адмін готує і відправляє; се�
   await adminPage.getByLabel("Production URL", { exact: true }).fill("https://example.com");
   await adminPage.getByLabel("Документація (https)", { exact: true }).fill("https://example.com/docs");
   await adminPage.getByRole("button", { name: "Зберегти чернетку" }).click();
-  await expect(adminPage.getByText("Чернетку передачі збережено.")).toBeVisible({ timeout: 15_000 });
+  await expect.poll(async () => {
+    const notice = adminPage.getByRole("status").filter({ hasText: "Чернетку передачі збережено." });
+    if (await notice.count()) return { notice: await notice.first().innerText(), alert: null };
+    return { notice: null, alert: (await adminPage.getByRole("alert").allInnerTexts()).join(" | ") };
+  }, { timeout: 15_000 }).toEqual({ notice: "Чернетку передачі збережено.", alert: null });
   // Чернетку клієнт не бачить.
   await signIn(page, emailA);
   await page.goto(`/app/projects/${projectA}/handover`);

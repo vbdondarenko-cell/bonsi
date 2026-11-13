@@ -13,6 +13,7 @@ export function Header() {
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
 
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
@@ -43,6 +44,10 @@ export function Header() {
     const scrollY = window.scrollY;
     const body = document.body;
     const root = document.documentElement;
+    const header = headerRef.current;
+    const previousHeaderStyles = header
+      ? { position: header.style.position, top: header.style.top, left: header.style.left, right: header.style.right, width: header.style.width }
+      : null;
     const previousBodyStyles = {
       position: body.style.position,
       top: body.style.top,
@@ -58,6 +63,13 @@ export function Header() {
     body.style.left = `-${scrollX}px`;
     body.style.right = "0";
     body.style.width = "100%";
+    if (header) {
+      header.style.position = "fixed";
+      header.style.top = "0";
+      header.style.left = "0";
+      header.style.right = "0";
+      header.style.width = "100%";
+    }
     document.body.style.overflow = "hidden";
     root.style.overflow = "hidden";
     window.addEventListener("keydown", onKeyDown);
@@ -71,6 +83,13 @@ export function Header() {
       body.style.right = previousBodyStyles.right;
       body.style.width = previousBodyStyles.width;
       body.style.overflow = previousBodyStyles.overflow;
+      if (header && previousHeaderStyles) {
+        header.style.position = previousHeaderStyles.position;
+        header.style.top = previousHeaderStyles.top;
+        header.style.left = previousHeaderStyles.left;
+        header.style.right = previousHeaderStyles.right;
+        header.style.width = previousHeaderStyles.width;
+      }
       root.style.overflow = previousDocumentOverflow;
       root.style.scrollBehavior = "auto";
       window.scrollTo(scrollX, scrollY);
@@ -84,7 +103,7 @@ export function Header() {
   const orderHref = pathname === "/" ? "#order" : "/contact";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line/70 bg-bg/85 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md">
+    <header ref={headerRef} className="sticky top-0 z-50 border-b border-line/70 bg-bg/85 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md">
       <motion.div
         aria-hidden="true"
         style={{ scaleX: progress }}

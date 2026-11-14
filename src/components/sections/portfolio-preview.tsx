@@ -4,9 +4,10 @@ import { Section } from "@/components/ui/container";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { cases } from "@/lib/cases";
+import { listPublishedCases } from "@/lib/portfolio";
 
-export function PortfolioPreview() {
+export async function PortfolioPreview() {
+  const cases = await listPublishedCases();
   const featured = cases.slice(0, 3);
 
   return (

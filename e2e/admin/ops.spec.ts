@@ -214,11 +214,15 @@ test("портфоліо: без згоди власника публікаці�
   // Публічна сторінка кешується на хвилину (ISR), але ревалідується діями адміністратора.
   await expect.poll(async () => (await pub.goto(`/portfolio/${slug}`))?.status(), { timeout: 30_000 }).toBe(200);
   await expect(pub.getByRole("heading", { name: title })).toBeVisible();
+  await pub.goto("/");
+  await expect(pub.locator(`a[href="/portfolio/${slug}"]`)).toBeVisible();
 
   await page1.reload();
   await settle(page1);
   await page1.getByRole("button", { name: "Зняти з публікації" }).click();
   await expect.poll(async () => (await db.from("portfolio_items").select("status").eq("id", itemId).single()).data?.status, { timeout: 20_000 }).toBe("draft");
   await expect.poll(async () => (await pub.goto(`/portfolio/${slug}`))?.status(), { timeout: 30_000 }).toBe(404);
+  await pub.goto("/");
+  await expect(pub.locator(`a[href="/portfolio/${slug}"]`)).toHaveCount(0);
   await anon.close();
 });

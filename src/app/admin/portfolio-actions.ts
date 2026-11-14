@@ -62,6 +62,7 @@ export async function setPortfolioStatusAction(_prev: ActionState, formData: For
   if (error) return { error: message(error) };
   revalidatePath(`/admin/portfolio/${parsed.data.id}`);
   revalidatePath("/admin/portfolio");
+  revalidatePath("/");
   revalidatePath("/portfolio");
   revalidatePath("/portfolio/[slug]", "page");
   revalidatePath("/sitemap.xml");

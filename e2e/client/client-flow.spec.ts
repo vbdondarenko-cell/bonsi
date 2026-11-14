@@ -424,6 +424,7 @@ test("13. підтримка: клієнт створює звернення; а
   await adminPage.getByLabel("Внутрішня нотатка (клієнт не побачить)").check();
   await adminPage.getByRole("button", { name: "Надіслати" }).click();
   await expect(adminPage.getByText("Внутрішню нотатку додано.")).toBeVisible({ timeout: 15_000 });
+  await expect(adminPage.getByLabel("Внутрішня нотатка (клієнт не побачить)")).not.toBeChecked();
   await adminPage.getByLabel("Повідомлення").fill("Дякуємо, перевіряємо.");
   await adminPage.getByRole("button", { name: "Надіслати" }).click();
   await expect(adminPage.getByText("Відповідь надіслано клієнту.")).toBeVisible({ timeout: 15_000 });

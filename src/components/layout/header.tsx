@@ -106,7 +106,7 @@ export function Header() {
       }
       root.style.overflow = previousDocumentOverflow;
       root.style.scrollBehavior = "auto";
-      window.scrollTo(scrollX, scrollY);
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
       root.style.scrollBehavior = previousScrollBehavior;
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown);

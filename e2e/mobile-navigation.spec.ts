@@ -162,11 +162,15 @@ test.describe("mobile navigation", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    await page.evaluate(() => {
+    const scrollTarget = await page.evaluate(() => {
       document.documentElement.style.scrollBehavior = "auto";
-      window.scrollTo(0, 500);
+      const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const target = Math.min(500, maxScrollY);
+      window.scrollTo(0, target);
+      return target;
     });
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500);
+    expect(scrollTarget).toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scrollTarget);
     const scrollBefore = await page.evaluate(() => window.scrollY);
     await page.getByRole("button", { name: "Відкрити меню" }).click();
     const lockedBodyTop = await page.evaluate(() => getComputedStyle(document.body).top);

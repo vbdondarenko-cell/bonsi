@@ -261,17 +261,15 @@ export function OrderForm({ initialService, initialPlan }: { initialService?: Se
           {ticket}
         </p>
         <p className="mt-6 max-w-xl text-muted">
-          Ми зв’яжемося з вами за вказаним телефоном або Telegram.{values.email.trim() ? " На email також надійде підтвердження; за ним можна буде відкрити клієнтський кабінет." : " Якщо пізніше захочете користуватися клієнтським кабінетом, повідомте нам email під час спілкування."}
+          Ми зв’яжемося з вами за вказаним телефоном або Telegram. На email надійде підтвердження заявки з посиланням на кабінет. Щоб увійти, відкрийте сторінку входу та запросіть одноразовий код.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button type="button" onClick={copyTicket}>
             Скопіювати номер
           </Button>
-          {values.email.trim() ? (
-            <Link href={`/login?email=${encodeURIComponent(values.email.trim().toLowerCase())}`} className={buttonStyles("ghost")}>
-              Увійти в кабінет за цією поштою
-            </Link>
-          ) : null}
+          <Link href={`/login?email=${encodeURIComponent(values.email.trim().toLowerCase())}`} className={buttonStyles("ghost")}>
+            Увійти в кабінет за цією поштою
+          </Link>
           <Button type="button" variant="ghost" onClick={reset}>
             Надіслати ще одну заявку
           </Button>
@@ -323,8 +321,8 @@ export function OrderForm({ initialService, initialPlan }: { initialService?: Se
       </div>
       <Field
         id="field-email"
-        label="Email (необовʼязково)"
-        hint="Якщо вкажете email, надішлемо підтвердження й відкриємо доступ до кабінету клієнта."
+        label="Email"
+        hint="Обовʼязковий: надішлемо підтвердження заявки й посилання на кабінет. Для входу код запитується окремо на сторінці авторизації."
         error={firstError("email")}
       >
         <input
@@ -332,6 +330,7 @@ export function OrderForm({ initialService, initialPlan }: { initialService?: Se
           name="email"
           type="email"
           autoComplete="email"
+          required
           inputMode="email"
           autoCapitalize="none"
           autoCorrect="off"

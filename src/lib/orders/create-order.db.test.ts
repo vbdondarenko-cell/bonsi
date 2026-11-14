@@ -87,16 +87,20 @@ describe.skipIf(!enabled)("база даних BONSI (PostgreSQL)", () => {
     expect(stored.rows[0].consent_at).toBeInstanceOf(Date);
   });
 
-  it("приймає нові послуги з Telegram-контактом без email", async () => {
+  it("приймає нову послугу з обов'язковим email і Telegram-контактом", async () => {
     const { rows } = await pool.query(
-      `select public.create_order_v2('telegram', null, '3000-5000', null, 'Клієнт Telegram', null, '@bonsi_support', '{}'::jsonb, '{}', 'ip-telegram-order', 'vitest', '2026-11-14', false) as ticket`,
+      `select public.create_order_v2('telegram', null, '3000-5000', null, 'Клієнт Telegram', 'client@example.com', '@bonsi_support', '{}'::jsonb, '{}', 'ip-telegram-order', 'vitest', '2026-11-14', false) as ticket`,
     );
     expect(rows[0]!.ticket).toMatch(TICKET);
     const stored = await pool.query(
       "select service, email, phone, budget from public.orders where ticket_number = $1",
       [rows[0]!.ticket],
     );
-    expect(stored.rows[0]).toMatchObject({ service: "telegram", email: null, phone: "@bonsi_support", budget: "3000-5000" });
+    expect(stored.rows[0]).toMatchObject({ service: "telegram", email: "client@example.com", phone: "@bonsi_support", budget: "3000-5000" });
+
+    await expect(pool.query(
+      `select public.create_order_v2('telegram', null, '3000-5000', null, 'Клієнт без email', null, '@bonsi_support', '{}'::jsonb, '{}', 'ip-no-email-order', 'vitest', '2026-11-14', false)`,
+    )).rejects.toThrow(/email_required/);
   });
 
   it("точно дотримується ліміту IP під 25 паралельними запитами (5 з однієї підмережі)", async () => {

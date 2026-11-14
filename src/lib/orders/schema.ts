@@ -39,10 +39,8 @@ export const orderSchema = z.object({
     .trim()
     .toLowerCase()
     .max(200, "Максимум 200 символів")
-    .email("Перевірте адресу email")
-    .optional()
-    .or(z.literal(""))
-    .transform((value) => value || undefined),
+    .min(5, "Вкажіть email для входу до кабінету")
+    .email("Перевірте адресу email"),
   phone: z
     .string()
     .trim()
@@ -57,7 +55,7 @@ export const orderSchema = z.object({
   startedAt: z.number().int().nonnegative(),
 });
 
-/** Телефон або Telegram потрібен для відповіді; email необов'язковий і дає доступ до клієнтського кабінету. */
+/** Email потрібен для коду входу й клієнтського кабінету; телефон або Telegram — для прямого зв'язку. */
 const contactOrderSchema = orderSchema.superRefine((value, ctx) => {
   if (!value.phone) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Вкажіть телефон або Telegram для звʼязку" });

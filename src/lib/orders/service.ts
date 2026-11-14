@@ -58,8 +58,8 @@ export async function createOrder(
     p_deadline: input.deadline ?? null,
     p_name: input.name,
     // Keep the RPC argument present: JSON omits undefined properties, and the
-    // SQL function has no default for p_email.
-    p_email: input.email ?? null,
+    // SQL function requires an email for client-portal access.
+    p_email: input.email,
     p_phone: input.phone ? input.phone : null,
     p_details: input.details ?? {},
     p_links: input.links ?? [],
@@ -76,13 +76,10 @@ export async function createOrder(
   if (typeof data !== "string" || data === "") {
     throw new StorageError("Порожня відповідь бази даних");
   }
-  // Email is optional. When supplied, queue the receipt with the existing retry worker.
-  if (input.email) {
-    try {
-      await enqueueEmail(db, { key: `order-received:${data}`, template: "order_received", to: input.email, name: input.name, payload: { ticket: data } });
-    } catch (error) {
-      console.error("[orders] email enqueue failed:", error instanceof Error ? error.message : "unknown");
-    }
+  try {
+    await enqueueEmail(db, { key: `order-received:${data}`, template: "order_received", to: input.email, name: input.name, payload: { ticket: data } });
+  } catch (error) {
+    console.error("[orders] email enqueue failed:", error instanceof Error ? error.message : "unknown");
   }
   return { ticket: data };
 }

@@ -78,7 +78,7 @@ test.describe("замовлення без зайвих запитань", () =>
     await expect(page.locator("input[name='service']")).toHaveCount(10);
   });
 
-  test("мінімальна заявка з Telegram-контактом без email надсилається без додаткових полів", async ({ page }) => {
+  test("email обов'язковий, а заявка без бюджету й опису надсилається", async ({ page }) => {
     let sent: Record<string, unknown> | null = null;
     await page.route("**/api/orders", async (route) => {
       sent = route.request().postDataJSON();
@@ -91,9 +91,13 @@ test.describe("замовлення без зайвих запитань", () =>
     await page.locator("#field-links").fill("https://example.com/a\nhttps://example.com/b");
     await page.locator("#field-consent").check();
     await page.getByRole("button", { name: "Надіслати заявку" }).click();
+    await expect(page.locator("#field-email")).toBeFocused();
+    await expect(page.locator("#field-email-error")).toBeVisible();
+    await page.locator("#field-email").fill("ivan@example.com");
+    await page.getByRole("button", { name: "Надіслати заявку" }).click();
     await expect(page.getByText("BON-2026-00043")).toBeVisible();
     expect(sent).toMatchObject({ service: "landing", phone: "@bonsi_client", links: ["https://example.com/a", "https://example.com/b"] });
-    expect(sent).not.toHaveProperty("email");
+    expect(sent).toMatchObject({ email: "ivan@example.com" });
     expect(sent).not.toHaveProperty("idea");
     expect(sent).not.toHaveProperty("budget");
     expect(sent).not.toHaveProperty("deadline");

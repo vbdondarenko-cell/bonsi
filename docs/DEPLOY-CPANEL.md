@@ -63,6 +63,7 @@ curl -s -X POST "https://api.telegram.org/bot<TOKEN>/sendMessage" \
 20261108000000_delivery_support.sql
 20261109000000_portfolio.sql
 20261114000000_service_catalog_and_optional_email.sql
+20261114010000_require_order_email.sql
 ```
 
 3. Візьміть із **Project Settings → API**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
@@ -81,7 +82,7 @@ curl -s -X POST "https://api.telegram.org/bot<TOKEN>/sendMessage" \
 | `TRUSTED_PROXY` | так у production | почніть з `none`; якщо ліміти заявок спрацьовують для всіх одразу — `hops:1` |
 | `SUPABASE_FORBIDDEN_PROJECT_REFS` | так у production | ref сторонніх проєктів через кому (напр. `linkup`) |
 | `TELEGRAM_BOT_TOKEN` | для бота | токен від @BotFather |
-| `TELEGRAM_CHAT_IDS` | для бота | `123456789` або `-100...:45` (чат:гілка) |
+| `TELEGRAM_CHAT_IDS` | для бота | лише від'ємний ID адмінської групи, наприклад `-1001234567890` або `-100...:45` (гілка) |
 | `CRON_SECRET` | для повторів | `openssl rand -hex 32` (мінімум 24 символи) |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | ні | `G-XXXXXXXXXX` |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | ні | код із Google Search Console |
@@ -142,7 +143,7 @@ curl -fsS -X POST https://bonsi.site/api/internal/notifications \
 - [ ] Перевірте `https://bonsi.site/robots.txt` — приватні `/admin`, `/app`, `/api`, `/auth`, `/login` закриті.
 - [ ] Rich Results Test для `/`, `/services`, `/faq`, кейсу: мають знайтися Organization, WebSite, Service/OfferCatalog, FAQPage, BreadcrumbList.
 - [ ] GA4: перевірте подію `generate_lead` після тестової заявки.
-- [ ] Форма приймає email як необов'язковий; телефон або Telegram username потрібен завжди. Без email клієнт не отримує лист і не може ввійти в кабінет за заявкою, доки не додасть адресу.
+- [ ] Форма вимагає email для підтвердження заявки та посилання на `/login`; телефон або Telegram username також потрібен для зв'язку. Код входу клієнт запитує окремо на сторінці авторизації.
 - [ ] Додайте реальні кейси в `/admin/portfolio` (унікальні title/description, стек, результат) — це головний контент для органіки.
 - [ ] Заповніть `NEXT_PUBLIC_LEGAL_NAME` і `NEXT_PUBLIC_CONTACT_EMAIL` (E-E-A-T, довіра).
 - [ ] Швидкість: увімкніть Cloudflare (безкоштовно) перед cPanel, кеш статики, Brotli/Gzip, HTTP/2.

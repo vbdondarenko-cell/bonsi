@@ -82,11 +82,17 @@ describe("POST /api/orders", () => {
     expect(createOrderMock.mock.calls[0]![0]).toMatchObject({ service: "landing", details: { goal: "leads" }, links: ["https://example.com/ref"] });
   });
 
-  it("приймає заявку з Telegram-контактом без email", async () => {
+  it("приймає заявку з обов'язковим email і Telegram-контактом", async () => {
     createOrderMock.mockResolvedValue({ ticket: "BON-2026-00003" });
-    const response = await post(payload({ service: "telegram", email: "", phone: "@bonsi_support", budget: "3000-5000" }));
+    const response = await post(payload({ service: "telegram", email: "client@example.com", phone: "@bonsi_support", budget: "3000-5000" }));
     expect(response.status).toBe(201);
-    expect(createOrderMock.mock.calls[0]![0]).toMatchObject({ service: "telegram", email: undefined, phone: "@bonsi_support" });
+    expect(createOrderMock.mock.calls[0]![0]).toMatchObject({ service: "telegram", email: "client@example.com", phone: "@bonsi_support" });
+  });
+
+  it("не надсилає заявку без email для входу до кабінету", async () => {
+    const response = await post(payload({ email: "" }));
+    expect(response.status).toBe(400);
+    expect(createOrderMock).not.toHaveBeenCalled();
   });
 
   it("відхиляє уточнення, що не належать обраній послузі", async () => {

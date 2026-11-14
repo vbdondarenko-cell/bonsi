@@ -4,7 +4,7 @@ import { checkedOrderSchema, orderSchema } from "./schema";
 const valid = {
   service: "webapp",
   idea: "Потрібна платформа з кабінетом клієнта та адмін-панеллю.",
-  budget: "50-150k",
+  budget: "5000-10000",
   deadline: "1-3-months",
   name: "Олена",
   email: "Olena@Example.com",
@@ -20,14 +20,17 @@ describe("orderSchema", () => {
     if (result.success) expect(result.data.email).toBe("olena@example.com");
   });
 
-  it("дозволяє порожній телефон", () => {
-    expect(orderSchema.safeParse({ ...valid, phone: undefined }).success).toBe(true);
-    expect(orderSchema.safeParse({ ...valid, phone: "" }).success).toBe(true);
+  it("приймає телефон або Telegram username, а email залишає необов'язковим", () => {
+    const withoutEmail = checkedOrderSchema.safeParse({ ...valid, email: "" });
+    expect(withoutEmail.success).toBe(true);
+    if (withoutEmail.success) expect(withoutEmail.data.email).toBeUndefined();
+    expect(checkedOrderSchema.safeParse({ ...valid, phone: "@bonsi_support" }).success).toBe(true);
+    expect(checkedOrderSchema.safeParse({ ...valid, phone: undefined }).success).toBe(false);
   });
 
   it("приймає короткий опис, а також заявку взагалі без опису, бюджету й термінів", () => {
     expect(orderSchema.safeParse({ ...valid, idea: "Сайт" }).success).toBe(true);
-    const minimal = { service: "landing", name: "Іван", email: "ivan@example.com", consent: true, startedAt: 1 };
+    const minimal = { service: "landing", name: "Іван", phone: "+380501234567", consent: true, startedAt: 1 };
     expect(orderSchema.safeParse(minimal).success).toBe(true);
   });
 
@@ -41,9 +44,11 @@ describe("orderSchema", () => {
     expect(orderSchema.safeParse({ ...valid, deadline: "yesterday" }).success).toBe(false);
   });
 
-  it("відхиляє некоректний email і телефон із літерами", () => {
+  it("відхиляє некоректний email і контакт", () => {
     expect(orderSchema.safeParse({ ...valid, email: "not-an-email" }).success).toBe(false);
     expect(orderSchema.safeParse({ ...valid, phone: "call me" }).success).toBe(false);
+    expect(orderSchema.safeParse({ ...valid, phone: "------" }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...valid, phone: "" }).success).toBe(false);
   });
 
   it("вимагає згоду на обробку даних", () => {
@@ -53,7 +58,7 @@ describe("orderSchema", () => {
 });
 
 describe("checkedOrderSchema: уточнення за послугою й посилання", () => {
-  const base = { service: "landing", name: "Іван", email: "ivan@example.com", consent: true, startedAt: 1 };
+  const base = { service: "landing", name: "Іван", email: "ivan@example.com", phone: "+380501234567", consent: true, startedAt: 1 };
 
   it("приймає уточнення, що належать обраній послузі", () => {
     expect(checkedOrderSchema.safeParse({ ...base, details: { goal: "leads", content: "ready" } }).success).toBe(true);

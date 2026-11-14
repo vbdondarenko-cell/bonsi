@@ -87,6 +87,18 @@ describe.skipIf(!enabled)("база даних BONSI (PostgreSQL)", () => {
     expect(stored.rows[0].consent_at).toBeInstanceOf(Date);
   });
 
+  it("приймає нові послуги з Telegram-контактом без email", async () => {
+    const { rows } = await pool.query(
+      `select public.create_order_v2('telegram', null, '3000-5000', null, 'Клієнт Telegram', null, '@bonsi_support', '{}'::jsonb, '{}', 'ip-telegram-order', 'vitest', '2026-11-14', false) as ticket`,
+    );
+    expect(rows[0]!.ticket).toMatch(TICKET);
+    const stored = await pool.query(
+      "select service, email, phone, budget from public.orders where ticket_number = $1",
+      [rows[0]!.ticket],
+    );
+    expect(stored.rows[0]).toMatchObject({ service: "telegram", email: null, phone: "@bonsi_support", budget: "3000-5000" });
+  });
+
   it("точно дотримується ліміту IP під 25 паралельними запитами (5 з однієї підмережі)", async () => {
     const results = await Promise.allSettled(
       Array.from({ length: 25 }, () => call(pool, { ip: "ip-concurrent" })),

@@ -8,8 +8,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/contact" },
 };
 
-export default async function ContactPage({ searchParams }: { searchParams: Promise<{ service?: string | string[] }> }) {
-  const { service } = await searchParams;
+export default async function ContactPage({ searchParams }: { searchParams: Promise<{ service?: string | string[]; package?: string | string[] }> }) {
+  const { service, package: packageId } = await searchParams;
   const value = Array.isArray(service) ? service[0] : service;
-  return <OrderSection headingAs="h1" initialService={isServiceId(value) ? value : undefined} />;
+  const selectedPackage = Array.isArray(packageId) ? packageId[0] : packageId;
+  return <OrderSection headingAs="h1" initialService={isServiceId(value) ? value : undefined} initialPlan={selectedPackage} />;
 }

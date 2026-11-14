@@ -5,12 +5,12 @@ import { Container, Section } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { servicesJsonLd } from "@/lib/seo";
-import { services } from "@/lib/services";
+import { services, supportPlans } from "@/lib/services";
 
 export const metadata: Metadata = {
-  title: "Послуги",
+  title: "Розробка сайтів, магазинів і вебзастосунків — послуги BONSI",
   description:
-    "Landing pages, корпоративні сайти, інтернет-магазини, вебзастосунки, мобільні Android/iOS-додатки, UI/UX дизайн, підтримка й модернізація.",
+    "Послуги BONSI Studios: landing page від 3 000 ₴, сайти для бізнесу, інтернет-магазини, вебзастосунки, Telegram-боти, UI/UX та технічна підтримка.",
   alternates: { canonical: "/services" },
 };
 
@@ -22,44 +22,87 @@ export default function ServicesPage() {
         <SectionHeading
           as="h1"
           eyebrow="Послуги"
-          title="Що ми створюємо та підтримуємо"
-          description="Від одного лендингу до платформи з кабінетами й мобільного додатка. Обсяг і склад робіт узгоджуємо на етапі брифу."
+          title="Сайти та цифрові продукти для вашого бізнесу"
+          description="Оберіть потрібний формат, перегляньте стартову вартість і склад робіт. Фінальну ціну визначаємо після короткого брифу та узгодження технічного завдання."
         />
       </Container>
 
       <Section>
-        <ul className="flex flex-col">
-          {services.map((service, index) => (
-            <li key={service.id} id={service.id} className="scroll-mt-24 border-t border-line last:border-b">
-              <Reveal>
-                <article className="grid gap-8 py-10 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-16 md:py-14">
-                  <div>
-                    <p className="font-mono text-sm text-accent-soft">
-                      {String(index + 1).padStart(2, "0")}
+        <ul className="grid gap-4 md:grid-cols-2">
+          {services.filter((service) => service.id !== "support").map((service, index) => (
+            <li key={service.id} id={service.id} className="scroll-mt-24">
+              <Reveal delay={(index % 2) * 0.05} className="h-full">
+                <article className="group flex h-full flex-col rounded-[var(--radius-card)] border border-line bg-surface p-6 transition-[border-color,background-color,transform] duration-300 hover:-translate-y-1 hover:border-accent-soft/60 hover:bg-surface-2 motion-reduce:hover:translate-y-0 sm:p-8">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-mono text-xs uppercase tracking-[0.16em] text-accent-soft">
+                        {String(index + 1).padStart(2, "0")} / Послуга
+                      </p>
+                      <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{service.title}</h2>
+                    </div>
+                    <p className="self-start rounded-full border border-accent-soft/30 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent-soft sm:shrink-0 sm:px-4 sm:text-base">
+                      {service.priceLabel}
                     </p>
-                    <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                      {service.title}
-                    </h2>
-                    <p className="mt-4 max-w-md leading-relaxed text-muted">{service.summary}</p>
-                    <ButtonLink href={`/contact?service=${service.id}#order`} className="mt-6" variant="ghost">
-                      Замовити цю послугу
-                    </ButtonLink>
                   </div>
-                  <ul className="flex flex-col gap-3 self-center">
+                  <p className="mt-5 leading-relaxed text-muted">{service.summary}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-fg/85">
+                    <span className="font-medium">Підійде: </span>{service.audience}
+                  </p>
+                  <ul className="mt-6 flex flex-col gap-3">
                     {service.points.map((point) => (
-                      <li
-                        key={point}
-                        className="rounded-2xl border border-line bg-surface px-5 py-4 text-fg"
-                      >
-                        {point}
+                      <li key={point} className="flex gap-3 rounded-xl border border-line bg-bg/50 px-4 py-3 text-sm leading-relaxed text-fg/90">
+                        <span aria-hidden="true" className="mt-0.5 text-accent-soft">✦</span>
+                        <span>{point}</span>
                       </li>
                     ))}
                   </ul>
+                  <p className="mt-5 text-sm leading-relaxed text-muted">
+                    <span className="font-medium text-fg">Результат: </span>{service.outcome}
+                  </p>
+                  <ButtonLink href={`/contact?service=${service.id}#order`} className="mt-7 self-start" variant="ghost">
+                    Замовити послугу
+                  </ButtonLink>
                 </article>
               </Reveal>
             </li>
           ))}
         </ul>
+
+        {(() => {
+          const support = services.find((service) => service.id === "support")!;
+          return (
+            <section id="support" className="scroll-mt-24 mt-16 rounded-[var(--radius-card)] border border-line bg-surface/70 p-6 sm:mt-20 sm:p-10">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="font-mono text-xs uppercase tracking-[0.16em] text-accent-soft">10 / Супровід</p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">{support.title}</h2>
+                  <p className="mt-4 max-w-2xl leading-relaxed text-muted">{support.summary} {support.audience}</p>
+                </div>
+                <p className="text-xl font-semibold text-accent-soft">від 500 ₴/міс.</p>
+              </div>
+              <ul className="mt-8 grid gap-4 lg:grid-cols-3">
+                {supportPlans.map((plan) => (
+                  <li key={plan.id}>
+                    <article className="flex h-full flex-col rounded-2xl border border-line bg-bg/60 p-5 sm:p-6">
+                      <h3 className="text-xl font-semibold">{plan.title}</h3>
+                      <p className="mt-3 text-2xl font-semibold tracking-tight text-accent-soft">{plan.priceLabel}</p>
+                      <ul className="mt-5 flex flex-col gap-3 text-sm leading-relaxed text-muted">
+                        {plan.points.map((point) => <li key={point}>{point}</li>)}
+                      </ul>
+                      <ButtonLink href={`/contact?service=support&package=${plan.id}#order`} className="mt-7 self-start" variant="ghost">
+                        Обрати пакет
+                      </ButtonLink>
+                    </article>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 max-w-3xl text-sm leading-relaxed text-muted">
+                Пакети включають лише зазначений обсяг. Додаткові роботи узгоджуємо окремо; цілодобова та необмежена підтримка не входить.
+              </p>
+              <p className="mt-4 text-sm text-muted"><span className="font-medium text-fg">Результат: </span>{support.outcome}</p>
+            </section>
+          );
+        })()}
         <div className="mt-14 flex flex-col items-start gap-5 rounded-[var(--radius-card)] border border-line bg-surface p-8 sm:p-10">
           <h2 className="text-2xl font-semibold tracking-tight">Не знайшли свій випадок?</h2>
           <p className="max-w-xl text-muted">

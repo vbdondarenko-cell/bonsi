@@ -44,6 +44,8 @@ export async function inviteClientAction(_prev: ActionState, formData: FormData)
 
   const order = await admin.supabase.from("orders").select("email").eq("id", orderId.data).maybeSingle();
   if (order.error || !order.data) return { error: "Заявку не знайдено." };
+  const email = order.data.email?.trim();
+  if (!email) return { error: "У заявці немає email. Спочатку отримайте його від клієнта." };
 
   try {
     const service = createSupabaseServiceClient();
@@ -54,11 +56,11 @@ export async function inviteClientAction(_prev: ActionState, formData: FormData)
   }
 
   const { error } = await admin.supabase.auth.signInWithOtp({
-    email: order.data.email as string,
+    email,
     options: { shouldCreateUser: true, emailRedirectTo: `${site.url}/auth/confirm` },
   });
   if (error) return { error: "Не вдалося надіслати запрошення." };
-  return { ok: true, notice: `Запрошення надіслано на ${order.data.email as string}. Проєкт зʼявиться після першого входу клієнта.` };
+  return { ok: true, notice: `Запрошення надіслано на ${email}. Проєкт зʼявиться після першого входу клієнта.` };
 }
 
 const projectInput = z.object({

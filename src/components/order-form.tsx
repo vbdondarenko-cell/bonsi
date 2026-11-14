@@ -17,7 +17,7 @@ import {
   type ServiceId,
 } from "@/lib/orders/options";
 import { checkedOrderSchema, type OrderFieldErrors } from "@/lib/orders/schema";
-import { services } from "@/lib/services";
+import { services, supportPlans } from "@/lib/services";
 
 type Values = {
   service: ServiceId | "";
@@ -98,10 +98,13 @@ const serverMessages: Record<number, string> = {
   503: "Приймання заявок тимчасово недоступне. Спробуйте трохи пізніше.",
 };
 
-export function OrderForm({ initialService }: { initialService?: ServiceId }) {
+export function OrderForm({ initialService, initialPlan }: { initialService?: ServiceId; initialPlan?: string }) {
   const toast = useToast();
   const startedAt = useRef(Date.now());
-  const [values, setValues] = useState<Values>({ ...emptyValues, service: initialService ?? "" });
+  const initialDetails: Record<string, string> = initialService === "support" && supportPlans.some((plan) => plan.id === initialPlan)
+    ? { plan: initialPlan! }
+    : {};
+  const [values, setValues] = useState<Values>({ ...emptyValues, service: initialService ?? "", details: initialDetails });
   // Послугу обрано заздалегідь (картка послуги чи посилання): форма її не перепитує.
   const [changingService, setChangingService] = useState(false);
   const [honeypot, setHoneypot] = useState("");
@@ -159,7 +162,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
     if (!parsed.success) {
       const fieldErrors = parsed.error.flatten().fieldErrors as OrderFieldErrors;
       setErrors(fieldErrors);
-      const order = ["service", "idea", "links", "budget", "deadline", "name", "email", "phone", "consent"];
+      const order = ["service", "name", "phone", "email", "budget", "idea", "links", "deadline", "consent"];
       const first = order.find((name) => fieldErrors[name as keyof OrderFieldErrors]);
       if (first) focusField(first);
       return;
@@ -185,7 +188,6 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
       if (response.status === 201 && body?.ticket) {
         setTicket(body.ticket);
         (window as Window & { gtag?: (...args: unknown[]) => void }).gtag?.("event", "generate_lead", {
-          ticket: body.ticket,
           service: parsed.data.service,
         });
         return;
@@ -220,7 +222,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
       toast.push({
         tone: "error",
         title: "Немає звʼязку з сервером",
-        description: "Перевірте зʼєднання з інтернетом і спробуйте ще раз. Дані форми збережено.",
+        description: "Не вдалося підтвердити надсилання. Перевірте зʼєднання й спробуйте ще раз.",
       });
     } finally {
       window.clearTimeout(timeout);
@@ -239,7 +241,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
   }
 
   function reset() {
-    setValues({ ...emptyValues, service: initialService ?? "" });
+    setValues({ ...emptyValues, service: initialService ?? "", details: initialDetails });
     setChangingService(false);
     setErrors({});
     setTicket(null);
@@ -254,20 +256,22 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
       >
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-ok">Заявку збережено</p>
         <h2 className="mt-5 text-3xl font-semibold tracking-tight">Дякуємо, ми отримали вашу заявку</h2>
-        <p className="mt-4 text-muted">Номер вашого звернення — збережіть його для подальшого спілкування:</p>
+        <p className="mt-4 text-muted">Збережіть номер звернення — він допоможе нам швидко знайти вашу заявку:</p>
         <p className="mt-5 inline-block rounded-2xl border border-line bg-surface-2 px-5 py-3 font-mono text-2xl tracking-wider">
           {ticket}
         </p>
         <p className="mt-6 max-w-xl text-muted">
-          Далі — увійдіть у кабінет за цією поштою (пароль не потрібен): там зʼявиться ваш проєкт, чат зі студією й пропозиція.
+          Ми зв’яжемося з вами за вказаним телефоном або Telegram.{values.email.trim() ? " На email також надійде підтвердження; за ним можна буде відкрити клієнтський кабінет." : " Якщо пізніше захочете користуватися клієнтським кабінетом, повідомте нам email під час спілкування."}
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button type="button" onClick={copyTicket}>
             Скопіювати номер
           </Button>
-          <Link href={`/login?email=${encodeURIComponent(values.email.trim().toLowerCase())}`} className={buttonStyles("ghost")}>
-            Увійти в кабінет за цією поштою
-          </Link>
+          {values.email.trim() ? (
+            <Link href={`/login?email=${encodeURIComponent(values.email.trim().toLowerCase())}`} className={buttonStyles("ghost")}>
+              Увійти в кабінет за цією поштою
+            </Link>
+          ) : null}
           <Button type="button" variant="ghost" onClick={reset}>
             Надіслати ще одну заявку
           </Button>
@@ -278,6 +282,74 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
 
   const describedBy = (name: keyof OrderFieldErrors, hint = false) =>
     firstError(name) ? `field-${name}-error` : hint ? `field-${name}-hint` : undefined;
+
+  const contactFields = (
+    <>
+      <div className="grid gap-6 sm:grid-cols-2">
+        <Field id="field-name" label="Імʼя" error={firstError("name")}>
+          <input
+            id="field-name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            required
+            value={values.name}
+            onChange={onText("name")}
+            aria-invalid={Boolean(firstError("name"))}
+            aria-describedby={describedBy("name")}
+            className={fieldClass}
+          />
+        </Field>
+        <Field
+          id="field-phone"
+          label="Телефон або Telegram"
+          hint="Телефон із кодом країни або Telegram username у форматі @username."
+          error={firstError("phone")}
+        >
+          <input
+            id="field-phone"
+            name="phone"
+            type="text"
+            autoComplete="tel"
+            inputMode="text"
+            required
+            value={values.phone}
+            onChange={onText("phone")}
+            aria-invalid={Boolean(firstError("phone"))}
+            aria-describedby={describedBy("phone", true)}
+            className={fieldClass}
+          />
+        </Field>
+      </div>
+      <Field
+        id="field-email"
+        label="Email (необовʼязково)"
+        hint="Якщо вкажете email, надішлемо підтвердження й відкриємо доступ до кабінету клієнта."
+        error={firstError("email")}
+      >
+        <input
+          id="field-email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          value={values.email}
+          onChange={onText("email")}
+          aria-invalid={Boolean(firstError("email"))}
+          aria-describedby={describedBy("email", true)}
+          className={fieldClass}
+        />
+      </Field>
+    </>
+  );
+
+  const selectedService = services.find((service) => service.id === values.service);
+  const selectedPlan = supportPlans.find((plan) => plan.id === values.details.plan);
+  const selectedPrice = values.service === "support" && selectedPlan
+    ? selectedPlan.priceLabel
+    : selectedService?.priceLabel;
 
   return (
     <form
@@ -294,6 +366,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
           <p>
             <span className="text-sm text-muted">Послуга</span>
             <span className="mt-1 block text-lg font-medium">{serviceTitles[values.service]}</span>
+            <span className="mt-1 block text-sm font-semibold text-accent-soft">{selectedPrice}</span>
           </p>
           <button
             type="button"
@@ -318,7 +391,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
                 <label
                   key={id}
                   className={cn(
-                    "flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition-colors",
+                    "flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition-colors",
                     selected ? "border-accent-soft bg-surface-2" : "border-line hover:border-muted/60",
                   )}
                 >
@@ -338,7 +411,12 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
                     }}
                     className="size-4 accent-[var(--color-accent)]"
                   />
-                  <span>{serviceTitles[id]}</span>
+                  <span className="flex flex-col gap-1">
+                    <span>{serviceTitles[id]}</span>
+                    <span className="text-xs font-medium text-accent-soft">
+                      {services.find((service) => service.id === id)?.priceLabel}
+                    </span>
+                  </span>
                 </label>
               );
             })}
@@ -351,6 +429,25 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
         </fieldset>
       )}
 
+      {contactFields}
+
+      <Field id="field-budget" label="Орієнтовний бюджет (необовʼязково)" error={firstError("budget")}>
+        <select
+          id="field-budget"
+          name="budget"
+          value={values.budget}
+          onChange={onText("budget")}
+          aria-invalid={Boolean(firstError("budget"))}
+          aria-describedby={describedBy("budget")}
+          className={fieldClass}
+        >
+          <option value="">Не вказувати</option>
+          {BUDGET_IDS.map((id) => (
+            <option key={id} value={id}>{BUDGET_LABELS[id]}</option>
+          ))}
+        </select>
+      </Field>
+
       {values.service ? (
         <div className="flex flex-col gap-6" data-testid="service-questions">
           {SERVICE_QUESTIONS[values.service].map((question) => (
@@ -358,30 +455,60 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
               <legend className="mb-1 text-sm font-medium">
                 {question.label} <span className="font-normal text-muted">(необовʼязково)</span>
               </legend>
-              <div className="flex flex-wrap gap-2">
-                {question.options.map((option) => {
-                  const selected = values.details[question.id] === option.id;
-                  return (
-                    <label
-                      key={option.id}
-                      className={cn(
-                        "flex min-h-11 cursor-pointer items-center rounded-full border px-4 py-2 text-sm transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-soft",
-                        selected ? "border-accent-soft bg-surface-2 text-fg" : "border-line text-muted hover:border-muted/60 hover:text-fg",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name={`detail-${question.id}`}
-                        value={option.id}
-                        checked={selected}
-                        onChange={() => update("details", { ...values.details, [question.id]: option.id })}
-                        className="sr-only"
-                      />
-                      {option.label}
-                    </label>
-                  );
-                })}
-              </div>
+              {question.id === "plan" ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {supportPlans.map((plan) => {
+                    const selected = values.details.plan === plan.id;
+                    return (
+                      <label key={plan.id} className={cn(
+                        "flex cursor-pointer flex-col rounded-2xl border p-4 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-soft",
+                        selected ? "border-accent-soft bg-surface-2" : "border-line hover:border-muted/60",
+                      )}>
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="detail-plan"
+                            value={plan.id}
+                            checked={selected}
+                            onChange={() => update("details", { ...values.details, plan: plan.id })}
+                            className="size-4 accent-[var(--color-accent)]"
+                          />
+                          <span className="font-semibold">{plan.title}</span>
+                        </span>
+                        <span className="mt-3 text-lg font-semibold text-accent-soft">{plan.priceLabel}</span>
+                        <span className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-muted">
+                          {plan.points.map((point) => <span key={point}>{point}</span>)}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {question.options.map((option) => {
+                    const selected = values.details[question.id] === option.id;
+                    return (
+                      <label
+                        key={option.id}
+                        className={cn(
+                          "flex min-h-11 cursor-pointer items-center rounded-full border px-4 py-2 text-sm transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-soft",
+                          selected ? "border-accent-soft bg-surface-2 text-fg" : "border-line text-muted hover:border-muted/60 hover:text-fg",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name={`detail-${question.id}`}
+                          value={option.id}
+                          checked={selected}
+                          onChange={() => update("details", { ...values.details, [question.id]: option.id })}
+                          className="sr-only"
+                        />
+                        {option.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </fieldset>
           ))}
         </div>
@@ -390,7 +517,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
       <Field
         id="field-idea"
         label="Коротко про задачу (необовʼязково)"
-        hint="Кілька речень своїми словами. Деталі обговоримо вже в кабінеті проєкту."
+        hint="Кілька речень своїми словами. Подробиці зможемо уточнити під час розмови."
         error={firstError("idea")}
       >
         <textarea
@@ -426,25 +553,7 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
         />
       </Field>
 
-      <div className="grid gap-8 sm:grid-cols-2">
-        <Field id="field-budget" label="Орієнтовний бюджет (необовʼязково)" error={firstError("budget")}>
-          <select
-            id="field-budget"
-            name="budget"
-            value={values.budget}
-            onChange={onText("budget")}
-            aria-invalid={Boolean(firstError("budget"))}
-            aria-describedby={describedBy("budget")}
-            className={fieldClass}
-          >
-            <option value="">Не вказувати</option>
-            {BUDGET_IDS.map((id) => (
-              <option key={id} value={id}>
-                {BUDGET_LABELS[id]}
-              </option>
-            ))}
-          </select>
-        </Field>
+      <div className="max-w-sm">
         <Field id="field-deadline" label="Бажані терміни (необовʼязково)" error={firstError("deadline")}>
           <select
             id="field-deadline"
@@ -464,56 +573,6 @@ export function OrderForm({ initialService }: { initialService?: ServiceId }) {
           </select>
         </Field>
       </div>
-
-      <div className="grid gap-8 sm:grid-cols-2">
-        <Field id="field-name" label="Імʼя" error={firstError("name")}>
-          <input
-            id="field-name"
-            name="name"
-            type="text"
-            autoComplete="name"
-            value={values.name}
-            onChange={onText("name")}
-            aria-invalid={Boolean(firstError("name"))}
-            aria-describedby={describedBy("name")}
-            className={fieldClass}
-          />
-        </Field>
-        <Field id="field-email" label="Email" error={firstError("email")}>
-          <input
-            id="field-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            value={values.email}
-            onChange={onText("email")}
-            aria-invalid={Boolean(firstError("email"))}
-            aria-describedby={describedBy("email")}
-            className={fieldClass}
-          />
-        </Field>
-      </div>
-
-      <Field
-        id="field-phone"
-        label="Телефон (необовʼязково)"
-        hint="Якщо зручніше, щоб ми зателефонували."
-        error={firstError("phone")}
-      >
-        <input
-          id="field-phone"
-          name="phone"
-          type="tel"
-          autoComplete="tel"
-          inputMode="tel"
-          value={values.phone}
-          onChange={onText("phone")}
-          aria-invalid={Boolean(firstError("phone"))}
-          aria-describedby={describedBy("phone", true)}
-          className={fieldClass}
-        />
-      </Field>
 
       {/* Honeypot: прихований від людей і допоміжних технологій. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">

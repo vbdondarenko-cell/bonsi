@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /** Файли під контролем git (без залежностей і lock-файлів). */
@@ -8,6 +8,7 @@ function trackedFiles(): string[] {
   return out
     .split("\0")
     .filter(Boolean)
+    .filter((file) => existsSync(file))
     .filter((file) => !file.endsWith("package-lock.json"))
     .filter((file) => !/\.(png|jpe?g|webp|ico|woff2?|gif)$/i.test(file))
     .filter((file) => file !== "src/lib/security/secrets.test.ts");

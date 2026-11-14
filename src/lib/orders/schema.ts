@@ -35,17 +35,21 @@ export const orderSchema = z.object({
     .min(2, "Вкажіть імʼя")
     .max(100, "Максимум 100 символів"),
   email: z
-    .string({ error: "Вкажіть email" })
+    .string()
     .trim()
     .toLowerCase()
     .max(200, "Максимум 200 символів")
-    .email("Перевірте адресу email"),
+    .email("Перевірте адресу email")
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => value || undefined),
   phone: z
     .string()
     .trim()
-    .max(30, "Максимум 30 символів")
-    .regex(/^[+\d\s()-]*$/, "Лише цифри, пробіли та символи + ( ) -")
-    .optional(),
+    .max(40, "Максимум 40 символів")
+    .regex(/^(?:@[A-Za-z0-9_]{5,32}|(?=.*\d)[+\d\s().-]{6,40})?$/, "Вкажіть телефон або Telegram у форматі @username")
+    .optional()
+    .transform((value) => value || undefined),
   consent: z.literal(true, { error: "Потрібна згода на обробку контактних даних" }),
   /** Honeypot: люди це поле не бачать і не заповнюють. */
   website: z.string().max(200).optional(),
@@ -53,8 +57,15 @@ export const orderSchema = z.object({
   startedAt: z.number().int().nonnegative(),
 });
 
+/** Телефон або Telegram потрібен для відповіді; email необов'язковий і дає доступ до клієнтського кабінету. */
+const contactOrderSchema = orderSchema.superRefine((value, ctx) => {
+  if (!value.phone) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Вкажіть телефон або Telegram для звʼязку" });
+  }
+});
+
 /** Уточнення мають належати саме обраній послузі та мати відомі варіанти відповідей. */
-export const checkedOrderSchema = orderSchema.superRefine((value, ctx) => {
+export const checkedOrderSchema = contactOrderSchema.superRefine((value, ctx) => {
   const questions = SERVICE_QUESTIONS[value.service];
   for (const [key, answer] of Object.entries(value.details ?? {})) {
     const question = questions.find((item) => item.id === key);

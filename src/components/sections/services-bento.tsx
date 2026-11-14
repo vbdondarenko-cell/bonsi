@@ -15,7 +15,7 @@ export function ServicesBento({ withHeading = true }: { withHeading?: boolean })
           <SectionHeading
             eyebrow="Послуги"
             title="Що ми робимо"
-            description="Оберіть напрям — детальніше про склад робіт і результат ми розповімо на сторінці послуг."
+            description="Оберіть напрям і перегляньте стартову вартість та склад робіт на сторінці послуг."
           />
         </Reveal>
       ) : null}
@@ -31,13 +31,16 @@ export function ServicesBento({ withHeading = true }: { withHeading?: boolean })
                   <h3 className="text-xl font-semibold tracking-tight">{service.title}</h3>
                   <p className="mt-3 leading-relaxed text-muted">{service.summary}</p>
                 </div>
-                <span className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.16em] text-accent-soft">
-                  Детальніше
-                  <span
-                    aria-hidden="true"
-                    className="transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transform-none"
-                  >
-                    →
+                <span className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-accent-soft">{service.priceLabel}</span>
+                  <span className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.16em] text-accent-soft">
+                    Детальніше
+                    <span
+                      aria-hidden="true"
+                      className="transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transform-none"
+                    >
+                      →
+                    </span>
                   </span>
                 </span>
               </Link>

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PRODUCT_TYPE_LABELS, listPublishedCases } from "@/lib/portfolio";
 
 export const metadata: Metadata = {
@@ -14,8 +16,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-export default async function PortfolioPage() {
-  const cases = await listPublishedCases();
+export default function PortfolioPage() {
   return (
     <>
       <Container className="pt-20 sm:pt-28">
@@ -27,32 +28,52 @@ export default async function PortfolioPage() {
         />
       </Container>
       <Section>
-        {cases.length === 0 ? (
-          <EmptyState
-            title="Перші кейси зʼявляться тут"
-            description="Ми не публікуємо вигаданих клієнтів, результатів чи відгуків. Щойно проєкти будуть готові до публікації, повні сторінки кейсів зʼявляться в цьому розділі."
-            action={<ButtonLink href="/contact">Обговорити проєкт</ButtonLink>}
-          />
-        ) : (
-          <ul className="grid gap-4 md:grid-cols-2">
-            {cases.map((item) => (
-              <li key={item.slug}>
-                <Link
-                  href={`/portfolio/${item.slug}`}
-                  className="block h-full rounded-[var(--radius-card)] border border-line bg-surface p-8 transition-colors hover:border-accent-soft/70"
-                >
-                  {item.productType ? <p className="mb-2 text-xs uppercase tracking-[0.14em] text-muted">{PRODUCT_TYPE_LABELS[item.productType] ?? item.productType}</p> : null}
-                  <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
-                  <p className="mt-3 leading-relaxed text-muted">{item.summary}</p>
-                  <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-accent-soft">
-                    {item.stack.join(" · ")}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        <Suspense fallback={<PortfolioSkeleton />}>
+          <PortfolioCases />
+        </Suspense>
       </Section>
     </>
+  );
+}
+
+async function PortfolioCases() {
+  const cases = await listPublishedCases();
+  return (
+    <>
+      {cases.length === 0 ? (
+        <EmptyState
+          title="Перші кейси зʼявляться тут"
+          description="Ми не публікуємо вигаданих клієнтів, результатів чи відгуків. Щойно проєкти будуть готові до публікації, повні сторінки кейсів зʼявляться в цьому розділі."
+          action={<ButtonLink href="/contact">Обговорити проєкт</ButtonLink>}
+        />
+      ) : (
+        <ul className="grid gap-4 md:grid-cols-2">
+          {cases.map((item) => (
+            <li key={item.slug}>
+              <Link
+                href={`/portfolio/${item.slug}`}
+                className="block h-full rounded-[var(--radius-card)] border border-line bg-surface p-8 transition-colors hover:border-accent-soft/70"
+              >
+                {item.productType ? <p className="mb-2 text-xs uppercase tracking-[0.14em] text-muted">{PRODUCT_TYPE_LABELS[item.productType] ?? item.productType}</p> : null}
+                <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
+                <p className="mt-3 leading-relaxed text-muted">{item.summary}</p>
+                <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-accent-soft">
+                  {item.stack.join(" · ")}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function PortfolioSkeleton() {
+  return (
+    <div role="status" aria-label="Завантаження портфоліо" className="grid gap-4 md:grid-cols-2">
+      <Skeleton className="h-64" />
+      <Skeleton className="h-64" />
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { dispatchNotifications } from "./dispatch";
 
-const env = { TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_CHAT_IDS: "1,2" } as unknown as NodeJS.ProcessEnv;
+const env = { TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_CHAT_IDS: "-1001,-1002" } as unknown as NodeJS.ProcessEnv;
 
 const row = {
   outbox_id: 5,

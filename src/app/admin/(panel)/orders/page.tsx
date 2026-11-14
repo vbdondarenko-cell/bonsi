@@ -17,7 +17,7 @@ import { services } from "@/lib/services";
 export const metadata: Metadata = { title: "Заявки" };
 
 type Row = {
-  id: string; ticket_number: string; service: string; name: string; email: string;
+  id: string; ticket_number: string; service: string; name: string; email: string | null;
   status: string; assigned_to: string | null; created_at: string; total_count: number;
 };
 
@@ -137,7 +137,7 @@ export default async function OrdersPage({
                     </td>
                     <td className="px-4 py-3">
                       <div>{row.name}</div>
-                      <div className="text-xs text-muted">{row.email}</div>
+                      <div className="text-xs text-muted">{row.email ?? "Email не вказано"}</div>
                     </td>
                     <td className="px-4 py-3 text-muted">{serviceTitle(row.service)}</td>
                     <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
@@ -159,7 +159,7 @@ export default async function OrdersPage({
                   </span>
                   <span>
                     <span className="block">{row.name}</span>
-                    <span className="block break-all text-xs text-muted">{row.email}</span>
+                    <span className="block break-all text-xs text-muted">{row.email ?? "Email не вказано"}</span>
                   </span>
                   <span className="text-xs text-muted">
                     {serviceTitle(row.service)} · {formatDateTime(row.created_at)}

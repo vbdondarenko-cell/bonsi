@@ -8,16 +8,16 @@
 
 1. Відкрийте [@BotFather](https://t.me/BotFather) → `/newbot` → назва та username.
 2. Скопіюйте **токен** вигляду `1234567890:AAH...` — це `TELEGRAM_BOT_TOKEN`.
-3. Напишіть боту `/start` (або додайте його в потрібну групу й напишіть там).
+3. Додайте бота до **приватної адмінської групи BONSI** та надішліть тестове повідомлення в групі. Не використовуйте особисті чати клієнтів.
 4. Дізнайтеся chat id:
 
 ```bash
 curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" | grep -o '"chat":{"id":[-0-9]*'
 ```
 
-- особистий чат — додатне число (`123456789`);
-- група — від'ємне (`-1001234567890`);
-- кілька отримувачів — через кому в `TELEGRAM_CHAT_IDS`.
+- особисті чати ігноруються; приймаються лише від'ємні ID груп;
+- група — від'ємне число (`-1001234567890`);
+- перелічуйте лише адмінські групи через кому в `TELEGRAM_CHAT_IDS`.
 
 ### Група з гілками (Topics)
 
@@ -33,7 +33,7 @@ TELEGRAM_CHAT_IDS=-1001234567890:45
 - бот має бути учасником групи (краще адміном, якщо писати дозволено лише адмінам);
 - для гілки **General** thread id не вказуйте — Telegram не приймає `message_thread_id` для неї.
 
-Кілька гілок/чатів — через кому: `-1001234567890:45,-1009876543210:12,123456789`.
+Кілька адмінських груп/гілок — через кому: `-1001234567890:45,-1009876543210:12`.
 
 5. Перевірка доставки:
 
@@ -62,6 +62,7 @@ curl -s -X POST "https://api.telegram.org/bot<TOKEN>/sendMessage" \
 20261107000000_studio_operations.sql
 20261108000000_delivery_support.sql
 20261109000000_portfolio.sql
+20261114000000_service_catalog_and_optional_email.sql
 ```
 
 3. Візьміть із **Project Settings → API**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
@@ -125,7 +126,7 @@ curl -fsS -X POST https://bonsi.site/api/internal/notifications \
 ## 5. Перевірка Telegram-інтеграції
 
 1. Напишіть боту `/start`.
-2. Надішліть тестову заявку через `/contact`.
+2. Застосуйте всі міграції, включно з `20261114000000_service_catalog_and_optional_email.sql`, і надішліть тестову заявку через `/contact`.
 3. У Telegram має прийти повідомлення `Нова заявка BON-2026-00001`.
 4. Якщо тихо:
    - перевірте, що `TELEGRAM_BOT_TOKEN` і `TELEGRAM_CHAT_IDS` є **в застосунку cPanel**, а не лише в shell;
@@ -141,6 +142,7 @@ curl -fsS -X POST https://bonsi.site/api/internal/notifications \
 - [ ] Перевірте `https://bonsi.site/robots.txt` — приватні `/admin`, `/app`, `/api`, `/auth`, `/login` закриті.
 - [ ] Rich Results Test для `/`, `/services`, `/faq`, кейсу: мають знайтися Organization, WebSite, Service/OfferCatalog, FAQPage, BreadcrumbList.
 - [ ] GA4: перевірте подію `generate_lead` після тестової заявки.
+- [ ] Форма приймає email як необов'язковий; телефон або Telegram username потрібен завжди. Без email клієнт не отримує лист і не може ввійти в кабінет за заявкою, доки не додасть адресу.
 - [ ] Додайте реальні кейси в `/admin/portfolio` (унікальні title/description, стек, результат) — це головний контент для органіки.
 - [ ] Заповніть `NEXT_PUBLIC_LEGAL_NAME` і `NEXT_PUBLIC_CONTACT_EMAIL` (E-E-A-T, довіра).
 - [ ] Швидкість: увімкніть Cloudflare (безкоштовно) перед cPanel, кеш статики, Brotli/Gzip, HTTP/2.

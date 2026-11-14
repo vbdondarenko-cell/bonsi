@@ -8,7 +8,7 @@ import { RejectOrderForm } from "@/components/admin/workflow-forms";
 import { PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
 import { uuidSchema } from "@/lib/admin/orders";
 import { requireAdmin } from "@/lib/admin/guard";
-import { BUDGET_LABELS, DEADLINE_LABELS, SERVICE_QUESTIONS, isServiceId, type BudgetId, type DeadlineId } from "@/lib/orders/options";
+import { BUDGET_LABELS, LEGACY_BUDGET_LABELS, DEADLINE_LABELS, SERVICE_QUESTIONS, isServiceId, type BudgetId, type DeadlineId } from "@/lib/orders/options";
 import { InviteClientForm } from "@/components/admin/project-forms";
 import { services } from "@/lib/services";
 
@@ -67,11 +67,11 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
           <Panel title="Деталі заявки">
             <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
               <Item label="Послуга" value={serviceTitle} />
-              <Item label="Бюджет" value={o.budget ? BUDGET_LABELS[o.budget as BudgetId] ?? (o.budget as string) : "Не вказано"} />
+              <Item label="Бюджет" value={o.budget ? BUDGET_LABELS[o.budget as BudgetId] ?? LEGACY_BUDGET_LABELS[o.budget as string] ?? (o.budget as string) : "Не вказано"} />
               <Item label="Терміни" value={o.deadline ? DEADLINE_LABELS[o.deadline as DeadlineId] ?? (o.deadline as string) : "Не вказано"} />
               <Item label="Створено" value={formatDateTime(o.created_at as string)} />
-              <Item label="Email" value={<a className="break-all text-accent-soft underline-offset-4 hover:underline" href={`mailto:${o.email}`}>{o.email as string}</a>} />
-              <Item label="Телефон" value={(o.phone as string | null) ?? "—"} />
+              <Item label="Email" value={o.email ? <a className="break-all text-accent-soft underline-offset-4 hover:underline" href={`mailto:${o.email}`}>{o.email as string}</a> : "Не вказано"} />
+              <Item label="Телефон / Telegram" value={(o.phone as string | null) ?? "—"} />
             </dl>
             {answers.length > 0 ? (
               <dl className="mt-6 grid gap-x-8 gap-y-5 border-t border-line pt-5 sm:grid-cols-2">
@@ -128,8 +128,10 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
               <Link prefetch={false} href={`/admin/projects/${project.data.id as string}`} className="text-accent-soft underline underline-offset-4">
                 Відкрити проєкт клієнта
               </Link>
-            ) : (
+            ) : o.email ? (
               <InviteClientForm orderId={id} />
+            ) : (
+              <p className="text-sm text-muted">Email не вказано. Кабінет можна запросити після отримання email від клієнта.</p>
             )}
           </Panel>
 

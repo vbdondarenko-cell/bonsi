@@ -29,6 +29,7 @@ test.describe("форма заявки", () => {
     await page.locator("select#field-deadline").selectOption({ index: 1 });
     await page.locator("#field-name").fill("Іван");
     await page.locator("#field-email").fill("ivan@example.com");
+    await page.locator("#field-phone").fill("+380501234567");
     await page.locator("#field-consent").check();
     await page.getByRole("button", { name: "Надіслати заявку" }).click();
     await expect(page.getByText("BON-2026-00042")).toBeVisible();
@@ -74,10 +75,10 @@ test.describe("замовлення без зайвих запитань", () =>
 
   test("невідома послуга в адресі ігнорується", async ({ page }) => {
     await page.goto("/contact?service=hack");
-    await expect(page.locator("input[name='service']")).toHaveCount(7);
+    await expect(page.locator("input[name='service']")).toHaveCount(10);
   });
 
-  test("мінімальна заявка (лише послуга, імʼя, email, згода) надсилається без опису, бюджету й термінів", async ({ page }) => {
+  test("мінімальна заявка з Telegram-контактом без email надсилається без додаткових полів", async ({ page }) => {
     let sent: Record<string, unknown> | null = null;
     await page.route("**/api/orders", async (route) => {
       sent = route.request().postDataJSON();
@@ -86,12 +87,13 @@ test.describe("замовлення без зайвих запитань", () =>
     await page.goto("/contact?service=landing");
     await page.waitForTimeout(3200);
     await page.locator("#field-name").fill("Іван");
-    await page.locator("#field-email").fill("ivan@example.com");
+    await page.locator("#field-phone").fill("@bonsi_client");
     await page.locator("#field-links").fill("https://example.com/a\nhttps://example.com/b");
     await page.locator("#field-consent").check();
     await page.getByRole("button", { name: "Надіслати заявку" }).click();
     await expect(page.getByText("BON-2026-00043")).toBeVisible();
-    expect(sent).toMatchObject({ service: "landing", links: ["https://example.com/a", "https://example.com/b"] });
+    expect(sent).toMatchObject({ service: "landing", phone: "@bonsi_client", links: ["https://example.com/a", "https://example.com/b"] });
+    expect(sent).not.toHaveProperty("email");
     expect(sent).not.toHaveProperty("idea");
     expect(sent).not.toHaveProperty("budget");
     expect(sent).not.toHaveProperty("deadline");
@@ -100,6 +102,7 @@ test.describe("замовлення без зайвих запитань", () =>
   test("некоректне посилання блокується на клієнті", async ({ page }) => {
     await page.goto("/contact?service=landing");
     await page.locator("#field-name").fill("Іван");
+    await page.locator("#field-phone").fill("@bonsi_client");
     await page.locator("#field-email").fill("ivan@example.com");
     await page.locator("#field-links").fill("javascript:alert(1)");
     await page.locator("#field-consent").check();
@@ -110,7 +113,7 @@ test.describe("замовлення без зайвих запитань", () =>
 
   test("сторінка послуг веде до заявки з уже обраною послугою", async ({ page }) => {
     await page.goto("/services");
-    await page.getByRole("link", { name: "Замовити цю послугу" }).first().click();
+    await page.getByRole("link", { name: "Замовити послугу" }).first().click();
     await expect(page).toHaveURL(/\/contact\?service=landing/);
     await expect(page.locator("#field-service")).toContainText("Landing Pages");
   });

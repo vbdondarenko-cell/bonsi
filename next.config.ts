@@ -11,6 +11,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Keep standalone output and file tracing rooted in this app on machines with parent lockfiles.
+  outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
   reactStrictMode: true,
   // Для cPanel (Passenger) потрібен self-contained сервер: BUILD_STANDALONE=1 npm run build.

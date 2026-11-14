@@ -11,7 +11,7 @@ describe("конфігурація Telegram", () => {
   it("вимкнена без токена або chat id", () => {
     expect(isTelegramEnabled({} as NodeJS.ProcessEnv)).toBe(false);
     expect(isTelegramEnabled({ TELEGRAM_BOT_TOKEN: "123:abc" } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(isTelegramEnabled({ TELEGRAM_CHAT_IDS: "1" } as unknown as NodeJS.ProcessEnv)).toBe(false);
+    expect(isTelegramEnabled({ TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_CHAT_IDS: "1" } as unknown as NodeJS.ProcessEnv)).toBe(false);
   });
 
   it("читає кілька chat id і відкидає сміття", () => {
@@ -19,7 +19,7 @@ describe("конфігурація Telegram", () => {
       TELEGRAM_BOT_TOKEN: " 123:abc ",
       TELEGRAM_CHAT_IDS: "111, -100222 ,abc,,33a",
     } as unknown as NodeJS.ProcessEnv);
-    expect(config).toEqual({ token: "123:abc", targets: [{ chatId: "111" }, { chatId: "-100222" }] });
+    expect(config).toEqual({ token: "123:abc", targets: [{ chatId: "-100222" }] });
   });
 
   it("читає гілку форум-групи у форматі chatId:threadId", () => {
@@ -29,7 +29,7 @@ describe("конфігурація Telegram", () => {
     } as unknown as NodeJS.ProcessEnv);
     expect(config).toEqual({
       token: "123:abc",
-      targets: [{ chatId: "-1001234567890", threadId: 45 }, { chatId: "-100999", threadId: 12 }, { chatId: "77" }],
+      targets: [{ chatId: "-1001234567890", threadId: 45 }, { chatId: "-100999", threadId: 12 }],
     });
   });
 

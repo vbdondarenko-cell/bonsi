@@ -19,7 +19,9 @@ export function Reveal({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 24 }}
+      // Keep server-rendered content visible without JavaScript. Motion can still
+      // animate the small offset when it enters the viewport after hydration.
+      initial={{ opacity: 1, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}

@@ -21,9 +21,10 @@ function payload(overrides: Record<string, unknown> = {}) {
   return {
     service: "landing",
     idea: "Потрібен односторінковий сайт для нового продукту.",
-    budget: "lt-50k",
+    budget: "20000-50000",
     deadline: "1-month",
     name: "Іван",
+    phone: "+380501234567",
     email: "ivan@example.com",
     consent: true,
     startedAt: Date.now() - 20_000,
@@ -79,6 +80,13 @@ describe("POST /api/orders", () => {
     );
     expect(response.status).toBe(201);
     expect(createOrderMock.mock.calls[0]![0]).toMatchObject({ service: "landing", details: { goal: "leads" }, links: ["https://example.com/ref"] });
+  });
+
+  it("приймає заявку з Telegram-контактом без email", async () => {
+    createOrderMock.mockResolvedValue({ ticket: "BON-2026-00003" });
+    const response = await post(payload({ service: "telegram", email: "", phone: "@bonsi_support", budget: "3000-5000" }));
+    expect(response.status).toBe(201);
+    expect(createOrderMock.mock.calls[0]![0]).toMatchObject({ service: "telegram", email: undefined, phone: "@bonsi_support" });
   });
 
   it("відхиляє уточнення, що не належать обраній послузі", async () => {

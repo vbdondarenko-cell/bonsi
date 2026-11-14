@@ -17,7 +17,7 @@ export const dynamicParams = true;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const item = await getPublishedCase(slug);
-  if (!item) return { title: "Кейс не знайдено" };
+  if (!item) notFound();
   return {
     title: item.title,
     description: item.summary,

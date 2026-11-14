@@ -1,5 +1,5 @@
 import { legal } from "@/lib/legal";
-import { services } from "@/lib/services";
+import { services, supportPlans } from "@/lib/services";
 import { site } from "@/lib/site";
 
 /**
@@ -11,6 +11,34 @@ export const organizationId = `${site.url}/#organization`;
 export const websiteId = `${site.url}/#website`;
 
 const serviceUrl = (id: string) => `${site.url}/services#${id}`;
+
+function serviceOffers(serviceId: string) {
+  if (serviceId === "support") {
+    return supportPlans.map((plan) => ({
+      "@type": "Offer",
+      name: plan.title,
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: plan.price,
+        priceCurrency: "UAH",
+        unitText: "місяць",
+      },
+      description: `${plan.priceLabel}; технічна підтримка сайту за складом пакета.`,
+    }));
+  }
+  const service = services.find((item) => item.id === serviceId);
+  if (!service?.priceFrom) return undefined;
+  return [{
+    "@type": "Offer",
+    priceSpecification: {
+      "@type": "UnitPriceSpecification",
+      priceCurrency: "UAH",
+      minPrice: service.priceFrom,
+      ...(service.pricePeriod === "month" ? { unitText: "місяць" } : {}),
+    },
+    description: service.priceLabel,
+  }];
+}
 
 export function organizationJsonLd() {
   return {
@@ -41,16 +69,31 @@ export function organizationJsonLd() {
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Послуги BONSI Studios",
-      itemListElement: services.map((service) => ({
-        "@type": "Offer",
-        itemOffered: {
-          "@type": "Service",
-          name: service.title,
-          description: service.summary,
-          url: serviceUrl(service.id),
-          provider: { "@id": organizationId },
-        },
-      })),
+      itemListElement: services.map((service) => service.id === "support"
+        ? {
+            "@type": "OfferCatalog",
+            name: service.title,
+            itemListElement: serviceOffers(service.id),
+          }
+        : {
+            "@type": "Offer",
+            name: service.title,
+            ...(service.priceFrom ? {
+              priceSpecification: {
+                "@type": "UnitPriceSpecification",
+                priceCurrency: "UAH",
+                minPrice: service.priceFrom,
+              },
+              description: service.priceLabel,
+            } : {}),
+            itemOffered: {
+              "@type": "Service",
+              name: service.title,
+              description: service.summary,
+              url: serviceUrl(service.id),
+              provider: { "@id": organizationId },
+            },
+          }),
     },
   };
 }
@@ -82,6 +125,7 @@ export function servicesJsonLd() {
         description: service.summary,
         url: serviceUrl(service.id),
         provider: { "@id": organizationId },
+        ...(serviceOffers(service.id) ? { offers: serviceOffers(service.id) } : {}),
       },
     })),
   };

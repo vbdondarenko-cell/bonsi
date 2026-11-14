@@ -8,14 +8,14 @@ export type TelegramTarget = { chatId: string; threadId?: number };
 export type TelegramConfig = { token: string; targets: TelegramTarget[] };
 
 /**
- * `TELEGRAM_CHAT_IDS` — chat id через кому. Для гілки форум-групи пишеться
+ * `TELEGRAM_CHAT_IDS` — лише від'ємні ID адмінських груп, через кому. Для гілки форум-групи пишеться
  * `chatId:threadId`, напр. `-1001234567890:45`. Для гілки General thread id
  * не вказується. Некоректні записи ігноруються.
  */
 export function parseTelegramTargets(raw: string): TelegramTarget[] {
   const targets: TelegramTarget[] = [];
   for (const entry of raw.split(",")) {
-    const match = entry.trim().match(/^(-?\d{1,20})(?::(\d{1,20}))?$/);
+    const match = entry.trim().match(/^(-\d{1,20})(?::(\d{1,20}))?$/);
     if (!match) continue;
     const threadId = match[2] === undefined ? undefined : Number(match[2]);
     if (threadId !== undefined && (!Number.isSafeInteger(threadId) || threadId <= 0)) continue;

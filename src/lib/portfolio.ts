@@ -23,8 +23,9 @@ export async function listPublishedCases(): Promise<PublicCase[]> {
       .limit(100);
     if (error) throw error;
     const fromDb = ((data ?? []) as Row[]).map(toCase);
-    const known = new Set(fromDb.map((c) => c.slug));
-    return [...fromDb, ...cases.filter((c) => !known.has(c.slug))];
+    // Статичні кейси мають пріоритет над записами БД з тим самим slug.
+    const known = new Set(cases.map((c) => c.slug));
+    return [...cases, ...fromDb.filter((c) => !known.has(c.slug))];
   } catch {
     return cases;
   }

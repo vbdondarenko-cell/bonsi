@@ -25,14 +25,14 @@ const opts = { from: "BONSI <no-reply@bonsi.test>", siteUrl: "https://bonsi.test
 describe("шаблони листів", () => {
   it.each(EMAIL_TEMPLATES)("%s рендериться українською й англійською", (template) => {
     for (const locale of ["uk", "en"] as const) {
-      const out = renderEmail(template, locale, { ticket: "BON-2026-00001", title: "Сайт", number: "INV-1", amount: "1", currency: "UAH", version: 2 }, "https://bonsi.test/");
+      const out = renderEmail(template, locale, { ticket: "BON-2026-00001", title: "Сайт", number: "INV-1", amount: "1", currency: "UAH", version: 2 });
       expect(out.subject.length).toBeGreaterThan(3);
-      expect(out.html).toContain("https://bonsi.test/login");
+      expect(out.html).not.toContain("/login");
       expect(out.text).not.toMatch(/\{\w+\}/);
     }
   });
   it("екранує HTML у змінних і не пропускає переведення рядка в темі", () => {
-    const out = renderEmail("new_message", "uk", { title: '<script>alert(1)</script>\r\nBcc: x@evil' }, "https://bonsi.test");
+    const out = renderEmail("new_message", "uk", { title: '<script>alert(1)</script>\r\nBcc: x@evil' });
     expect(out.html).not.toContain("<script>");
     expect(out.subject).not.toMatch(/[\r\n]/);
   });

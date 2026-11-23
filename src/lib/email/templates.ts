@@ -38,16 +38,14 @@ const COPY: Record<EmailTemplate, Record<"uk" | "en", { subject: string; body: s
 const fill = (text: string, vars: Vars, escape: boolean) =>
   text.replace(/\{(\w+)\}/g, (_, key) => (escape ? escapeHtml(vars[key] ?? "") : String(vars[key] ?? "")));
 
-export function renderEmail(template: EmailTemplate, locale: "uk" | "en", vars: Vars, siteUrl: string): Rendered {
+export function renderEmail(template: EmailTemplate, locale: "uk" | "en", vars: Vars): Rendered {
   const copy = COPY[template][locale] ?? COPY[template].uk;
-  const link = `${siteUrl.replace(/\/$/, "")}/login`;
   const subject = fill(copy.subject, vars, false).replace(/[\r\n]+/g, " ").slice(0, 200);
   const body = fill(copy.body, vars, true);
-  const cta = locale === "uk" ? "Відкрити кабінет" : "Open workspace";
   return {
     subject,
-    html: `<!doctype html><html lang="${locale}"><body style="font-family:system-ui,sans-serif;max-width:560px;margin:auto"><p>${body}</p><p><a href="${escapeHtml(link)}">${cta}</a></p><p style="color:#666;font-size:12px">BONSI Studios</p></body></html>`,
-    text: `${fill(copy.body, vars, false)}\n\n${cta}: ${link}\n\nBONSI Studios`,
+    html: `<!doctype html><html lang="${locale}"><body style="font-family:system-ui,sans-serif;max-width:560px;margin:auto"><p>${body}</p><p style="color:#666;font-size:12px">BONSI Studios</p></body></html>`,
+    text: `${fill(copy.body, vars, false)}\n\nBONSI Studios`,
   };
 }
 

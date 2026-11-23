@@ -78,7 +78,7 @@ export async function dispatchEmails(
     let error: string | null = null;
     let messageId: string | null = null;
     try {
-      const rendered = renderEmail(row.template, row.locale, row.payload, options.siteUrl);
+      const rendered = renderEmail(row.template, row.locale, row.payload);
       messageId = (await provider.send({ to: row.to_email, toName: row.to_name, ...rendered, from: options.from, replyTo: options.replyTo, idempotencyKey: row.idempotency_key })).messageId;
     } catch (cause) {
       // Лише код помилки: тексту провайдера (може містити адресу) в базу не пишемо.

@@ -13,7 +13,7 @@ export function OrderSection({ headingAs = "h2", initialService, initialPlan }: 
             as={headingAs}
             eyebrow="Заявка"
             title="Обговоримо ваш проєкт"
-            description="Залиште контакт, за яким вам зручно відповісти. Email необов’язковий; якщо додасте його, зможете користуватися клієнтським кабінетом."
+            description="Залиште контакт, за яким вам зручно відповісти. Ми надішлемо підтвердження заявки на email."
           />
           <ul className="mt-10 space-y-4 text-muted">
             <li className="flex gap-3">

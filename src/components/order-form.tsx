@@ -318,7 +318,7 @@ export function OrderForm({ initialService, initialPlan }: { initialService?: Se
       <Field
         id="field-email"
         label="Email"
-        hint="Обовʼязковий: надішлемо підтвердження заявки й посилання на кабінет. Для входу код запитується окремо на сторінці авторизації."
+        hint="Обовʼязковий: надішлемо підтвердження заявки на цю адресу."
         error={firstError("email")}
       >
         <input

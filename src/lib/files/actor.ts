@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getAuthState } from "@/lib/admin/guard";
+import { getAuthState } from "@/lib/auth/guard";
 import { getClientState } from "@/lib/client/auth";
 
 export type Actor = { role: "admin" | "client"; supabase: SupabaseClient; userId: string };

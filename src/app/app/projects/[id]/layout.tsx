@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/admin/ui";
+import { PageHeader } from "@/components/workspace/page-ui";
 import { ProjectTabs } from "@/components/workspace/nav";
 import { ProjectStatusPill } from "@/components/workspace/ui";
 import { requireClient } from "@/lib/client/auth";

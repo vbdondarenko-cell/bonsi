@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CloseTicketButton, TicketReplyForm } from "@/components/workspace/support-forms";
 import { Card, Pill, formatWhen } from "@/components/workspace/ui";
-import { PageHeader } from "@/components/admin/ui";
+import { PageHeader } from "@/components/workspace/page-ui";
 import { requireClient } from "@/lib/client/auth";
 import { getTicket } from "@/lib/client/data";
 import { TICKET_CATEGORY_LABELS, TICKET_PRIORITY_LABELS, TICKET_STATUS_LABELS } from "@/lib/client/labels";

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { closeTicketAction, createTicketAction, decideHandoverAction, replyTicketClientAction, type FormState } from "@/app/app/actions";
-import { adminFieldClass } from "@/components/admin/ui";
+import { adminFieldClass } from "@/components/workspace/page-ui";
 import { Button } from "@/components/ui/button";
 import { TICKET_CATEGORY_LABELS, TICKET_PRIORITY_LABELS } from "@/lib/client/labels";
 

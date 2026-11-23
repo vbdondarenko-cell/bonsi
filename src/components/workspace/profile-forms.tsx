@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { signOutOtherSessionsAction, updateProfileAction, type FormState } from "@/app/app/actions";
-import { adminFieldClass } from "@/components/admin/ui";
+import { adminFieldClass } from "@/components/workspace/page-ui";
 import { Button } from "@/components/ui/button";
 
 function Status({ state }: { state: FormState }) {

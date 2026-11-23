@@ -154,7 +154,6 @@ jobs:
             if [ "$code" -ne 0 ]; then fail=1; fi
           }
           run build npm run build
-          if grep -q "^build=0$" .ci/summary.txt; then run e2e-admin npx playwright test -c playwright.admin.config.ts; fi
           exit $fail
 
       - name: Upload artifacts

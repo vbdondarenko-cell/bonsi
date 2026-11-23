@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { loadMessagesAction, markReadAction, sendClientMessageAction } from "@/app/app/actions";
-import { adminFieldClass } from "@/components/admin/ui";
+import { adminFieldClass } from "@/components/workspace/page-ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/client/labels";

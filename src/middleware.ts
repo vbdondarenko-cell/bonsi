@@ -2,8 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAuthEnv, type CookieItem } from "@/lib/supabase/env";
 
-const ADMIN_LOGIN_PATH = "/admin/login";
-const ADMIN_PUBLIC_PATHS = new Set([ADMIN_LOGIN_PATH, "/admin/register"]);
 const CLIENT_LOGIN_PATH = "/login";
 
 function harden(response: NextResponse) {
@@ -13,21 +11,19 @@ function harden(response: NextResponse) {
 }
 
 /**
- * Перший рубіж для /admin, /app та /login: оновлює сесію й відсікає неавторизованих.
+ * Перший рубіж для /app та /login: оновлює сесію й відсікає неавторизованих.
  * Остаточні перевірки (роль, MFA, належність проєкту, RLS) виконуються на сервері в кожній сторінці й дії,
  * тому обхід middleware не дає доступу до даних.
  */
 export async function middleware(request: NextRequest) {
   const env = getSupabaseAuthEnv();
   const path = request.nextUrl.pathname;
-  const isAdminArea = path === "/admin" || path.startsWith("/admin/");
   const isClientArea = path === "/app" || path.startsWith("/app/");
-  const loginPath = isAdminArea ? ADMIN_LOGIN_PATH : CLIENT_LOGIN_PATH;
-  const isPublic = ADMIN_PUBLIC_PATHS.has(path) || path === CLIENT_LOGIN_PATH || path.startsWith("/auth/");
+  const isPublic = path === CLIENT_LOGIN_PATH || path.startsWith("/auth/");
 
   if (!env) {
     if (isPublic) return harden(NextResponse.next({ request }));
-    return harden(NextResponse.redirect(new URL(loginPath, request.url)));
+    return harden(NextResponse.redirect(new URL(CLIENT_LOGIN_PATH, request.url)));
   }
 
   let response = NextResponse.next({ request });
@@ -43,9 +39,9 @@ export async function middleware(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getUser();
-  if (!data.user && !isPublic && (isAdminArea || isClientArea)) {
-    const target = new URL(loginPath, request.url);
-    if (isClientArea) target.searchParams.set("next", `${path}${request.nextUrl.search}`);
+  if (!data.user && !isPublic && isClientArea) {
+    const target = new URL(CLIENT_LOGIN_PATH, request.url);
+    target.searchParams.set("next", `${path}${request.nextUrl.search}`);
     const redirect = NextResponse.redirect(target);
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
     return harden(redirect);
@@ -54,4 +50,4 @@ export async function middleware(request: NextRequest) {
   return harden(response);
 }
 
-export const config = { matcher: ["/admin", "/admin/:path*", "/app", "/app/:path*", "/login", "/auth/:path*"] };
+export const config = { matcher: ["/app", "/app/:path*", "/login", "/auth/:path*"] };

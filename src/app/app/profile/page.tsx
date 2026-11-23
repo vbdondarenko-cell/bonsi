@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PageHeader } from "@/components/admin/ui";
+import { PageHeader } from "@/components/workspace/page-ui";
 import { OtherSessionsForm, ProfileForm } from "@/components/workspace/profile-forms";
 import { Card } from "@/components/workspace/ui";
 import { requireClient } from "@/lib/client/auth";

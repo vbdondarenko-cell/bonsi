@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/ui";
+import { PageHeader } from "@/components/workspace/page-ui";
 import { CreateTicketForm } from "@/components/workspace/support-forms";
 import { Card, Pill, formatWhen } from "@/components/workspace/ui";
 import { requireClient } from "@/lib/client/auth";

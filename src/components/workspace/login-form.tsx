@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { requestCodeAction, verifyCodeAction, type LoginState } from "@/app/login/actions";
-import { adminFieldClass } from "@/components/admin/ui";
+import { adminFieldClass } from "@/components/workspace/page-ui";
 import { Button } from "@/components/ui/button";
 
 /** Вхід без пароля: email → код із листа (або посилання з того ж листа). */

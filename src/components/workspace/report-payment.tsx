@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { reportPaymentAction, type FormState } from "@/app/app/actions";
-import { adminFieldClass } from "@/components/admin/ui";
+import { adminFieldClass } from "@/components/workspace/page-ui";
 import { Button } from "@/components/ui/button";
 
 export function ReportPaymentForm({ invoiceId, projectId }: { invoiceId: string; projectId: string }) {

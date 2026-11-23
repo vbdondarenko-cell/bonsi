@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { adminFieldClass } from "@/components/admin/ui";
+import { adminFieldClass } from "@/components/workspace/page-ui";
 import { FILE_CATEGORY_LABELS } from "@/lib/client/labels";
 import { ALLOWED_TYPES, MAX_FILES_PER_REQUEST, MAX_FILE_BYTES } from "@/lib/files/policy";
 

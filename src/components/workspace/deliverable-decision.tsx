@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { decideDeliverableAction, type FormState } from "@/app/app/actions";
-import { adminFieldClass } from "@/components/admin/ui";
+import { adminFieldClass } from "@/components/workspace/page-ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 

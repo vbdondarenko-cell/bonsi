@@ -44,24 +44,6 @@ export default function AboutPage() {
 
       <Section>
         <Reveal>
-          <SectionHeading eyebrow="Підхід" title="Як ми думаємо про розробку" />
-        </Reveal>
-        <ul className="mt-14 grid gap-4 md:grid-cols-2">
-          {principles.map((item, index) => (
-            <li key={item.title}>
-              <Reveal delay={(index % 2) * 0.08} className="h-full">
-                <div className="h-full rounded-[var(--radius-card)] border border-line bg-surface p-8">
-                  <h3 className="text-xl font-semibold tracking-tight">{item.title}</h3>
-                  <p className="mt-3 leading-relaxed text-muted">{item.text}</p>
-                </div>
-              </Reveal>
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      <Section>
-        <Reveal>
           <SectionHeading eyebrow="Команда" title="Два засновники" />
         </Reveal>
         <ul className="mt-14 grid gap-4 md:grid-cols-2">
@@ -76,6 +58,7 @@ export default function AboutPage() {
                       width={640}
                       height={640}
                       sizes="(min-width: 768px) 400px, 100vw"
+                      priority
                       className="mb-6 aspect-square w-full max-w-[320px] rounded-[var(--radius-card)] border border-line object-cover"
                     />
                   ) : null}
@@ -91,6 +74,24 @@ export default function AboutPage() {
                       {paragraph}
                     </p>
                   ))}
+                </div>
+              </Reveal>
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section>
+        <Reveal>
+          <SectionHeading eyebrow="Підхід" title="Як ми думаємо про розробку" />
+        </Reveal>
+        <ul className="mt-14 grid gap-4 md:grid-cols-2">
+          {principles.map((item, index) => (
+            <li key={item.title}>
+              <Reveal delay={(index % 2) * 0.08} className="h-full">
+                <div className="h-full rounded-[var(--radius-card)] border border-line bg-surface p-8">
+                  <h3 className="text-xl font-semibold tracking-tight">{item.title}</h3>
+                  <p className="mt-3 leading-relaxed text-muted">{item.text}</p>
                 </div>
               </Reveal>
             </li>

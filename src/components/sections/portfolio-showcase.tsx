@@ -33,7 +33,7 @@ function BrowserFrame({ src, host, alt }: { src: string; host: string; alt: stri
         <span className="h-2 w-2 rounded-full bg-white/20" />
         <span className="ml-3 truncate rounded-md bg-white/[0.06] px-3 py-0.5 font-mono text-[10px] text-muted">{host}</span>
       </div>
-      <Image src={src} alt={alt} width={1440} height={900} sizes="(min-width:1024px) 520px, 90vw" className="block h-auto w-full" />
+      <Image src={src} alt={alt} width={1440} height={900} sizes="(min-width:1024px) 520px, 90vw" unoptimized className="block h-auto w-full" />
     </div>
   );
 }
@@ -96,19 +96,29 @@ function Devices({ item }: { item: PublicCase }) {
   }
 
   return (
-    <div className="relative mx-auto aspect-[16/11] w-full max-w-[520px]">
+    // Телефон: вікно ПК і телефон стоять поруч без перекриття (обидва повністю видно).
+    // Від sm: телефон накладається на правий нижній кут вікна браузера.
+    <div className="relative mx-auto flex w-full max-w-[520px] items-end gap-3 pt-4 sm:block sm:aspect-[16/11] sm:gap-0 sm:pt-0">
       {desktop ? (
-        <div className="absolute left-0 top-0 w-[86%]">
+        <div className="relative w-[70%] sm:absolute sm:left-0 sm:top-0 sm:w-[86%]">
           <BrowserFrame src={desktop} host={host} alt={`${item.title}: версія для ПК`} />
           <DeviceTag className="-top-3 left-3">ПК</DeviceTag>
         </div>
       ) : null}
       {mobile ? (
-        <div className="absolute bottom-0 right-0 w-[24%]">
+        <div className="relative mb-0 w-[28%] shrink-0 sm:absolute sm:bottom-0 sm:right-0 sm:w-[24%]">
           <PhoneFrame>
-            <Image src={mobile} alt={`${item.title}: версія для телефона`} width={780} height={1688} sizes="130px" className="block h-auto w-full" />
+            <Image
+              src={mobile}
+              alt={`${item.title}: версія для телефона`}
+              width={780}
+              height={1688}
+              sizes="130px"
+              unoptimized
+              className="block h-auto w-full"
+            />
           </PhoneFrame>
-          <DeviceTag className="-top-3 right-1">Телефон</DeviceTag>
+          <DeviceTag className="-top-3 left-1/2 -translate-x-1/2">Телефон</DeviceTag>
         </div>
       ) : null}
     </div>

@@ -15,15 +15,15 @@ export function StatsBand() {
 
   return (
     <Section tone="void" className="!py-14 sm:!py-20">
-      <ul className="grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line md:grid-cols-3">
+      <ul className="grid grid-cols-3 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line">
         {stats.map((stat, index) => (
           <li key={stat.label} className="bg-bg">
             <Reveal delay={index * 0.08} className="h-full">
-              <div className="flex h-full flex-col gap-3 p-6 sm:gap-4 sm:p-9">
+              <div className="flex h-full flex-col gap-2 p-4 sm:gap-4 sm:p-9">
                 <p className="text-[clamp(2.25rem,6vw,3.5rem)] font-semibold leading-none tracking-[-0.04em]">
                   {stat.value}
                 </p>
-                <p className="max-w-[16rem] text-muted">{stat.label}</p>
+                <p className="max-w-[16rem] text-xs leading-snug text-muted sm:text-base">{stat.label}</p>
               </div>
             </Reveal>
           </li>

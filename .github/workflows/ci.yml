@@ -84,180 +84,9 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  admin-e2e:
-    name: Admin e2e (local Supabase)
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install
-        run: npm ci --no-audit --no-fund
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
-
-      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
-        with:
-          version: 2.122.0
-
-      - name: Start local Supabase
-        shell: bash
-        run: |
-          mkdir -p .ci
-          supabase init --force > /dev/null 2>&1 || true
-          python3 scripts/ci/supabase-config.py supabase/config.toml
-          set +e
-          supabase start > /dev/null 2>&1
-          code=$?
-          set -e
-          if [ "$code" -ne 0 ]; then echo "Local Supabase startup failed (exit $code)." >&2; fi
-          [ "$code" -eq 0 ] || exit "$code"
-          supabase status -o env > .ci/supabase.env
-          get() { grep -E "^$1=" .ci/supabase.env | head -n1 | sed -E 's/^[^=]+=//; s/^"//; s/"$//'; }
-          api="$(get API_URL)"
-          anon="$(get ANON_KEY)"; [ -n "$anon" ] || anon="$(get PUBLISHABLE_KEY)"
-          service="$(get SERVICE_ROLE_KEY)"; [ -n "$service" ] || service="$(get SECRET_KEY)"
-          echo "::add-mask::$anon"
-          echo "::add-mask::$service"
-          {
-            echo "SUPABASE_URL=$api"
-            echo "SUPABASE_ANON_KEY=$anon"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$service"
-          } >> "$GITHUB_ENV"
-          rm -f .ci/supabase.env
-
-      - name: Build and run admin e2e
-        shell: bash
-        run: |
-          fail=0
-          : > .ci/summary.txt
-          run() {
-            name="$1"; shift
-            set +e
-            "$@" > ".ci/$name.log" 2>&1
-            code=$?
-            set -e
-            echo "$name=$code" >> .ci/summary.txt
-            if [ "$code" -ne 0 ]; then fail=1; fi
-          }
-          run build npm run build
-          exit $fail
-
-      - name: Upload artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: ci-admin-e2e
-          path: |
-            .ci/summary.txt
-            .ci/e2e-admin.json
-            test-results/**/*.png
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: ignore
-
-  client-e2e:
-    name: Client e2e (local Supabase, Mailpit, Storage)
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install
-        run: npm ci --no-audit --no-fund
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
-
-      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
-        with:
-          version: 2.122.0
-
-      - name: Start local Supabase
-        shell: bash
-        run: |
-          mkdir -p .ci
-          supabase init --force > /dev/null 2>&1 || true
-          python3 scripts/ci/supabase-config.py supabase/config.toml client
-          set +e
-          supabase start > /dev/null 2>&1
-          code=$?
-          set -e
-          if [ "$code" -ne 0 ]; then echo "Local Supabase startup failed (exit $code)." >&2; fi
-          [ "$code" -eq 0 ] || exit "$code"
-          supabase status -o env > .ci/supabase.env
-          get() { grep -E "^$1=" .ci/supabase.env | head -n1 | sed -E 's/^[^=]+=//; s/^"//; s/"$//'; }
-          api="$(get API_URL)"
-          anon="$(get ANON_KEY)"; [ -n "$anon" ] || anon="$(get PUBLISHABLE_KEY)"
-          service="$(get SERVICE_ROLE_KEY)"; [ -n "$service" ] || service="$(get SECRET_KEY)"
-          echo "::add-mask::$anon"
-          echo "::add-mask::$service"
-          {
-            echo "SUPABASE_URL=$api"
-            echo "SUPABASE_ANON_KEY=$anon"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$service"
-          } >> "$GITHUB_ENV"
-          rm -f .ci/supabase.env
-
-      - name: Build and run client e2e
-        shell: bash
-        run: |
-          fail=0
-          : > .ci/summary.txt
-          run() {
-            name="$1"; shift
-            set +e
-            "$@" > ".ci/$name.log" 2>&1
-            code=$?
-            set -e
-            echo "$name=$code" >> .ci/summary.txt
-            if [ "$code" -ne 0 ]; then fail=1; fi
-          }
-          run build npm run build
-          if grep -q "^build=0$" .ci/summary.txt; then run e2e-client npx playwright test -c playwright.client.config.ts; fi
-          exit $fail
-
-      - name: Upload artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: ci-client-e2e
-          path: |
-            .ci/summary.txt
-            .ci/e2e-client.json
-            test-results/**/*.png
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: ignore
-
   report:
     name: Report to PR
-    needs: [verify, admin-e2e, client-e2e]
+    needs: [verify]
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04
     permissions:
@@ -276,8 +105,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           VERIFY: ${{ needs.verify.result }}
-          ADMIN: ${{ needs.admin-e2e.result }}
-          CLIENT: ${{ needs.client-e2e.result }}
         run: |
           set +e +o pipefail
           strip() { sed 's/\x1b\[[0-9;]*m//g' "$1"; }
@@ -306,13 +133,9 @@ jobs:
           }
           {
             echo "### CI report for \`${GITHUB_SHA::7}\` (run ${{ github.run_id }})"
-            echo "verify: **$VERIFY** · admin-e2e: **$ADMIN** · client-e2e: **$CLIENT**"
+            echo "verify: **$VERIFY**"
             echo
             section ci-verify "Lint / typecheck / tests / build / public e2e"
-            echo
-            section ci-admin-e2e "Admin e2e (local Supabase)"
-            echo
-            section ci-client-e2e "Client e2e (local Supabase + Mailpit + Storage)"
             echo
             echo "_Скріншоти помилок — у артефактах запуску. Authenticated browser traces не публікуються, бо можуть містити сесійні дані тестових користувачів._"
           } > report.md
@@ -320,8 +143,8 @@ jobs:
 
   notify:
     name: Telegram — результат CI
-    needs: [verify, admin-e2e, client-e2e]
-    if: ${{ always() && (needs.verify.result == 'failure' || needs.admin-e2e.result == 'failure' || needs.client-e2e.result == 'failure') }}
+    needs: [verify]
+    if: ${{ always() && (needs.verify.result == 'failure') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

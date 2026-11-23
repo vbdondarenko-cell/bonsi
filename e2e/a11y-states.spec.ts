@@ -77,13 +77,6 @@ for (const viewport of viewports) {
       await expectNoA11yViolations(page, "success");
     });
 
-    test("/login і сторінка помилки посилання", async ({ page }) => {
-      await page.goto("/login");
-      await expectNoA11yViolations(page, "login");
-      await page.goto("/login?error=link");
-      await expectNoA11yViolations(page, "login error");
-    });
-
     test("головна, послуги, портфоліо, про нас", async ({ page }) => {
       for (const path of ["/", "/services", "/portfolio", "/about", "/privacy", "/process", "/faq", "/terms", "/cooperation"]) {
         await page.goto(path);

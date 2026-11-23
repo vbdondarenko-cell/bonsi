@@ -150,13 +150,6 @@ export function Header() {
               </Link>
             );
           })}
-          <Link
-            href="/login"
-            aria-current={pathname === "/login" ? "page" : undefined}
-            className="ml-1 rounded-lg border border-line px-3 py-2.5 text-sm lg:ml-2 lg:px-4 text-muted transition-colors hover:border-accent-soft hover:text-fg"
-          >
-            Кабінет
-          </Link>
           <Link href={orderHref} className={buttonStyles("primary", "ml-1 min-h-10 px-4 text-sm lg:ml-2 lg:px-5")}>
             Обговорити проєкт
           </Link>
@@ -211,9 +204,6 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            <Link href="/login" onClick={() => setOpen(false)} className="border-b border-line py-5 text-3xl font-semibold tracking-tight text-accent-soft">
-              Кабінет клієнта
-            </Link>
           </nav>
           <Link href={orderHref} onClick={() => setOpen(false)} className={buttonStyles("primary", "mt-8 w-full")}>
             Обговорити проєкт

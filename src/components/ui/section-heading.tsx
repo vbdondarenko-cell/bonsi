@@ -15,7 +15,7 @@ export function SectionHeading({
   className?: string;
 }) {
   return (
-    <header className={cn("max-w-3xl", className)}>
+    <header data-cb className={cn("max-w-3xl", className)}>
       {eyebrow ? (
         <p className="mb-5 font-mono text-xs uppercase tracking-[0.18em] text-accent-soft">
           {eyebrow}

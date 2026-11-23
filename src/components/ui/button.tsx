@@ -5,13 +5,13 @@ import { cn } from "@/lib/cn";
 type Variant = "primary" | "ghost";
 
 const base =
-  "inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 text-[0.95rem] font-medium " +
+  "inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-btn)] px-6 text-[0.95rem] font-medium " +
   "transition-[background-color,border-color,transform] duration-200 active:scale-[0.98] " +
   "disabled:pointer-events-none disabled:opacity-60";
 
 const variants: Record<Variant, string> = {
   primary: "bg-accent text-white hover:bg-accent-hover",
-  ghost: "border border-line text-fg hover:border-accent-soft hover:bg-surface",
+  ghost: "border border-line text-fg [@media(hover:hover)]:hover:border-accent-soft [@media(hover:hover)]:hover:bg-surface-2",
 };
 
 export function buttonStyles(variant: Variant = "primary", className?: string) {

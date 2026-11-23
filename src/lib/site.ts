@@ -10,6 +10,7 @@ export const site = {
 
 export const nav = [
   { href: "/services", label: "Послуги" },
+  { href: "/pricing", label: "Ціни" },
   { href: "/portfolio", label: "Портфоліо" },
   { href: "/about", label: "Про нас" },
   { href: "/contact", label: "Контакти" },

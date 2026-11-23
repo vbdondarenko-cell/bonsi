@@ -1,8 +1,11 @@
 "use server";
 
 import type { OrderSnapshot } from "@/lib/admin/order-snapshot";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getClientIp, ipBucket, parseTrustedProxy } from "@/lib/orders/client-ip";
+import { hashValue } from "@/lib/orders/service";
 import { assignInput, noteInput, statusInput } from "@/lib/admin/orders";
 import { getAuthState, requireAdmin } from "@/lib/admin/guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -11,6 +14,28 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 export type ActionState = { ok?: boolean; error?: string; fieldError?: string; notice?: string; order?: OrderSnapshot } | null;
 
 const GENERIC_LOGIN_ERROR = "Невірний email або пароль.";
+const TOO_MANY_ATTEMPTS = "Забагато спроб. Спробуйте пізніше.";
+
+/** Серверний ліміт спроб входу адміна (поверх лімітів Supabase): за годину з однієї підмережі та для однієї адреси/фактора. */
+async function adminThrottleOk(kind: "login" | "mfa", subject: string, limit: number): Promise<boolean> {
+  try {
+    const proxy = parseTrustedProxy(process.env.TRUSTED_PROXY);
+    const ip = ipBucket(getClientIp(await headers(), proxy)) ?? "unknown";
+    const service = createSupabaseServiceClient();
+    for (const [scope, who, max] of [["ip", ip, limit * 3], ["id", subject, limit]] as const) {
+      const { data, error } = await service.rpc("auth_throttle_hit", {
+        p_key: hashValue(`admin:${kind}:${scope}:${who}`),
+        p_limit: max,
+        p_window: "1 hour",
+      });
+      if (error || data !== true) return false;
+    }
+    return true;
+  } catch {
+    // Якщо лічильник недоступний, краще відмовити, ніж пропустити перебір.
+    return false;
+  }
+}
 
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(200),
@@ -23,6 +48,7 @@ export async function signInAction(_prev: ActionState, formData: FormData): Prom
     password: formData.get("password"),
   });
   if (!parsed.success) return { error: GENERIC_LOGIN_ERROR };
+  if (!(await adminThrottleOk("login", parsed.data.email, 10))) return { error: TOO_MANY_ATTEMPTS };
 
   let supabase;
   try {
@@ -138,6 +164,7 @@ export async function verifyMfaAction(_prev: ActionState, formData: FormData): P
 
   const parsed = codeSchema.safeParse({ factorId: formData.get("factorId"), code: formData.get("code") });
   if (!parsed.success) return { fieldError: "Введіть 6 цифр з додатка-автентифікатора." };
+  if (!(await adminThrottleOk("mfa", parsed.data.factorId, 10))) return { fieldError: TOO_MANY_ATTEMPTS };
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.mfa.challengeAndVerify({

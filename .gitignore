@@ -16,3 +16,7 @@ playwright-report/
 supabase/.temp/
 supabase/.branches/
 *.tsbuildinfo
+
+*.pem
+*.key
+.npmrc

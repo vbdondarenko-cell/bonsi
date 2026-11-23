@@ -12,7 +12,20 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          sparse-checkout: .github/actions
       - name: POST /api/internal/emails
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://bonsi.site' }}
         run: |
-          curl -sf -X POST "https://bonsi.site/api/internal/emails" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -sS --fail-with-body --max-time 60 -X POST "${SITE_URL}/api/internal/emails" \
+            -H "Authorization: Bearer ${CRON_SECRET}"
+      - name: Telegram — збій розсилки листів
+        if: failure()
+        uses: ./.github/actions/telegram-notify
+        with:
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          text: "⚠️ BONSI: черга листів не відправлена (dispatch-emails). Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

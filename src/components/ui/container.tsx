@@ -19,13 +19,16 @@ export function Section({
   id,
   children,
   className,
+  tone = "light",
 }: {
   id?: string;
   children: ReactNode;
   className?: string;
+  /** "void" — темний контрастний блок, як у 2brolab. */
+  tone?: "light" | "void";
 }) {
   return (
-    <section id={id} className={cn("py-20 sm:py-28", className)}>
+    <section id={id} data-cb className={cn("py-16 sm:py-24 lg:py-32", tone === "void" && "theme-void", className)}>
       <Container>{children}</Container>
     </section>
   );

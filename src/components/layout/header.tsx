@@ -116,6 +116,7 @@ export function Header() {
   const orderHref = pathname === "/" ? "#order" : "/contact";
 
   return (
+    <>
     <header ref={headerRef} className="sticky top-0 z-50 border-b border-line/70 bg-bg/85 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md">
       <motion.div
         aria-hidden="true"
@@ -124,6 +125,7 @@ export function Header() {
       />
       <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5 sm:px-8">
         <Link
+          data-build
           href="/"
           aria-label={`${site.name} — на головну`}
           className="font-mono text-lg font-semibold tracking-[0.2em]"
@@ -131,7 +133,7 @@ export function Header() {
           BONSI<span className="text-accent-soft">.</span>
         </Link>
 
-        <nav ref={desktopNavRef} aria-label="Основна навігація" className="hidden items-center gap-1 md:flex">
+        <nav ref={desktopNavRef} data-build aria-label="Основна навігація" className="hidden items-center gap-1 md:flex">
           {nav.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -140,7 +142,7 @@ export function Header() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-4 py-2 text-sm transition-colors",
+                  "rounded-lg px-3 py-2.5 text-sm transition-colors lg:px-4",
                   active ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
                 )}
               >
@@ -151,23 +153,24 @@ export function Header() {
           <Link
             href="/login"
             aria-current={pathname === "/login" ? "page" : undefined}
-            className="ml-2 rounded-full border border-line px-4 py-2 text-sm text-muted transition-colors hover:border-accent-soft hover:text-fg"
+            className="ml-1 rounded-lg border border-line px-3 py-2.5 text-sm lg:ml-2 lg:px-4 text-muted transition-colors hover:border-accent-soft hover:text-fg"
           >
             Кабінет
           </Link>
-          <Link href={orderHref} className={buttonStyles("primary", "ml-2 min-h-10 px-5 text-sm")}>
+          <Link href={orderHref} className={buttonStyles("primary", "ml-1 min-h-10 px-4 text-sm lg:ml-2 lg:px-5")}>
             Обговорити проєкт
           </Link>
         </nav>
 
         <button
+          data-build
           ref={toggleRef}
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? "Закрити меню" : "Відкрити меню"}
-          className="flex size-11 items-center justify-center rounded-full border border-line md:hidden"
+          className="flex size-11 items-center justify-center rounded-lg border border-line md:hidden"
         >
           <span aria-hidden="true" className="relative block h-3 w-5">
             <span
@@ -187,7 +190,9 @@ export function Header() {
           </span>
         </button>
       </div>
+    </header>
 
+      {/* Меню — сусід шапки, а не нащадок: backdrop-filter шапки робить її containing block для position:fixed, і меню схлопувалось до висоти шапки. */}
       {open ? (
         <div
           ref={menuRef}
@@ -215,6 +220,6 @@ export function Header() {
           </Link>
         </div>
       ) : null}
-    </header>
+    </>
   );
 }

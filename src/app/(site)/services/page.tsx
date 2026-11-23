@@ -33,14 +33,14 @@ export default function ServicesPage() {
             <li key={service.id} id={service.id} className="scroll-mt-24">
               <Reveal delay={(index % 2) * 0.05} className="h-full">
                 <article className="group flex h-full flex-col rounded-[var(--radius-card)] border border-line bg-surface p-6 transition-[border-color,background-color,transform] duration-300 hover:-translate-y-1 hover:border-accent-soft/60 hover:bg-surface-2 motion-reduce:hover:translate-y-0 sm:p-8">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
                       <p className="font-mono text-xs uppercase tracking-[0.16em] text-accent-soft">
                         {String(index + 1).padStart(2, "0")} / Послуга
                       </p>
                       <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{service.title}</h2>
                     </div>
-                    <p className="self-start rounded-full border border-accent-soft/30 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent-soft sm:shrink-0 sm:px-4 sm:text-base">
+                    <p className="self-start rounded-full border border-accent-soft/30 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent-soft lg:shrink-0 sm:px-4 sm:text-base">
                       {service.priceLabel}
                     </p>
                   </div>

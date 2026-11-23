@@ -16,7 +16,7 @@ export function Advantages() {
         {advantages.map((item, index) => (
           <li key={item.title} className={cn(spanClass[item.span])}>
             <Reveal delay={(index % 3) * 0.06} className="h-full">
-              <div className="h-full rounded-[var(--radius-card)] border border-line bg-surface p-7">
+              <div className="h-full card-shadow rounded-[var(--radius-card)] border border-line bg-surface p-6 sm:p-7">
                 <h3 className="text-lg font-semibold tracking-tight">{item.title}</h3>
                 <p className="mt-3 leading-relaxed text-muted">{item.text}</p>
               </div>

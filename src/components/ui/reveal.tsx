@@ -21,10 +21,10 @@ export function Reveal({
       className={className}
       // Keep server-rendered content visible without JavaScript. Motion can still
       // animate the small offset when it enters the viewport after hydration.
-      initial={{ opacity: 1, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 1, y: 44, rotateX: 7, scale: 0.97, transformPerspective: 1100 }}
+      whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

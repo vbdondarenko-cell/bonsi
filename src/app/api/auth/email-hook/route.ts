@@ -1,7 +1,19 @@
+import { z } from "zod";
 import { SUPPORTED_ACTIONS, verifyHookSignature, type AuthHookPayload } from "@/lib/email/auth-hook";
 import { providerFromEnv } from "@/lib/email/service";
 import { renderLoginCodeEmail } from "@/lib/email/templates";
 import { readBodyLimited, PayloadTooLargeError } from "@/lib/http/read-body";
+
+const hookPayloadSchema = z.object({
+  user: z.object({ email: z.string().max(320).optional() }).optional(),
+  email_data: z
+    .object({
+      token: z.string().max(32).optional(),
+      token_hash: z.string().max(512).optional(),
+      email_action_type: z.string().max(64).optional(),
+    })
+    .optional(),
+});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +49,9 @@ export async function POST(request: Request) {
 
   let payload: AuthHookPayload;
   try {
-    payload = JSON.parse(raw) as AuthHookPayload;
+    const parsed = hookPayloadSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return hookError("bad_request", 400);
+    payload = parsed.data as AuthHookPayload;
   } catch {
     return hookError("bad_request", 400);
   }

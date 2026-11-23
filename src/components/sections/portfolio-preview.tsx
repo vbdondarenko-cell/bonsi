@@ -28,12 +28,15 @@ export async function PortfolioPreview() {
           />
         ) : (
           <ul className="grid gap-4 md:grid-cols-3">
-            {featured.map((item) => (
+            {featured.map((item, index) => (
               <li key={item.slug}>
                 <Link
                   href={`/portfolio/${item.slug}`}
-                  className="block h-full rounded-[var(--radius-card)] border border-line bg-surface p-7 transition-colors hover:border-accent-soft/70"
+                  className="card-shadow block h-full rounded-[var(--radius-card)] border border-line bg-surface p-6 transition-colors sm:p-7 [@media(hover:hover)]:hover:border-accent-soft/70"
                 >
+                  <p className="mb-8 font-mono text-xs tracking-[0.18em] text-accent-soft">
+                    {String(index + 1).padStart(2, "0")} / {String(featured.length).padStart(2, "0")}
+                  </p>
                   <h3 className="text-xl font-semibold tracking-tight">{item.title}</h3>
                   <p className="mt-3 leading-relaxed text-muted">{item.summary}</p>
                 </Link>

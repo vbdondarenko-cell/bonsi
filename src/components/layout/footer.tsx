@@ -4,7 +4,7 @@ import { footerNav, nav, site } from "@/lib/site";
 
 export function Footer() {
   return (
-    <footer className="border-t border-line">
+    <footer className="border-t border-line bg-bg/70 backdrop-blur-md">
       <Container className="flex flex-col gap-10 py-14 md:flex-row md:items-end md:justify-between">
         <div className="max-w-sm">
           <p className="font-mono text-lg font-semibold tracking-[0.2em]">
@@ -14,13 +14,13 @@ export function Footer() {
             Студія двох розробників. Сайти, вебплатформи та мобільні додатки на замовлення.
           </p>
         </div>
-        <nav aria-label="Навігація у футері" className="flex flex-wrap gap-x-8 gap-y-3">
+        <nav aria-label="Навігація у футері" className="flex flex-wrap gap-x-8 gap-y-1">
           {[...nav, ...footerNav].map((item) => (
-            <Link key={item.href} href={item.href} className="text-muted transition-colors hover:text-fg">
+            <Link key={item.href} href={item.href} className="inline-flex min-h-11 items-center text-muted transition-colors hover:text-fg">
               {item.label}
             </Link>
           ))}
-          <Link href="/login" className="text-accent-soft transition-colors hover:text-fg">
+          <Link href="/login" className="inline-flex min-h-11 items-center text-accent-soft transition-colors hover:text-fg">
             Кабінет клієнта
           </Link>
         </nav>
@@ -30,14 +30,14 @@ export function Footer() {
           <p>
             © {new Date().getFullYear()} {site.name}. Усі права захищено.
           </p>
-          <nav aria-label="Правові документи" className="flex flex-wrap gap-x-6 gap-y-2">
-            <Link href="/privacy" className="transition-colors hover:text-fg">
+          <nav aria-label="Правові документи" className="flex flex-wrap gap-x-6 gap-y-1">
+            <Link href="/privacy" className="inline-flex min-h-11 items-center transition-colors hover:text-fg">
               Політика конфіденційності
             </Link>
-            <Link href="/terms" className="transition-colors hover:text-fg">
+            <Link href="/terms" className="inline-flex min-h-11 items-center transition-colors hover:text-fg">
               Умови користування
             </Link>
-            <Link href="/cooperation" className="transition-colors hover:text-fg">
+            <Link href="/cooperation" className="inline-flex min-h-11 items-center transition-colors hover:text-fg">
               Умови співпраці
             </Link>
           </nav>

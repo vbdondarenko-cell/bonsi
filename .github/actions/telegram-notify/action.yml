@@ -1,0 +1,30 @@
+name: Telegram notify
+description: Надсилає повідомлення в Telegram-групу (секрети TELEGRAM_BOT_TOKEN і TELEGRAM_CHAT_ID).
+inputs:
+  token:
+    description: Токен бота
+    required: true
+  chat-id:
+    description: ID групи або супергрупи (напр. -100...)
+    required: true
+  text:
+    description: Текст повідомлення (без розмітки)
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        TG_TOKEN: ${{ inputs.token }}
+        TG_CHAT: ${{ inputs.chat-id }}
+        TG_TEXT: ${{ inputs.text }}
+      run: |
+        if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+          echo "Telegram не налаштовано (немає секретів), пропускаю."
+          exit 0
+        fi
+        # Помилка Telegram не має валити сам workflow.
+        curl -sS --max-time 20 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+          --data-urlencode "chat_id=${TG_CHAT}" \
+          --data-urlencode "text=${TG_TEXT}" \
+          --data-urlencode "disable_web_page_preview=true" > /dev/null || echo "Не вдалося надіслати в Telegram"

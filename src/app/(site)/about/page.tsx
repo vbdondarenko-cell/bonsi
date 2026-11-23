@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Container, Section } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -68,6 +69,16 @@ export default function AboutPage() {
             <li key={member.name ?? `${member.role}-${index}`}>
               <Reveal delay={index * 0.08} className="h-full">
                 <div className="h-full rounded-[var(--radius-card)] border border-line p-8">
+                  {member.photo ? (
+                    <Image
+                      src={member.photo.src}
+                      alt={member.photo.alt}
+                      width={640}
+                      height={640}
+                      sizes="(min-width: 768px) 400px, 100vw"
+                      className="mb-6 aspect-square w-full max-w-[320px] rounded-[var(--radius-card)] border border-line object-cover"
+                    />
+                  ) : null}
                   <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent-soft">
                     {member.role}
                   </p>
@@ -75,6 +86,11 @@ export default function AboutPage() {
                     <h3 className="mt-5 text-2xl font-semibold tracking-tight">{member.name}</h3>
                   ) : null}
                   <p className="mt-4 leading-relaxed text-muted">{member.about}</p>
+                  {member.story?.map((paragraph) => (
+                    <p key={paragraph.slice(0, 24)} className="mt-4 leading-relaxed text-muted">
+                      {paragraph}
+                    </p>
+                  ))}
                 </div>
               </Reveal>
             </li>

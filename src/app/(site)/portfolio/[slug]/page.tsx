@@ -82,6 +82,37 @@ export default async function CasePage({ params }: Props) {
             className="mb-14 h-auto w-full rounded-[var(--radius-card)] border border-line"
           />
         ) : null}
+        {item.shots?.desktop || item.shots?.mobile ? (
+          <div className="mb-14 flex flex-col items-start gap-6 sm:flex-row sm:items-end">
+            {item.shots.desktop ? (
+              <figure className="w-full sm:flex-1">
+                <Image
+                  src={item.shots.desktop}
+                  alt={`${item.title}: версія для ПК`}
+                  width={1440}
+                  height={900}
+                  sizes="(min-width: 1024px) 800px, 100vw"
+                  priority={!item.cover && !item.remoteCover}
+                  className="h-auto w-full rounded-[var(--radius-card)] border border-line"
+                />
+                <figcaption className="mt-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">ПК</figcaption>
+              </figure>
+            ) : null}
+            {item.shots.mobile ? (
+              <figure className="w-[45%] max-w-[220px] sm:w-[22%]">
+                <Image
+                  src={item.shots.mobile}
+                  alt={`${item.title}: версія для телефона`}
+                  width={780}
+                  height={1688}
+                  sizes="220px"
+                  className="h-auto w-full rounded-[var(--radius-card)] border border-line"
+                />
+                <figcaption className="mt-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">Телефон</figcaption>
+              </figure>
+            ) : null}
+          </div>
+        ) : null}
         <div className="grid gap-12 md:grid-cols-2 md:gap-16">
           <section aria-labelledby="case-task">
             <h2 id="case-task" className="font-mono text-xs uppercase tracking-[0.18em] text-accent-soft">

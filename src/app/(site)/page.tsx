@@ -7,9 +7,7 @@ import { OrderSection } from "@/components/sections/order-section";
 import { PortfolioPreview } from "@/components/sections/portfolio-preview";
 import { Process } from "@/components/sections/process";
 import { ServicesBento } from "@/components/sections/services-bento";
-import { Specialization } from "@/components/sections/specialization";
 import { StatsBand } from "@/components/sections/stats-band";
-import { TermsPreview } from "@/components/sections/terms-preview";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -31,12 +29,10 @@ export default function HomePage() {
       <HomeIntro />
       <Hero />
       <StatsBand />
-      <Specialization />
       <ServicesBento />
       <PortfolioPreview />
       <Process />
       <Advantages />
-      <TermsPreview />
       <FaqPreview />
       <OrderSection />
     </>

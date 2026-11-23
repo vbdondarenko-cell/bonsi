@@ -28,7 +28,7 @@ export function Section({
   tone?: "light" | "void";
 }) {
   return (
-    <section id={id} data-cb className={cn("py-16 sm:py-24 lg:py-32", tone === "void" && "theme-void", className)}>
+    <section id={id} data-cb className={cn("py-16 sm:py-20 lg:py-28", tone === "void" && "theme-void", className)}>
       <Container>{children}</Container>
     </section>
   );

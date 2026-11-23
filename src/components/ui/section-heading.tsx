@@ -17,7 +17,8 @@ export function SectionHeading({
   return (
     <header data-cb className={cn("max-w-3xl", className)}>
       {eyebrow ? (
-        <p className="mb-5 font-mono text-xs uppercase tracking-[0.18em] text-accent-soft">
+        <p className="mb-5 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.18em] text-accent-soft">
+          <span aria-hidden="true" className="h-px w-8 bg-accent-soft/60" />
           {eyebrow}
         </p>
       ) : null}

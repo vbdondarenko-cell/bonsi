@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PortfolioShowcase } from "@/components/sections/portfolio-showcase";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PRODUCT_TYPE_LABELS, listPublishedCases } from "@/lib/portfolio";
+import { listPublishedCases } from "@/lib/portfolio";
 
 export const metadata: Metadata = {
   title: "Портфоліо",
@@ -47,23 +47,7 @@ async function PortfolioCases() {
           action={<ButtonLink href="/contact">Обговорити проєкт</ButtonLink>}
         />
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2">
-          {cases.map((item) => (
-            <li key={item.slug}>
-              <Link
-                href={`/portfolio/${item.slug}`}
-                className="block h-full rounded-[var(--radius-card)] border border-line bg-surface p-8 transition-colors hover:border-accent-soft/70"
-              >
-                {item.productType ? <p className="mb-2 text-xs uppercase tracking-[0.14em] text-muted">{PRODUCT_TYPE_LABELS[item.productType] ?? item.productType}</p> : null}
-                <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
-                <p className="mt-3 leading-relaxed text-muted">{item.summary}</p>
-                <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-accent-soft">
-                  {item.stack.join(" · ")}
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <PortfolioShowcase items={cases} />
       )}
     </>
   );

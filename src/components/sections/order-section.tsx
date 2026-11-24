@@ -13,20 +13,20 @@ export function OrderSection({ headingAs = "h2", initialService, initialPlan }: 
             as={headingAs}
             eyebrow="Заявка"
             title="Обговоримо ваш проєкт"
-            description="Залиште контакт, за яким вам зручно відповісти. Ми надішлемо підтвердження заявки на email."
+            description="Дайте відповідь на кілька коротких запитань — це займе близько хвилини. Більшість з них можна пропустити."
           />
           <ul className="mt-10 space-y-4 text-muted">
             <li className="flex gap-3">
               <span className="font-mono text-accent-soft">01</span>
-              Оберіть послугу — решту уточнимо під час спілкування
+              Оберіть послугу й відповідайте на уточнення в чаті
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-accent-soft">02</span>
-              За бажанням додайте короткий опис, посилання, бюджет і терміни
+              Залиште імʼя та email — на нього прийде номер звернення
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-accent-soft">03</span>
-              Залиште контакти та надішліть заявку
+              Продовжте розмову з нами в Telegram — повідомлення вже буде готове
             </li>
           </ul>
         </Reveal>

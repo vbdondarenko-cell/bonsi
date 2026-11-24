@@ -1,3 +1,5 @@
+import type { ServiceId } from "@/lib/orders/options";
+import { buildSummary } from "@/lib/orders/summary";
 import { services } from "@/lib/services";
 import { site } from "@/lib/site";
 
@@ -26,7 +28,13 @@ export function parseTelegramTargets(raw: string): TelegramTarget[] {
 
 export function getTelegramConfig(env: NodeJS.ProcessEnv = process.env): TelegramConfig | null {
   const token = env.TELEGRAM_BOT_TOKEN?.trim();
-  const targets = parseTelegramTargets(env.TELEGRAM_CHAT_IDS ?? "");
+  // Основна змінна — TELEGRAM_CHAT_IDS. Підтримуємо й пару TELEGRAM_CHAT_ID + TELEGRAM_MESSAGE_THREAD_ID (одна група).
+  let rawTargets = env.TELEGRAM_CHAT_IDS ?? "";
+  if (!rawTargets.trim() && env.TELEGRAM_CHAT_ID?.trim()) {
+    const thread = env.TELEGRAM_MESSAGE_THREAD_ID?.trim();
+    rawTargets = thread && /^\d{1,20}$/.test(thread) ? `${env.TELEGRAM_CHAT_ID.trim()}:${thread}` : env.TELEGRAM_CHAT_ID.trim();
+  }
+  const targets = parseTelegramTargets(rawTargets);
   if (!token || targets.length === 0) return null;
   return { token, targets };
 }
@@ -40,13 +48,27 @@ export function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Повна заявка для внутрішньої групи студії: контакти й відповіді клієнта. */
+export type OrderBrief = {
+  email?: string | null;
+  phone?: string | null;
+  idea?: string | null;
+  deadline?: string | null;
+  details?: Record<string, string> | null;
+  links?: string[] | null;
+};
+
 export type OrderNotice = {
   orderId: string;
   ticket: string;
   service: string;
   name: string;
   createdAt: string;
+  /** Якщо передано, повідомлення містить повну заявку; інакше лише номер і посилання. */
+  brief?: OrderBrief;
 };
+
+const IDEA_LIMIT_IN_MESSAGE = 1500;
 
 const timeFormat = new Intl.DateTimeFormat("uk-UA", {
   dateStyle: "short",
@@ -55,19 +77,39 @@ const timeFormat = new Intl.DateTimeFormat("uk-UA", {
 });
 
 /**
- * Лише мінімум: номер, послуга, імʼя, час і посилання. Email, телефон, бюджет та опис ідеї
- * у Telegram не надсилаються — їх видно тільки в захищеній адмін-панелі.
+ * Без `brief` — лише мінімум: номер, послуга, імʼя, час і посилання. З `brief` (внутрішня група студії)
+ * додається вся заявка: контакти клієнта, відповіді на уточнення, терміни, опис і посилання.
  */
 export function formatOrderMessage(notice: OrderNotice, baseUrl: string = site.url): string {
   const serviceTitle = services.find((item) => item.id === notice.service)?.title ?? notice.service;
-  const link = `${baseUrl.replace(/\/$/, "")}/admin/orders/${encodeURIComponent(notice.orderId)}`;
-  return [
+  void baseUrl; // Адмінки на сайті немає: повідомлення самодостатнє, без посилання.
+  const lines = [
     `<b>Нова заявка ${escapeHtml(notice.ticket)}</b>`,
     `Послуга: ${escapeHtml(serviceTitle)}`,
     `Клієнт: ${escapeHtml(notice.name)}`,
-    `Час: ${escapeHtml(timeFormat.format(new Date(notice.createdAt)))}`,
-    `<a href="${escapeHtml(link)}">Відкрити в адмінпанелі</a>`,
-  ].join("\n");
+  ];
+
+  const brief = notice.brief;
+  if (brief) {
+    if (brief.phone) lines.push(`Telegram / телефон: ${escapeHtml(brief.phone)}`);
+    if (brief.email) lines.push(`Email: ${escapeHtml(brief.email)}`);
+    const answers = buildSummary({
+      service: services.some((item) => item.id === notice.service) ? (notice.service as ServiceId) : "landing",
+      details: brief.details ?? undefined,
+      deadline: brief.deadline ?? undefined,
+      links: brief.links ?? undefined,
+    }).filter((line) => line.label !== "Послуга");
+    if (answers.length) lines.push("", ...answers.map((line) => `${escapeHtml(line.label)}: ${escapeHtml(line.value)}`));
+    if (brief.idea?.trim()) {
+      const idea = brief.idea.trim();
+      const shown = idea.length > IDEA_LIMIT_IN_MESSAGE ? `${idea.slice(0, IDEA_LIMIT_IN_MESSAGE)}…` : idea;
+      lines.push("", `Задача: ${escapeHtml(shown)}`);
+    }
+    lines.push("");
+  }
+
+  lines.push(`Час: ${escapeHtml(timeFormat.format(new Date(notice.createdAt)))}`);
+  return lines.join("\n");
 }
 
 export class TelegramError extends Error {}

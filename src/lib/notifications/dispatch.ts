@@ -4,6 +4,7 @@ import {
   formatOrderMessage,
   getTelegramConfig,
   sendTelegramMessage,
+  type OrderBrief,
   type OrderNotice,
 } from "./telegram";
 
@@ -35,14 +36,37 @@ function defaultDb(): Db {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }) as unknown as Db;
 }
 
+/** Читає з БД повну заявку (контакти, відповіді, опис) для внутрішньої групи. */
+async function loadBriefFromDb(orderId: string): Promise<OrderBrief | null> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await client
+    .from("orders")
+    .select("email, phone, idea, deadline, details, links")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as OrderBrief;
+}
+
 /**
  * Забирає з outbox готові повідомлення й доставляє їх у Telegram. Кожна невдача
  * повертає запис у чергу з експоненційною затримкою (див. complete_notification);
  * після 8 спроб запис стає `dead` і лишається в базі для розбору.
  */
 export async function dispatchNotifications(
-  options: { db?: Db; env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch; limit?: number } = {},
+  options: {
+    db?: Db;
+    env?: NodeJS.ProcessEnv;
+    fetchImpl?: typeof fetch;
+    limit?: number;
+    /** Завантаження повної заявки; за замовчуванням читається з БД, а в тестах з підставною `db` — вимкнено. */
+    loadBrief?: (orderId: string) => Promise<OrderBrief | null>;
+  } = {},
 ): Promise<DispatchResult> {
+  const loadBrief = options.loadBrief ?? (options.db ? undefined : loadBriefFromDb);
   const config = getTelegramConfig(options.env ?? process.env);
   if (!config) return { disabled: true, claimed: 0, sent: 0, failed: 0 };
 
@@ -64,6 +88,9 @@ export async function dispatchNotifications(
     };
     let failure: string | null = null;
     try {
+      // Без повної заявки повідомлення все одно йде (мінімальне): збій читання не блокує сповіщення.
+      const brief = loadBrief ? await loadBrief(row.order_id).catch(() => null) : null;
+      if (brief) notice.brief = brief;
       const text = formatOrderMessage(notice);
       for (const target of config.targets) {
         await sendTelegramMessage(config, target, text, options.fetchImpl);

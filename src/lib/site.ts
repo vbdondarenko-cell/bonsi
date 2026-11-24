@@ -8,6 +8,12 @@ export const site = {
   locale: "uk_UA",
 } as const;
 
+/** Прямий чат студії в Telegram: сюди клієнт потрапляє після заявки. */
+export const telegram = {
+  handle: "@bonsi_studio",
+  url: "https://t.me/bonsi_studio",
+} as const;
+
 export const nav = [
   { href: "/services", label: "Послуги" },
   { href: "/pricing", label: "Ціни" },

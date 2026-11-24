@@ -55,15 +55,12 @@ export const orderSchema = z.object({
   startedAt: z.number().int().nonnegative(),
 });
 
-/** Email потрібен для підтвердження заявки; телефон або Telegram — для прямого зв'язку. */
-const contactOrderSchema = orderSchema.superRefine((value, ctx) => {
-  if (!value.phone) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Вкажіть телефон або Telegram для звʼязку" });
-  }
-});
-
-/** Уточнення мають належати саме обраній послузі та мати відомі варіанти відповідей. */
-export const checkedOrderSchema = contactOrderSchema.superRefine((value, ctx) => {
+/**
+ * Email потрібен для підтвердження заявки й кабінету. Телефон/Telegram необов'язкові:
+ * основне спілкування після заявки відбувається в чаті @bonsi_studio.
+ * Уточнення мають належати саме обраній послузі та мати відомі варіанти відповідей.
+ */
+export const checkedOrderSchema = orderSchema.superRefine((value, ctx) => {
   const questions = SERVICE_QUESTIONS[value.service];
   for (const [key, answer] of Object.entries(value.details ?? {})) {
     const question = questions.find((item) => item.id === key);

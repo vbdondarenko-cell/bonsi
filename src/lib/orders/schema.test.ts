@@ -24,7 +24,7 @@ describe("orderSchema", () => {
     const withoutEmail = checkedOrderSchema.safeParse({ ...valid, email: "" });
     expect(withoutEmail.success).toBe(false);
     expect(checkedOrderSchema.safeParse({ ...valid, phone: "@bonsi_support" }).success).toBe(true);
-    expect(checkedOrderSchema.safeParse({ ...valid, phone: undefined }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...valid, phone: undefined }).success).toBe(true);
   });
 
   it("приймає короткий опис, а також заявку взагалі без опису, бюджету й термінів", () => {
@@ -47,7 +47,7 @@ describe("orderSchema", () => {
     expect(orderSchema.safeParse({ ...valid, email: "not-an-email" }).success).toBe(false);
     expect(orderSchema.safeParse({ ...valid, phone: "call me" }).success).toBe(false);
     expect(orderSchema.safeParse({ ...valid, phone: "------" }).success).toBe(false);
-    expect(checkedOrderSchema.safeParse({ ...valid, phone: "" }).success).toBe(false);
+    expect(checkedOrderSchema.safeParse({ ...valid, phone: "" }).success).toBe(true);
   });
 
   it("вимагає згоду на обробку даних", () => {

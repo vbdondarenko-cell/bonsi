@@ -23,6 +23,7 @@ export const BUDGET_IDS = [
 ] as const;
 export type BudgetId = (typeof BUDGET_IDS)[number];
 
+/** Форма заявки бюджет більше не питає; поле лишається в схемі/БД для старих заявок і адмінки. */
 export const BUDGET_LABELS: Record<BudgetId, string> = {
   "lt-3000": "До 3 000 ₴",
   "3000-5000": "3 000–5 000 ₴",
@@ -228,9 +229,9 @@ export const SERVICE_QUESTIONS: Record<ServiceId, ReadonlyArray<ServiceQuestion>
       id: "plan",
       label: "Пакет підтримки",
       options: [
-        { id: "basic", label: "Basic — 500 ₴/місяць" },
-        { id: "standard", label: "Standard — 1 000 ₴/місяць" },
-        { id: "business", label: "Business — 2 000 ₴/місяць" },
+        { id: "basic", label: "Basic" },
+        { id: "standard", label: "Standard" },
+        { id: "business", label: "Business" },
       ],
     },
     {

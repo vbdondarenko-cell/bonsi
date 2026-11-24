@@ -42,6 +42,25 @@ describe("конфігурація Telegram", () => {
   });
 });
 
+describe("альтернативні змінні однієї групи", () => {
+  it("читає TELEGRAM_CHAT_ID і TELEGRAM_MESSAGE_THREAD_ID", () => {
+    const config = getTelegramConfig({
+      TELEGRAM_BOT_TOKEN: "1:a",
+      TELEGRAM_CHAT_ID: "-1001234567890",
+      TELEGRAM_MESSAGE_THREAD_ID: "45",
+    } as unknown as NodeJS.ProcessEnv);
+    expect(config?.targets).toEqual([{ chatId: "-1001234567890", threadId: 45 }]);
+  });
+
+  it("порожній або некоректний thread id ігнорується, TELEGRAM_CHAT_IDS має пріоритет", () => {
+    const base = { TELEGRAM_BOT_TOKEN: "1:a", TELEGRAM_CHAT_ID: "-100", TELEGRAM_MESSAGE_THREAD_ID: "" };
+    expect(getTelegramConfig(base as unknown as NodeJS.ProcessEnv)?.targets).toEqual([{ chatId: "-100" }]);
+    expect(
+      getTelegramConfig({ ...base, TELEGRAM_CHAT_IDS: "-200" } as unknown as NodeJS.ProcessEnv)?.targets,
+    ).toEqual([{ chatId: "-200" }]);
+  });
+});
+
 describe("повідомлення про заявку", () => {
   const notice = {
     orderId: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b",
@@ -51,12 +70,12 @@ describe("повідомлення про заявку", () => {
     createdAt: "2026-10-31T10:00:00Z",
   };
 
-  it("містить номер, послугу, імʼя, час і посилання на заявку", () => {
+  it("містить номер, послугу, імʼя й час, без посилання на неіснуючу адмінку", () => {
     const text = formatOrderMessage(notice, "https://bonsi.example/");
     expect(text).toContain("BON-2026-00007");
     expect(text).toContain("Вебзастосунки");
     expect(text).toContain("12:00"); // Київ, UTC+2
-    expect(text).toContain('href="https://bonsi.example/admin/orders/0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b"');
+    expect(text).not.toContain("/admin/");
   });
 
   it("екранує HTML у даних клієнта", () => {
@@ -66,9 +85,39 @@ describe("повідомлення про заявку", () => {
     expect(escapeHtml('<a href="x">')).toBe('&lt;a href="x"&gt;');
   });
 
-  it("не містить email, телефону, бюджету чи опису ідеї", () => {
+  it("без повної заявки не містить email, телефону чи опису", () => {
     const text = formatOrderMessage({ ...notice, name: "Іван" }, "https://bonsi.example");
-    expect(text).not.toMatch(/@|\+380|бюджет|ідея/i);
+    expect(text).not.toMatch(/@|\+380|бюджет|ідея|Задача/i);
+  });
+
+  it("з повною заявкою містить контакти, відповіді, терміни, опис і посилання, без цін", () => {
+    const text = formatOrderMessage(
+      {
+        ...notice,
+        name: "Іван",
+        brief: {
+          email: "ivan@example.com",
+          phone: "@ivan_tg",
+          idea: "Потрібен <сайт> для кав'ярні",
+          deadline: "asap",
+          details: { kind: "cabinet", integrations: "payments" },
+          links: ["https://example.com/a"],
+        },
+      },
+      "https://bonsi.example",
+    );
+    expect(text).toContain("Email: ivan@example.com");
+    expect(text).toContain("Telegram / телефон: @ivan_tg");
+    expect(text).toContain("Кабінет клієнта");
+    expect(text).toContain("Якнайшвидше");
+    expect(text).toContain("Задача: Потрібен &lt;сайт&gt; для кав'ярні");
+    expect(text).toContain("https://example.com/a");
+    expect(text).not.toMatch(/₴/);
+  });
+
+  it("не перевищує ліміт Telegram навіть з дуже довгим описом", () => {
+    const text = formatOrderMessage({ ...notice, brief: { idea: "а".repeat(3000), links: ["https://example.com/" + "x".repeat(250)] } }, "https://bonsi.example");
+    expect(text.length).toBeLessThan(4096);
   });
 });
 

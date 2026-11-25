@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 const items = [
   { href: "/admin", label: "Статистика", exact: true },
   { href: "/admin/links", label: "Посилання та QR", exact: false },
+  { href: "/admin/finance", label: "Фінанси", exact: false },
 ];
 
 export function AdminNav() {
@@ -16,7 +17,7 @@ export function AdminNav() {
       aria-label="Розділи адмінпанелі"
       className={
         // Телефон: нижня панель, як у застосунку; на ПК — бічне меню.
-        "fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 gap-1 border-t border-line bg-bg/95 px-3 pt-2 backdrop-blur " +
+        "fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 gap-1 border-t border-line bg-bg/95 px-3 pt-2 backdrop-blur " +
         "pb-[max(0.5rem,env(safe-area-inset-bottom))] " +
         "lg:static lg:z-auto lg:flex lg:flex-col lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
       }

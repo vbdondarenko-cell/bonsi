@@ -9,7 +9,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const admin = await requireAdmin();
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[1400px] flex-col gap-6 px-5 py-5 sm:px-8 lg:flex-row lg:gap-10 lg:py-8">
+    <div className="mx-auto flex min-h-dvh w-full max-w-[1400px] flex-col gap-6 px-5 pb-24 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 lg:flex-row lg:gap-10 lg:py-8 lg:pb-8">
       <a
         href="#main"
         className="sr-only z-[70] rounded-full bg-accent px-5 py-3 font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"

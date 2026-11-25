@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAuthEnv, type CookieItem } from "@/lib/supabase/env";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
+const PUBLIC_ASSETS = new Set(["/admin/manifest.webmanifest", "/admin/icon", "/admin/apple-icon"]);
 
 function harden(response: NextResponse) {
   response.headers.set("Cache-Control", "no-store");
@@ -18,7 +19,8 @@ function harden(response: NextResponse) {
 export async function middleware(request: NextRequest) {
   const env = getSupabaseAuthEnv();
   const path = request.nextUrl.pathname;
-  const isPublic = path === ADMIN_LOGIN_PATH;
+  // Манифест та іконки браузер запитує без cookie: без винятку «Додому» на iPhone не отримає ні іконки, ні назви.
+  const isPublic = path === ADMIN_LOGIN_PATH || PUBLIC_ASSETS.has(path);
 
   if (!env) {
     if (isPublic) return harden(NextResponse.next({ request }));

@@ -5,6 +5,7 @@ import {
   hostOf,
   type Attribution,
 } from "./attribution";
+import { hasIgnoreCookie, ignoreCookieString } from "./ignore";
 
 const STORAGE_KEY = "bonsi_attr_v1";
 const ENDPOINT = "/api/track";
@@ -30,9 +31,17 @@ function writeStored(value: Stored) {
   }
 }
 
+/** `?notrack=1` позначає цей браузер «своїм» (не рахується), `?notrack=0` знімає позначку. */
+function ignoredDevice(): boolean {
+  const flag = new URLSearchParams(window.location.search).get("notrack");
+  if (flag === "1") document.cookie = ignoreCookieString(true);
+  else if (flag === "0") document.cookie = ignoreCookieString(false);
+  return hasIgnoreCookie(document.cookie);
+}
+
 function trackingDisabled(): boolean {
   const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
-  return nav.doNotTrack === "1" || nav.globalPrivacyControl === true;
+  return nav.doNotTrack === "1" || nav.globalPrivacyControl === true || ignoredDevice();
 }
 
 function send(body: Record<string, unknown>) {

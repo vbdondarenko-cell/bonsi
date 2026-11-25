@@ -10,6 +10,7 @@ import {
   isBot,
 } from "@/lib/analytics/attribution";
 import { recordEvent, requestMeta, visitorHash } from "@/lib/analytics/events";
+import { hasIgnoreCookie } from "@/lib/analytics/ignore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
 
   // Користувач вимкнув відстеження в браузері (DNT / Global Privacy Control): нічого не записуємо.
   if (request.headers.get("dnt") === "1" || request.headers.get("sec-gpc") === "1") return empty();
+
+  // Свої пристрої (засновники, команда, тести) не рахуємо: інакше статистика неточна.
+  if (hasIgnoreCookie(request.headers.get("cookie"))) return empty();
 
   const userAgent = request.headers.get("user-agent");
   if (isBot(userAgent)) return empty();

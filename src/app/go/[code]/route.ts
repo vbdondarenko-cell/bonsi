@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { cleanLinkCode, isBot } from "@/lib/analytics/attribution";
 import { recordEvent, requestMeta, visitorHash } from "@/lib/analytics/events";
+import { hasIgnoreCookie } from "@/lib/analytics/ignore";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -54,7 +55,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   target.searchParams.set("lc", link.code);
 
   const visitor = isBot(request.headers.get("user-agent")) ? null : visitorHash(request.headers);
-  const dnt = request.headers.get("dnt") === "1" || request.headers.get("sec-gpc") === "1";
+  // Власні тестові скани (свій пристрій із позначкою) не рахуємо, але ведемо на сторінку як звичайно.
+  const dnt =
+    request.headers.get("dnt") === "1" ||
+    request.headers.get("sec-gpc") === "1" ||
+    hasIgnoreCookie(request.headers.get("cookie"));
   if (visitor && !dnt) {
     const { country, device } = requestMeta(request.headers);
     const event = {

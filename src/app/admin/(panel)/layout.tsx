@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signOutAction } from "@/app/admin/actions";
+import { MarkDevice } from "@/components/admin/mark-device";
 import { AdminNav } from "@/components/admin/nav";
 import { requireAdmin } from "@/lib/admin/guard";
 
@@ -44,6 +45,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         </div>
       </aside>
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 pb-16 outline-none">
+        <MarkDevice />
         {children}
       </main>
     </div>

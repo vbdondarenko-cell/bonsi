@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BarList, DailyChart, Kpi } from "@/components/admin/charts";
+import { CopyButton } from "@/components/admin/copy-button";
 import { PageHeader, Panel, formatDateTime, formatNumber } from "@/components/admin/ui";
 import { PERIODS, loadAnalytics, parseDays, type Analytics } from "@/lib/admin/analytics";
 import { requireAdmin } from "@/lib/admin/guard";
 import { cn } from "@/lib/cn";
+import { site } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Статистика" };
 export const dynamic = "force-dynamic";
@@ -165,6 +167,32 @@ function Dashboard({ data }: { data: Analytics }) {
             </table>
           </div>
         )}
+      </Panel>
+
+      <Panel title="Свої заходи не рахуються">
+        <p className="text-sm text-muted">
+          Пристрій, на якому ви відкрили адмінку, автоматично позначається «своїм»: його перегляди, скани QR і заявки не потрапляють у
+          статистику. Відкрийте адмінку один раз на телефоні й на комп&apos;ютері. Для друга чи тестувальника, який не заходить в
+          адмінку, надішліть посилання нижче й попросіть відкрити його в потрібному браузері.
+        </p>
+        <div className="mt-4 flex flex-col gap-2 text-sm">
+          {[
+            ["Не рахувати цей пристрій", `${site.url}/?notrack=1`],
+            ["Знову рахувати цей пристрій", `${site.url}/?notrack=0`],
+          ].map(([label, url]) => (
+            <div key={url} className="flex items-center gap-2">
+              <span className="w-52 shrink-0 text-muted">{label}</span>
+              <code className="min-w-0 flex-1 truncate font-mono text-xs" title={url}>
+                {url}
+              </code>
+              <CopyButton value={url as string} label={label as string} />
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-muted">
+          Позначка зберігається в браузері рік. Інший браузер чи режим інкогніто потрібно позначити окремо, а після очищення cookie
+          позначку треба поставити знову.
+        </p>
       </Panel>
 
       <p className="text-xs text-muted">

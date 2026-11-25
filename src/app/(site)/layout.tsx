@@ -15,7 +15,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       />
       <ScrollBuilder />
       <SiteScene />
-      <div className="relative z-10">
+      <div data-site-content className="relative z-10">
       <a
         href="#main"
         className="sr-only z-[70] rounded-full bg-accent px-5 py-3 font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"

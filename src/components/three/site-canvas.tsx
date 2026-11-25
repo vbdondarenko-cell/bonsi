@@ -3,8 +3,13 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
+import type { CoreState } from "./crystal-blast";
+
+const projected = new THREE.Vector3();
 
 export type SceneInput = {
+  /** Екранний стан кристала: сюди пишемо позицію (для кліку), звідси читаємо масштаб/оберт анімації «вибуху». */
+  core: MutableRefObject<CoreState>;
   /** Курсор, -0.5…0.5. */
   pointer: MutableRefObject<{ x: number; y: number }>;
   /** Прогрес прокрутки всієї сторінки, 0…1. */
@@ -128,12 +133,19 @@ function Core({ input, animate }: { input: SceneInput; animate: boolean }) {
     node.position.y = THREE.MathUtils.lerp(node.position.y, targetY + (animate ? Math.sin(clock.elapsedTime * 0.7) * 0.12 : 0), 0.06);
     node.position.z = z;
 
+    const core = input.core.current;
     const base = wide ? 0.82 : 0.6;
     const pulse = 1 + Math.sin(progress * Math.PI * 4) * 0.12;
-    node.scale.setScalar(THREE.MathUtils.lerp(node.scale.x, base * pulse, 0.08));
+    node.scale.setScalar(THREE.MathUtils.lerp(node.scale.x, base * pulse * core.scale, 0.08));
+
+    // Де кристал на екрані зараз: за цим працює клік по ньому.
+    const ndc = projected.copy(node.position).project(camera);
+    core.x = ((ndc.x + 1) / 2) * state.size.width;
+    core.y = ((1 - ndc.y) / 2) * state.size.height;
+    core.r = 1.68 * base * pulse * (state.size.height / view.height);
 
     if (animate) {
-      node.rotation.y += delta * 0.2;
+      node.rotation.y += delta * 0.2 * (1 + core.spin);
       node.rotation.x = THREE.MathUtils.lerp(node.rotation.x, progress * Math.PI * 1.6 + input.pointer.current.y * 0.5, 0.05);
       node.rotation.z = THREE.MathUtils.lerp(node.rotation.z, -input.pointer.current.x * 0.4, 0.05);
     }

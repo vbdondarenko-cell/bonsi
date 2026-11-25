@@ -44,7 +44,7 @@
     "@types/three": "^0.187.0",
     "@typescript-eslint/eslint-plugin": "^8.72.2",
     "@typescript-eslint/parser": "^8.72.2",
-    "eslint": "^9.0.0",
+    "eslint": "^10.15.0",
     "eslint-config-next": "^15.5.29",
     "pg": "^8.13.0",
     "tailwindcss": "^4.1.0",

@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       // Приватні розділи не індексуються: /app і /admin закриті авторизацією,
       // /auth і /login — службові, /api — не сторінки.
-      disallow: ["/api/", "/admin", "/app", "/auth/", "/login"],
+      disallow: ["/api/", "/admin", "/app", "/auth/", "/login", "/go/"],
     },
     sitemap: `${site.url}/sitemap.xml`,
     host: site.url,

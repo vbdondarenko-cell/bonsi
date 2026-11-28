@@ -1,8 +1,10 @@
+
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
+import { Price } from "@/components/ui/price";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { servicesJsonLd } from "@/lib/seo";
 import { services, supportPlans } from "@/lib/services";
@@ -41,7 +43,7 @@ export default function ServicesPage() {
                       <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{service.title}</h2>
                     </div>
                     <p className="self-start rounded-full border border-accent-soft/30 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent-soft lg:shrink-0 sm:px-4 sm:text-base">
-                      {service.priceLabel}
+                      <Price label={service.priceLabel} amount={service.priceFrom} />
                     </p>
                   </div>
                   <p className="mt-5 leading-relaxed text-muted">{service.summary}</p>
@@ -85,7 +87,7 @@ export default function ServicesPage() {
                   <li key={plan.id}>
                     <article className="flex h-full flex-col rounded-2xl border border-line bg-bg/60 p-5 sm:p-6">
                       <h3 className="text-xl font-semibold">{plan.title}</h3>
-                      <p className="mt-3 text-2xl font-semibold tracking-tight text-accent-soft">{plan.priceLabel}</p>
+                      <p className="mt-3 text-2xl font-semibold tracking-tight text-accent-soft"><Price label={plan.priceLabel} amount={plan.price} /></p>
                       <ul className="mt-5 flex flex-col gap-3 text-sm leading-relaxed text-muted">
                         {plan.points.map((point) => <li key={point}>{point}</li>)}
                       </ul>

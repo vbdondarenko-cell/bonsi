@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Pricing } from "@/components/sections/pricing";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
+import { Price } from "@/components/ui/price";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { services, supportPlans } from "@/lib/services";
@@ -40,7 +41,7 @@ export default function PricingPage() {
                 className="flex min-h-14 flex-wrap items-center justify-between gap-x-6 gap-y-1 px-5 py-4 transition-colors [@media(hover:hover)]:hover:bg-surface-2 sm:px-7"
               >
                 <span className="text-base font-medium sm:text-lg">{service.title}</span>
-                <span className="font-semibold text-accent-soft">{service.priceLabel}</span>
+                <span className="font-semibold text-accent-soft"><Price label={service.priceLabel} amount={service.priceFrom} /></span>
               </Link>
             </li>
           ))}
@@ -61,7 +62,7 @@ export default function PricingPage() {
               <Reveal delay={index * 0.08} className="h-full">
                 <article className="card-shadow flex h-full flex-col rounded-[var(--radius-card)] border border-line bg-surface p-6 sm:p-8">
                   <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent-soft">{plan.title}</p>
-                  <p className="mt-5 text-3xl font-semibold tracking-[-0.03em]">{plan.priceLabel}</p>
+                  <p className="mt-5 text-3xl font-semibold tracking-[-0.03em]"><Price label={plan.priceLabel} amount={plan.price} /></p>
                   <ul className="mt-6 flex flex-col gap-3 border-t border-line pt-6 text-sm">
                     {plan.points.map((point) => (
                       <li key={point} className="flex gap-3">

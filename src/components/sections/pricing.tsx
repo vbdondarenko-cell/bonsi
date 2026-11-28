@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { Section } from "@/components/ui/container";
+import { Price } from "@/components/ui/price";
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { cn } from "@/lib/cn";
@@ -40,7 +41,7 @@ export function Pricing({ withHeading = true }: { withHeading?: boolean }) {
                 >
                   <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent-soft">{tier.title}</p>
                   <p className="mt-6 text-[clamp(2rem,5vw,2.75rem)] font-semibold leading-none tracking-[-0.04em]">
-                    {tier.priceLabel}
+                    <Price label={tier.priceLabel} amount={tier.priceFrom} />
                   </p>
                   <p className="mt-4 leading-relaxed text-muted">{tier.summary}</p>
                   <ul className="mt-6 flex-1 space-y-3 border-t border-line pt-6 text-sm">

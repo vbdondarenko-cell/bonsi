@@ -7,6 +7,9 @@ import { OrderSection } from "@/components/sections/order-section";
 import { PortfolioPreview } from "@/components/sections/portfolio-preview";
 import { Process } from "@/components/sections/process";
 import { ServicesBento } from "@/components/sections/services-bento";
+import { HolidayTimeline } from "@/components/promo/holiday-timeline";
+import { PromoOffer } from "@/components/promo/promo-offer";
+import { WinterHero } from "@/components/promo/winter-hero";
 import { StatsBand } from "@/components/sections/stats-band";
 
 export const metadata: Metadata = {
@@ -27,10 +30,16 @@ export default function HomePage() {
         }}
       />
       <HomeIntro />
-      <Hero />
+      {/* Зимова акція (6 грудня — 2 січня): html[data-promo="on"] показує .promo-only і ховає .promo-hide. */}
+      <WinterHero />
+      <div className="promo-hide">
+        <Hero />
+      </div>
       <StatsBand />
+      <PromoOffer />
       <ServicesBento />
       <PortfolioPreview />
+      <HolidayTimeline />
       <Process />
       <Advantages />
       <FaqPreview />

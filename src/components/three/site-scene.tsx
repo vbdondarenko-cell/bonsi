@@ -36,10 +36,12 @@ export function SiteScene() {
   const [ready, setReady] = useState(false);
   const [compact, setCompact] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [promo, setPromo] = useState(false);
 
   useEffect(() => {
     const choose = () => {
       setCompact(window.matchMedia("(max-width: 767px)").matches || (navigator.hardwareConcurrency ?? 8) <= 4);
+      setPromo(document.documentElement.dataset.promo === "on");
       setReady(hasWebGl());
     };
     const schedule = () => {
@@ -144,7 +146,8 @@ export function SiteScene() {
     >
       {/* Резервний фон без WebGL і до завантаження сцени. */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_70%_20%,rgb(108_76_245/0.22),transparent_70%),radial-gradient(ellipse_60%_50%_at_10%_90%,rgb(108_76_245/0.12),transparent_70%)]" />
-      {ready ? <SiteCanvas input={{ pointer, progress, core }} animate={!reduce && visible} compact={compact} /> : null}
+      {ready ? <SiteCanvas input={{ pointer, progress, core }} animate={!reduce && visible} compact={compact} promo={promo} /> : null}
+      <div className="promo-only absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_72%_18%,rgb(225_29_46/0.28),transparent_70%),radial-gradient(ellipse_60%_50%_at_8%_92%,rgb(160_10_30/0.2),transparent_70%)]" />
       {/* Віньєтка для читабельності тексту поверх сцени. */}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgb(7_8_12/0.62)_0%,rgb(7_8_12/0.28)_45%,transparent_75%),radial-gradient(ellipse_at_center,transparent_35%,rgb(7_8_12/0.5)_100%)]" />
     </div>

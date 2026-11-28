@@ -332,3 +332,141 @@ html[data-cursors="on"] [data-cb]:not([data-built]) {
 @media (prefers-reduced-motion: reduce) {
   .page-enter { animation-name: hero-fade; }
 }
+
+/* =====================================================================
+ * Зимова акція −40% (6 грудня — 2 січня): преміальний червоний режим.
+ * Вмикається атрибутом html[data-promo="on"] (див. src/lib/promo.ts); поза акцією ці правила не діють.
+ * ===================================================================== */
+.promo-only { display: none; }
+html[data-promo="on"] .promo-only { display: block; }
+html[data-promo="on"] .promo-hide { display: none; }
+
+html[data-promo="on"] .theme-site,
+html[data-promo="on"] .theme-site .theme-void {
+  --color-bg: #0b0305;
+  --color-surface: rgb(26 8 12 / 0.74);
+  --color-surface-2: rgb(48 12 20 / 0.82);
+  --color-line: rgb(255 190 190 / 0.14);
+  --color-fg: #fff6f4;
+  --color-muted: #d3b3b3;
+  --color-accent: #e11d2e;
+  --color-accent-soft: #ff7482;
+  --color-accent-hover: #c4121f;
+  --color-gold: #ffd98a;
+}
+html[data-promo="on"] .theme-site .theme-void::before,
+html[data-promo="on"] .theme-site section[data-cb]:not(.hero-section)::before {
+  background: linear-gradient(90deg, transparent, rgb(255 116 130 / 0.4) 50%, transparent);
+}
+html[data-promo="on"] .theme-site #order { background: rgb(11 3 5 / 0.8); }
+html[data-promo="on"] ::selection { background: #e11d2e; }
+
+.promo-bar { background: linear-gradient(90deg, #7a0714, #e11d2e 45%, #7a0714); }
+.promo-glass {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.03));
+  border: 1px solid rgb(255 217 138 / 0.28);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 18px 40px -20px rgb(225 29 46 / 0.6);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+/* Золото-червоний градієнт у заголовках і кнопка з внутрішнім «блиском». */
+.winter-gradient-text {
+  background: linear-gradient(100deg, #ff7482 0%, #ffd98a 45%, #ff7482 90%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: winter-shine 7s linear infinite;
+}
+@keyframes winter-shine { to { background-position: -220% 0; } }
+
+html[data-promo="on"] .theme-site .bg-accent {
+  background-image: linear-gradient(135deg, #ff3b4d, #e11d2e 50%, #a30c1c);
+  box-shadow: 0 10px 30px -10px rgb(225 29 46 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.3);
+}
+.winter-cta { position: relative; overflow: hidden; }
+.winter-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.45) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: winter-sweep 3.6s ease-in-out 1.2s infinite;
+}
+@keyframes winter-sweep { to { transform: translateX(120%); } }
+
+.winter-pulse { animation: winter-pulse 1.8s ease-in-out infinite; }
+@keyframes winter-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 217 138 / 0.7); }
+  50% { box-shadow: 0 0 0 8px rgb(255 217 138 / 0); }
+}
+
+/* Hero: полярне сяйво + «занурення» шарів. */
+.winter-aurora {
+  background:
+    radial-gradient(ellipse 55% 60% at 78% 38%, rgb(225 29 46 / 0.42), transparent 70%),
+    radial-gradient(ellipse 45% 50% at 12% 8%, rgb(255 116 130 / 0.18), transparent 70%),
+    radial-gradient(ellipse 70% 40% at 50% 110%, rgb(255 217 138 / 0.14), transparent 70%);
+  animation: winter-drift 14s ease-in-out infinite alternate;
+}
+@keyframes winter-drift { to { transform: translate3d(-2%, 2%, 0) scale(1.06); } }
+
+.winter-stage { perspective: 1100px; }
+.winter-ring {
+  position: absolute;
+  inset: 4%;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 217 138 / 0.45);
+  box-shadow: 0 0 80px rgb(225 29 46 / 0.45), inset 0 0 60px rgb(225 29 46 / 0.3);
+  animation: winter-spin 40s linear infinite;
+}
+.winter-ring-2 { inset: 0; border-style: dashed; border-color: rgb(255 116 130 / 0.5); animation-duration: 60s; animation-direction: reverse; }
+@keyframes winter-spin { to { rotate: 360deg; } }
+
+.winter-big { position: absolute; inset: 0; display: grid; place-items: center; transform-style: preserve-3d; }
+.winter-big > span {
+  grid-area: 1 / 1;
+  font-weight: 800;
+  font-size: clamp(5.5rem, 17vw, 11.5rem);
+  line-height: 1;
+  letter-spacing: -0.06em;
+  white-space: nowrap;
+}
+.winter-big-back { transform: translateZ(-60px); color: #4a0610; text-shadow: 0 0 60px rgb(225 29 46 / 0.9); }
+.winter-big-mid { transform: translateZ(-22px); color: #a30c1c; }
+.winter-big-front {
+  transform: translateZ(40px);
+  background: linear-gradient(170deg, #fff1d6 0%, #ffd98a 28%, #ff4457 60%, #b3101f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 18px 30px rgb(0 0 0 / 0.55));
+}
+
+/* Ялинкові кулі: радіальний градієнт + відблиск, плавають на різній глибині. */
+.winter-bauble {
+  border-radius: 9999px;
+  animation: winter-float 6s ease-in-out infinite;
+  box-shadow: 0 18px 30px -10px rgb(0 0 0 / 0.6), inset -6px -8px 14px rgb(0 0 0 / 0.35);
+}
+.winter-stage .winter-bauble { position: absolute; }
+.winter-bauble-red { background: radial-gradient(circle at 30% 28%, #ffb0b8 0%, #ff3b4d 28%, #c4121f 62%, #5d0511 100%); }
+.winter-bauble-gold { background: radial-gradient(circle at 30% 28%, #fff7e0 0%, #ffd98a 28%, #d99a2b 62%, #6d4609 100%); }
+@keyframes winter-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -16px; }
+}
+
+.winter-card {
+  background-image: linear-gradient(165deg, rgb(255 116 130 / 0.1), transparent 45%);
+}
+.winter-card-featured {
+  background-image: linear-gradient(165deg, rgb(255 217 138 / 0.14), rgb(225 29 46 / 0.1) 50%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 30px 80px -30px rgb(225 29 46 / 0.7) !important;
+}
+.winter-line { background: linear-gradient(90deg, transparent, rgb(255 217 138 / 0.5), transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .winter-gradient-text, .winter-aurora, .winter-ring, .winter-bauble, .winter-cta::after, .winter-pulse { animation: none !important; }
+}

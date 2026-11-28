@@ -49,6 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="uk" suppressHydrationWarning>
       <body>
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
+        <Script src="https://www.googletagmanager.com/gtm.js?id=GTM-54FBKJFN" strategy="afterInteractive" />
+        <Script id="gtm-init" strategy="afterInteractive">
+          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());`}
+        </Script>
         {gaId ? (
           <>
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />

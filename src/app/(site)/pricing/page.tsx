@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Pricing } from "@/components/sections/pricing";
+import { Price } from "@/components/promo/price";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
@@ -40,7 +41,7 @@ export default function PricingPage() {
                 className="flex min-h-14 flex-wrap items-center justify-between gap-x-6 gap-y-1 px-5 py-4 transition-colors [@media(hover:hover)]:hover:bg-surface-2 sm:px-7"
               >
                 <span className="text-base font-medium sm:text-lg">{service.title}</span>
-                <span className="font-semibold text-accent-soft">{service.priceLabel}</span>
+                <span className="font-semibold text-accent-soft"><Price label={service.priceLabel} from={service.priceFrom} /></span>
               </Link>
             </li>
           ))}

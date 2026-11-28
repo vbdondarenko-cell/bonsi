@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
+import { Price } from "@/components/promo/price";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
@@ -41,7 +42,7 @@ export default function ServicesPage() {
                       <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{service.title}</h2>
                     </div>
                     <p className="self-start rounded-full border border-accent-soft/30 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent-soft lg:shrink-0 sm:px-4 sm:text-base">
-                      {service.priceLabel}
+                      <Price label={service.priceLabel} from={service.priceFrom} />
                     </p>
                   </div>
                   <p className="mt-5 leading-relaxed text-muted">{service.summary}</p>

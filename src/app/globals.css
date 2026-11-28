@@ -470,3 +470,6 @@ html[data-promo="on"] .theme-site .bg-accent {
 @media (prefers-reduced-motion: reduce) {
   .winter-gradient-text, .winter-aurora, .winter-ring, .winter-bauble, .winter-cta::after, .winter-pulse { animation: none !important; }
 }
+
+.promo-inline { display: none; }
+html[data-promo="on"] .promo-inline { display: inline; }

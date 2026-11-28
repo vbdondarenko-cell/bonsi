@@ -5,6 +5,7 @@ import {
   hostOf,
   type Attribution,
 } from "./attribution";
+import { ADS_LEAD_CONVERSION } from "./google";
 import { hasIgnoreCookie, ignoreCookieString } from "./ignore";
 
 const STORAGE_KEY = "bonsi_attr_v1";
@@ -39,7 +40,8 @@ function ignoredDevice(): boolean {
   return hasIgnoreCookie(document.cookie);
 }
 
-function trackingDisabled(): boolean {
+/** Вимкнене відстеження: Do Not Track, Global Privacy Control або «свій» пристрій. Дивиться й GoogleTag. */
+export function isTrackingDisabled(): boolean {
   const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
   return nav.doNotTrack === "1" || nav.globalPrivacyControl === true || ignoredDevice();
 }
@@ -99,14 +101,40 @@ function payload(kind: "pageview" | "lead", landing: boolean, attr: Attribution)
 }
 
 export function trackPageview() {
-  if (trackingDisabled()) return;
+  if (isTrackingDisabled()) return;
   const { attr, landing } = resolveSession();
   send(payload("pageview", landing, attr));
 }
 
+/**
+ * Конверсія «заявка» в Google Ads. Після неї викликається `done` (перехід у Telegram): сторінка після переходу
+ * вже не встигла б надіслати подію, тож чекаємо підтвердження від gtag, але не довше 0,8 с.
+ * Якщо тег Google не завантажено (свій пристрій, DNT, блокувальник), `done` викликається одразу.
+ */
+export function reportAdsConversion(done: () => void) {
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    done();
+  };
+  const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
+  if (typeof gtag !== "function" || isTrackingDisabled()) {
+    finish();
+    return;
+  }
+  window.setTimeout(finish, 800);
+  gtag("event", "conversion", {
+    send_to: ADS_LEAD_CONVERSION,
+    value: 1.0,
+    currency: "UAH",
+    event_callback: finish,
+  });
+}
+
 /** Заявку надіслано: фіксуємо її за джерелом цієї сесії. */
 export function trackLead() {
-  if (trackingDisabled()) return;
+  if (isTrackingDisabled()) return;
   const { attr } = resolveSession();
   send(payload("lead", false, attr));
 }

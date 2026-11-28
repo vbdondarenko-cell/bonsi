@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { trackLead } from "@/lib/analytics/client";
+import { reportAdsConversion, trackLead } from "@/lib/analytics/client";
 import { cn } from "@/lib/cn";
 import {
   DEADLINE_IDS,
@@ -394,8 +394,9 @@ export function OrderForm({ initialService, initialPlan }: { initialService?: Se
         gtag?.("event", "telegram_handoff", { service: parsed.data.service, auto: true });
         // Власна аналітика: заявка з прив'язкою до джерела сесії (sendBeacon переживає перехід у Telegram).
         trackLead();
-        // Миттєвий перехід у чат @bonsi_studio; кнопка на екрані лишається запасною, якщо клієнт повернеться.
-        window.location.assign(link);
+        // Конверсія в Google Ads, і одразу перехід у чат @bonsi_studio (reportAdsConversion чекає на gtag не довше 0,8 с).
+        // Кнопка на екрані лишається запасною, якщо клієнт повернеться.
+        reportAdsConversion(() => window.location.assign(link));
         return;
       }
 

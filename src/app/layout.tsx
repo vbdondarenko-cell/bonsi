@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import "@fontsource-variable/onest";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
+import { GoogleTag } from "@/components/analytics/google-tag";
 import { Providers } from "@/components/providers";
 import { JsonLd } from "@/components/seo/json-ld";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
@@ -49,18 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="uk" suppressHydrationWarning>
       <body>
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
-        <Script src="https://www.googletagmanager.com/gtm.js?id=GTM-54FBKJFN" strategy="afterInteractive" />
-        <Script id="gtm-init" strategy="afterInteractive">
-          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());`}
-        </Script>
-        {gaId ? (
-          <>
-            <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
-            <Script id="ga4-init" strategy="afterInteractive">
-              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`}
-            </Script>
-          </>
-        ) : null}
+        <GoogleTag gaId={gaId} />
         <Providers>
           {children}
         </Providers>

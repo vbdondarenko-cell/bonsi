@@ -332,3 +332,70 @@ html[data-cursors="on"] [data-cb]:not([data-built]) {
 @media (prefers-reduced-motion: reduce) {
   .page-enter { animation-name: hero-fade; }
 }
+
+/*
+ * Новорічна тема (html[data-season="winter"] ставить <WinterTheme/> у вікні 6 грудня – 2 січня).
+ * Лише перевизначає змінні й додає декор; поза вікном атрибута немає, і сайт виглядає як завжди.
+ */
+html[data-season="winter"] .theme-site,
+html[data-season="winter"] .theme-site .theme-void {
+  --color-bg: #050914;
+  --color-accent: #c0283b;
+  --color-accent-hover: #a31f31;
+  --color-accent-soft: #bfe3ff;
+  --color-line: rgb(190 225 255 / 0.14);
+  --color-surface: rgb(10 17 34 / 0.78);
+  --color-surface-2: rgb(18 30 56 / 0.86);
+}
+html[data-season="winter"] .theme-site .theme-void::before,
+html[data-season="winter"] .theme-site section[data-cb]:not(.hero-section)::before {
+  background: linear-gradient(90deg, transparent, rgb(190 225 255 / 0.42) 50%, transparent);
+}
+html[data-season="winter"] .theme-site .card-shadow {
+  box-shadow: inset 0 1px 0 rgb(220 240 255 / 0.16), 0 24px 60px -32px rgb(0 8 30 / 0.9), 0 0 40px -22px rgb(120 190 255 / 0.45);
+}
+html[data-season="winter"] .theme-site #order {
+  background: rgb(5 9 20 / 0.8);
+}
+
+.winter-aurora {
+  position: fixed;
+  inset: -5% 0 auto;
+  height: 70vh;
+  z-index: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  background:
+    radial-gradient(60% 55% at 18% 0%, rgb(70 160 255 / 0.38), transparent 70%),
+    radial-gradient(50% 50% at 82% 8%, rgb(192 40 59 / 0.3), transparent 70%),
+    radial-gradient(45% 45% at 50% 0%, rgb(255 210 122 / 0.2), transparent 70%);
+  animation: winter-aurora 18s ease-in-out infinite alternate;
+}
+@keyframes winter-aurora {
+  from { transform: translate3d(-3%, 0, 0) scale(1); opacity: 0.45; }
+  to { transform: translate3d(3%, 2%, 0) scale(1.1); opacity: 0.7; }
+}
+
+.winter-wire {
+  position: absolute;
+  inset-inline: 0;
+  top: 1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(200 225 255 / 0.35) 10%, rgb(200 225 255 / 0.35) 90%, transparent);
+}
+.winter-bulb {
+  display: block;
+  width: 6px;
+  height: 9px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: 0 0 8px 2px currentColor;
+  animation: winter-twinkle 2s ease-in-out infinite;
+}
+@keyframes winter-twinkle {
+  0%, 100% { opacity: 1; filter: brightness(1.15); }
+  50% { opacity: 0.35; filter: brightness(0.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .winter-aurora, .winter-bulb { animation: none; }
+}

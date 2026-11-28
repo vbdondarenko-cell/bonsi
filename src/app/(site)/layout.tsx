@@ -2,6 +2,7 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { ScrollBuilder } from "@/components/intro/scroll-builder";
 import { Tracker } from "@/components/analytics/tracker";
+import { WinterTheme } from "@/components/seasonal/winter-theme";
 import { SiteScene } from "@/components/three/site-scene";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <ScrollBuilder />
       <Tracker />
       <SiteScene />
+      <WinterTheme />
       <div data-site-content className="relative z-10">
       <a
         href="#main"

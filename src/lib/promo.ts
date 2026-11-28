@@ -13,9 +13,7 @@ export type Promo = {
 };
 
 export const PROMOS: readonly Promo[] = [
-  { id: "nicholas", label: "День святого Миколая", discountPercent: 40, from: [12, 6], to: [12, 7] },
-  { id: "christmas", label: "Різдво", discountPercent: 40, from: [12, 24], to: [12, 26] },
-  { id: "new-year", label: "Новий рік", discountPercent: 40, from: [12, 30], to: [1, 2] },
+  { id: "new-year", label: "Новорічна знижка", discountPercent: 40, from: [12, 6], to: [1, 2] },
 ];
 
 const kyivParts = new Intl.DateTimeFormat("en-CA", {

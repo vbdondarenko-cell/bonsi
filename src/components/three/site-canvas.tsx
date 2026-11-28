@@ -20,6 +20,10 @@ export type SceneInput = {
 const PATH = 30;
 const BG = "#07080c";
 
+type Palette = { field: string; gateA: string; gateB: string; core: string; wire: string; ring: string; floater: string; keyLight: string; fillLight: string; bg: string };
+const NORMAL: Palette = { field: "#b3a3ff", gateA: "#c9bdff", gateB: "#7b5cff", core: "#6c4cf5", wire: "#a591ff", ring: "#d7cfff", floater: "#8a6bff", keyLight: "#b7a6ff", fillLight: "#ffffff", bg: BG };
+const WINTER: Palette = { field: "#cfe8ff", gateA: "#e8f4ff", gateB: "#d4344f", core: "#c0283b", wire: "#ffd9a0", ring: "#ffd27a", floater: "#c8374b", keyLight: "#9fd0ff", fillLight: "#ffd9a0", bg: "#050914" };
+
 function mulberry32(seed: number) {
   let a = seed;
   return () => {
@@ -45,7 +49,7 @@ function sample(keys: number[], t: number) {
 const CORE_X = [0.27, 0.31, 0.27, 0.31, 0.27, 0.31, 0.2];
 const CORE_Y = [0, 0.12, -0.08, 0.14, -0.04, 0.1, -0.14];
 
-function Field({ count, animate }: { count: number; animate: boolean }) {
+function Field({ count, animate, color }: { count: number; animate: boolean; color: string }) {
   const ref = useRef<THREE.Points>(null);
   const positions = useMemo(() => {
     const rand = mulberry32(11);
@@ -68,7 +72,7 @@ function Field({ count, animate }: { count: number; animate: boolean }) {
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        color="#b3a3ff"
+        color={color}
         size={0.03}
         sizeAttenuation
         transparent
@@ -81,7 +85,7 @@ function Field({ count, animate }: { count: number; animate: boolean }) {
 }
 
 /** Кільця-«ворота» вздовж шляху: камера пролітає крізь них під час скролу. */
-function Gates({ animate }: { animate: boolean }) {
+function Gates({ animate, p }: { animate: boolean; p: Palette }) {
   const refs = useRef<(THREE.Mesh | null)[]>([]);
   const gates = useMemo(
     () => Array.from({ length: 7 }, (_, i) => ({ z: -1 - i * 4.4, radius: 3.4 + (i % 3) * 0.7, tilt: i * 0.5 })),
@@ -107,7 +111,7 @@ function Gates({ animate }: { animate: boolean }) {
           rotation={[0, 0, gate.tilt]}
         >
           <torusGeometry args={[gate.radius, 0.014, 8, 140]} />
-          <meshBasicMaterial color={index % 2 ? "#c9bdff" : "#7b5cff"} transparent opacity={0.34} />
+          <meshBasicMaterial color={index % 2 ? p.gateA : p.gateB} transparent opacity={0.34} />
         </mesh>
       ))}
     </>
@@ -115,7 +119,7 @@ function Gates({ animate }: { animate: boolean }) {
 }
 
 /** Головний кристал: летить попереду камери й переходить між боками за секціями. */
-function Core({ input, animate }: { input: SceneInput; animate: boolean }) {
+function Core({ input, animate, p }: { input: SceneInput; animate: boolean; p: Palette }) {
   const group = useRef<THREE.Group>(null);
 
   useFrame((state, delta) => {
@@ -155,22 +159,22 @@ function Core({ input, animate }: { input: SceneInput; animate: boolean }) {
     <group ref={group}>
       <mesh>
         <icosahedronGeometry args={[1.2, 1]} />
-        <meshStandardMaterial color="#6c4cf5" metalness={0.6} roughness={0.25} flatShading />
+        <meshStandardMaterial color={p.core} metalness={0.6} roughness={0.25} flatShading />
       </mesh>
       <mesh scale={1.4}>
         <icosahedronGeometry args={[1.2, 1]} />
-        <meshBasicMaterial color="#a591ff" wireframe transparent opacity={0.28} />
+        <meshBasicMaterial color={p.wire} wireframe transparent opacity={0.28} />
       </mesh>
       <mesh rotation={[Math.PI / 2.3, 0, 0]}>
         <torusGeometry args={[2.1, 0.012, 8, 160]} />
-        <meshBasicMaterial color="#d7cfff" transparent opacity={0.6} />
+        <meshBasicMaterial color={p.ring} transparent opacity={0.6} />
       </mesh>
     </group>
   );
 }
 
 /** Дрібні фігури, розкидані вздовж усього шляху: дають відчуття швидкості й глибини. */
-function Floaters({ count, animate }: { count: number; animate: boolean }) {
+function Floaters({ count, animate, color }: { count: number; animate: boolean; color: string }) {
   const refs = useRef<(THREE.Mesh | null)[]>([]);
   const items = useMemo(() => {
     const rand = mulberry32(5);
@@ -213,15 +217,55 @@ function Floaters({ count, animate }: { count: number; animate: boolean }) {
           {item.kind === 0 ? <octahedronGeometry args={[1, 0]} /> : null}
           {item.kind === 1 ? <torusGeometry args={[0.8, 0.22, 12, 36]} /> : null}
           {item.kind === 2 ? <icosahedronGeometry args={[0.9, 0]} /> : null}
-          <meshStandardMaterial color="#8a6bff" metalness={0.7} roughness={0.22} />
+          <meshStandardMaterial color={color} metalness={0.7} roughness={0.22} />
         </mesh>
       ))}
     </>
   );
 }
 
+/** Новорічний сніг: тисячі пластівців уздовж усього шляху камери, що падають і дрейфують. */
+function Snow({ count, animate }: { count: number; animate: boolean }) {
+  const ref = useRef<THREE.Points>(null);
+  const data = useMemo(() => {
+    const rand = mulberry32(77);
+    const positions = new Float32Array(count * 3);
+    const speeds = new Float32Array(count);
+    for (let i = 0; i < count; i += 1) {
+      positions[i * 3] = (rand() - 0.5) * 22;
+      positions[i * 3 + 1] = (rand() - 0.5) * 14;
+      positions[i * 3 + 2] = 12 - rand() * (PATH + 26);
+      speeds[i] = 0.25 + rand() * 0.7;
+    }
+    return { positions, speeds };
+  }, [count]);
+
+  useFrame((state, delta) => {
+    const points = ref.current;
+    if (!animate || !points) return;
+    const attr = points.geometry.attributes.position as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    const t = state.clock.elapsedTime;
+    for (let i = 0; i < count; i += 1) {
+      arr[i * 3 + 1] -= data.speeds[i]! * delta;
+      arr[i * 3] += Math.sin(t * 0.6 + i) * 0.0025;
+      if (arr[i * 3 + 1] < -7) arr[i * 3 + 1] = 7;
+    }
+    attr.needsUpdate = true;
+  });
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[data.positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color="#eaf6ff" size={0.075} sizeAttenuation transparent opacity={0.9} depthWrite={false} />
+    </points>
+  );
+}
+
 /** Камера летить уперед за скролом і трохи гойдається за курсором; світло їде разом із нею. */
-function Rig({ input, animate }: { input: SceneInput; animate: boolean }) {
+function Rig({ input, animate, p }: { input: SceneInput; animate: boolean; p: Palette }) {
   const lights = useRef<THREE.Group>(null);
 
   useFrame(({ camera }) => {
@@ -236,8 +280,8 @@ function Rig({ input, animate }: { input: SceneInput; animate: boolean }) {
   return (
     <group ref={lights}>
       <ambientLight intensity={0.6} />
-      <pointLight position={[4, 3, -2]} intensity={70} color="#b7a6ff" />
-      <pointLight position={[-4, -2, -4]} intensity={40} color="#ffffff" />
+      <pointLight position={[4, 3, -2]} intensity={70} color={p.keyLight} />
+      <pointLight position={[-4, -2, -4]} intensity={40} color={p.fillLight} />
     </group>
   );
 }
@@ -246,11 +290,14 @@ export function SiteCanvas({
   input,
   animate,
   compact,
+  winter = false,
 }: {
   input: SceneInput;
   animate: boolean;
   compact: boolean;
+  winter?: boolean;
 }) {
+  const p = winter ? WINTER : NORMAL;
   return (
     <Canvas
       dpr={[1, compact ? 1.5 : 1.75]}
@@ -259,12 +306,13 @@ export function SiteCanvas({
       frameloop={animate ? "always" : "demand"}
       style={{ pointerEvents: "none" }}
     >
-      <fog attach="fog" args={[BG, 9, 42]} />
-      <Field count={compact ? 700 : 2200} animate={animate} />
-      <Gates animate={animate} />
-      <Core input={input} animate={animate} />
-      <Floaters count={compact ? 7 : 12} animate={animate} />
-      <Rig input={input} animate={animate} />
+      <fog attach="fog" args={[p.bg, 9, 42]} />
+      <Field count={compact ? 700 : 2200} animate={animate} color={p.field} />
+      {winter ? <Snow count={compact ? 500 : 1400} animate={animate} /> : null}
+      <Gates animate={animate} p={p} />
+      <Core input={input} animate={animate} p={p} />
+      <Floaters count={compact ? 7 : 12} animate={animate} color={p.floater} />
+      <Rig input={input} animate={animate} p={p} />
     </Canvas>
   );
 }

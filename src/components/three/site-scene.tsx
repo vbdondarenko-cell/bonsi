@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useWinter } from "@/components/seasonal/use-winter";
 import { createCoreState, prepareCrystalBlast, runCrystalBlast } from "./crystal-blast";
 
 // three.js вантажиться окремим чанком лише в браузері: головний JS і LCP не страждають.
@@ -27,6 +28,7 @@ function hasWebGl() {
  */
 export function SiteScene() {
   const pathname = usePathname();
+  const winter = useWinter();
   const reduce = useReducedMotion() ?? false;
   const pointer = useRef({ x: 0, y: 0 });
   const progress = useRef(0);
@@ -143,8 +145,14 @@ export function SiteScene() {
       className={`pointer-events-none fixed inset-0 z-0 transition-opacity duration-700 ${pathname === "/" ? "opacity-100" : "opacity-45"}`}
     >
       {/* Резервний фон без WebGL і до завантаження сцени. */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_70%_20%,rgb(108_76_245/0.22),transparent_70%),radial-gradient(ellipse_60%_50%_at_10%_90%,rgb(108_76_245/0.12),transparent_70%)]" />
-      {ready ? <SiteCanvas input={{ pointer, progress, core }} animate={!reduce && visible} compact={compact} /> : null}
+      <div
+        className={`absolute inset-0 ${
+          winter
+            ? "bg-[radial-gradient(ellipse_70%_55%_at_70%_20%,rgb(70_150_255/0.24),transparent_70%),radial-gradient(ellipse_60%_50%_at_10%_90%,rgb(192_40_59/0.16),transparent_70%)]"
+            : "bg-[radial-gradient(ellipse_70%_55%_at_70%_20%,rgb(108_76_245/0.22),transparent_70%),radial-gradient(ellipse_60%_50%_at_10%_90%,rgb(108_76_245/0.12),transparent_70%)]"
+        }`}
+      />
+      {ready ? <SiteCanvas input={{ pointer, progress, core }} animate={!reduce && visible} compact={compact} winter={winter} /> : null}
       {/* Віньєтка для читабельності тексту поверх сцени. */}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgb(7_8_12/0.62)_0%,rgb(7_8_12/0.28)_45%,transparent_75%),radial-gradient(ellipse_at_center,transparent_35%,rgb(7_8_12/0.5)_100%)]" />
     </div>

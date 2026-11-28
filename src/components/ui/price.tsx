@@ -18,10 +18,10 @@ export function Price({ label, amount }: { label: string; amount: number | null 
 
   const sale = replaceAmountInLabel(label, discountedAmount(amount, promo.discountPercent));
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-x-2">
+    <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1 leading-tight">
       <span>{sale}</span>
-      <s className="text-[0.6em] font-normal text-muted">{label}</s>
-      <span className="rounded-full bg-accent px-2 py-0.5 text-[0.55em] font-medium text-white no-underline">
+      <s className="text-sm font-normal text-muted sm:text-base">{label}</s>
+      <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium tracking-normal text-white">
         −{promo.discountPercent}% · {promo.label}
       </span>
     </span>
